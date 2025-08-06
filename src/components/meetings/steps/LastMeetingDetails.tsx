@@ -24,7 +24,7 @@ const LastMeetingDetails = ({ formData, setFormData, prevStep, nextStep, saveAsD
       <div className="flex justify-end space-x-4 pt-4">
         <Button variant="outline" onClick={prevStep}>← Back</Button>
         <Button variant="outline" onClick={saveAsDraft}>Save as Draft</Button>
-        <Button onClick={nextStep}>Next: Agenda →</Button>
+        <Button onClick={nextStep}>Next: Agenda/Explanatory Statement →</Button>
       </div>
     </div>
   );

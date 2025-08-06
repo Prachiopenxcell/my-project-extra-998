@@ -214,7 +214,7 @@ const ParticipantsManagement = ({ formData, setFormData, prevStep, nextStep, sav
       <div className="flex justify-end space-x-4 pt-4">
         <Button variant="outline" onClick={prevStep}>← Back</Button>
         <Button variant="outline" onClick={saveAsDraft}>Save as Draft</Button>
-        <Button onClick={nextStep}>Next: Documents →</Button>
+        <Button onClick={nextStep}>Next: Last Meeting Details →</Button>
       </div>
     </div>
   );

@@ -43,7 +43,7 @@ import {
   Briefcase,
   Landmark,
 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -106,7 +106,6 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
 
   const currentNavItems =
     navigationItems[userType] || navigationItems.service_seeker;
@@ -115,14 +114,6 @@ export function DashboardLayout({
     return (
       location.pathname === href || location.pathname.startsWith(href + "/")
     );
-  };
-
-  const handleLogout = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Logout clicked - redirecting to home');
-    // Force redirect to home page (which should redirect to login)
-    window.location.replace('/');
   };
 
   const SidebarContent = () => (
@@ -332,11 +323,9 @@ export function DashboardLayout({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" asChild>
-                  <button onClick={handleLogout} className="w-full flex items-center">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
-                  </button>
+                <DropdownMenuItem className="text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

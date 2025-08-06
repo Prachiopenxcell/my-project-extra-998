@@ -260,9 +260,10 @@ const CreateVotingRequestForm = () => {
               <Label htmlFor="meetingNumber">Meeting Number</Label>
               <Input
                 id="meetingNumber"
+                type="number"
                 value={formData.meetingNumber}
                 onChange={(e) => handleInputChange("meetingNumber", e.target.value)}
-                placeholder="2023-Q3-001"
+                placeholder="1"
               />
             </div>
           </div>

@@ -24,7 +24,7 @@ const ChairpersonSelection = ({ formData, setFormData, prevStep, nextStep, saveA
       <div className="flex justify-end space-x-4 pt-4">
         <Button variant="outline" onClick={prevStep}>← Back</Button>
         <Button variant="outline" onClick={saveAsDraft}>Save as Draft</Button>
-        <Button onClick={nextStep}>Next: Review →</Button>
+        <Button onClick={nextStep}>Next: Secretary of Meeting →</Button>
       </div>
     </div>
   );

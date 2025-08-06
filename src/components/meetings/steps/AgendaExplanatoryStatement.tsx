@@ -193,7 +193,7 @@ const AgendaExplanatoryStatement = ({ formData, setFormData, prevStep, nextStep,
           <Save className="w-4 h-4 mr-2" />
           Save as Draft
         </Button>
-        <Button onClick={nextStep}>Next: Office Bearers →</Button>
+        <Button onClick={nextStep}>Next: Reminder Settings →</Button>
       </div>
     </div>
   );

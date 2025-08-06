@@ -20,6 +20,15 @@ import MeetingDetails from "./pages/MeetingDetails";
 import EVoting from "./pages/EVoting";
 import CreateVotingRequest from "./pages/CreateVotingRequest";
 import VotingParticipant from "./pages/VotingParticipant";
+import VirtualDataRoom from "./pages/VirtualDataRoom";
+import DocumentStorage from "./pages/DocumentStorage";
+import CreateDocumentRoom from "./pages/CreateDocumentRoom";
+import DocumentRoomView from "./pages/DocumentRoomView";
+import DataRecordsRoom from "./pages/DataRecordsRoom";
+import AccessManagement from "./pages/AccessManagement";
+import AuditTrail from "./pages/AuditTrail";
+import ExternalAccess from "./pages/ExternalAccess";
+import CreateDataRecord from "./pages/CreateDataRecord";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +64,17 @@ const App = () => (
           <Route path="/voting/create" element={<CreateVotingRequest />} />
           <Route path="/voting/edit/:id" element={<CreateVotingRequest />} />
           <Route path="/voting/:id" element={<VotingParticipant />} />
+          
+          {/* Virtual Data Room Module Routes */}
+          <Route path="/data-room" element={<VirtualDataRoom />} />
+          <Route path="/data-room/document-storage" element={<DocumentStorage />} />
+          <Route path="/data-room/document-storage/create-room" element={<CreateDocumentRoom />} />
+          <Route path="/data-room/document-storage/room/:roomId" element={<DocumentRoomView />} />
+          <Route path="/data-room/document-storage/room/:roomId/manage" element={<AccessManagement />} />
+          <Route path="/data-room/document-storage/room/:roomId/activity" element={<AuditTrail />} />
+          <Route path="/data-room/data-records" element={<DataRecordsRoom />} />
+          <Route path="/data-room/data-records/create" element={<CreateDataRecord />} />
+          <Route path="/data-room/external-access" element={<ExternalAccess />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
