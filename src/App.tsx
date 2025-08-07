@@ -40,6 +40,15 @@ import ComplianceChecklistGeneration from "./pages/ComplianceChecklistGeneration
 import ComplianceAssignmentManagement from "./pages/ComplianceAssignmentManagement";
 import ComplianceTrackingMonitoring from "./pages/ComplianceTrackingMonitoring";
 import ComplianceReportsAnalytics from "./pages/ComplianceReportsAnalytics";
+import ClaimsManagement from "./pages/ClaimsManagement";
+import ClaimInvitations from "./pages/ClaimInvitations";
+import CreateClaimInvitation from "./pages/CreateClaimInvitation";
+import AllClaimsList from "./pages/AllClaimsList";
+import ClaimDetails from "./pages/ClaimDetails";
+import ClaimVerification from "./pages/ClaimVerification";
+import ClaimsReports from "./pages/ClaimsReports";
+import ClaimSubmission from "./pages/ClaimSubmission";
+import ClaimsAuditLog from "./pages/ClaimsAuditLog";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +121,18 @@ const App = () => (
           <Route path="/compliance/assignment" element={<ComplianceAssignmentManagement />} />
           <Route path="/compliance/tracking" element={<ComplianceTrackingMonitoring />} />
           <Route path="/compliance/reports" element={<ComplianceReportsAnalytics />} />
+          
+          {/* Claims Management Module Routes */}
+          <Route path="/claims" element={<ClaimsManagement />} />
+          <Route path="/claims/invitations" element={<ClaimInvitations />} />
+          <Route path="/claims/create-invitation" element={<CreateClaimInvitation />} />
+          <Route path="/claims/edit-invitation/:id" element={<CreateClaimInvitation />} />
+          <Route path="/claims/all-claims" element={<AllClaimsList />} />
+          <Route path="/claims/claim/:id" element={<ClaimDetails />} />
+          <Route path="/claims/verify/:id" element={<ClaimVerification />} />
+          <Route path="/claims/reports" element={<ClaimsReports />} />
+          <Route path="/claims/submit/:invitationId" element={<ClaimSubmission />} />
+          <Route path="/claims/audit-log" element={<ClaimsAuditLog />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
