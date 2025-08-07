@@ -29,6 +29,10 @@ import AccessManagement from "./pages/AccessManagement";
 import AuditTrail from "./pages/AuditTrail";
 import ExternalAccess from "./pages/ExternalAccess";
 import CreateDataRecord from "./pages/CreateDataRecord";
+import LitigationManagement from "./pages/LitigationManagement";
+import CreatePreFiling from "./pages/CreatePreFiling";
+import LitigationDocuments from "./pages/LitigationDocuments";
+import LitigationCaseDetails from "./pages/LitigationCaseDetails";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +79,12 @@ const App = () => (
           <Route path="/data-room/data-records" element={<DataRecordsRoom />} />
           <Route path="/data-room/data-records/create" element={<CreateDataRecord />} />
           <Route path="/data-room/external-access" element={<ExternalAccess />} />
+          
+          {/* Litigation Management Module Routes */}
+          <Route path="/litigation" element={<LitigationManagement />} />
+          <Route path="/litigation/create" element={<CreatePreFiling />} />
+          <Route path="/litigation/create/documents" element={<LitigationDocuments />} />
+          <Route path="/litigation/case/:caseId" element={<LitigationCaseDetails />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
