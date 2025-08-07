@@ -3,433 +3,324 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  Building, 
-  Plus, 
-  Download, 
-  RefreshCw, 
   Database, 
-  Users, 
-  DollarSign, 
-  Scale, 
-  CheckCircle, 
+  FileText, 
+  Plus, 
+  Eye, 
+  Settings, 
   AlertTriangle,
-  Bot,
-  Eye,
-  Edit,
-  FileSpreadsheet,
-  CalendarDays,
-  Activity
+  CheckCircle,
+  RefreshCw,
+  Download,
+  BarChart3,
+  Phone
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const DataRecordsRoom = () => {
-  const [activeTab, setActiveTab] = useState("recent");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("latest");
-
-  const entityInfo = {
-    name: "ABC Corp Ltd",
-    type: "Private Limited Company",
-    cin: "U12345AB2020PTC123456"
+  const navigate = useNavigate();
+  const [selectedModule, setSelectedModule] = useState("entity");
+  const [selectedSection, setSelectedSection] = useState("basic-info");
+  
+  const syncSettings = {
+    autoSync: true,
+    realTimeUpdates: true,
+    syncFrequency: "2-hours",
+    conflictResolution: "manual"
   };
 
-  const recordCategories = [
+  const mappedFields = [
+    { source: "Company Name", target: "Entity.company_name" },
+    { source: "CIN Number", target: "Entity.cin" },
+    { source: "Registered Address", target: "Entity.registered_address" },
+    { source: "ROC Registration", target: "Entity.roc_details" }
+  ];
+
+  const syncHistory = [
+    { time: "Today 2:15 PM", action: "4 records updated" },
+    { time: "Today 12:30 PM", action: "1 record added" },
+    { time: "Yesterday 6:45 PM", action: "2 records modified" }
+  ];
+
+  const conflicts = [
     {
       id: 1,
-      title: "Basic Information",
-      description: "Company details, registration info",
-      recordCount: 12,
-      status: "updated",
-      lastUpdate: "Updated Today",
-      icon: Building,
-      statusColor: "text-green-600"
+      title: "Board Member Data Mismatch",
+      source1: "Meetings Module: John Doe - Executive Director",
+      source2: "Data Records: John Doe - Managing Director",
+      type: "role_mismatch"
     },
     {
       id: 2,
-      title: "Board of Directors",
-      description: "Directors, KMPs, committee members",
-      recordCount: 8,
-      status: "pending",
-      lastUpdate: "2 days ago",
-      icon: Users,
-      statusColor: "text-yellow-600"
-    },
-    {
-      id: 3,
-      title: "Shareholding Patterns",
-      description: "Equity structure, shareholding details",
-      recordCount: 15,
-      status: "warning",
-      lastUpdate: "1 week ago",
-      icon: Database,
-      statusColor: "text-orange-600"
-    },
-    {
-      id: 4,
-      title: "Creditors and Claims",
-      description: "Financial creditors, operational creditors",
-      recordCount: 24,
-      status: "pending",
-      lastUpdate: "3 days ago",
-      icon: DollarSign,
-      statusColor: "text-blue-600"
-    },
-    {
-      id: 5,
-      title: "Legal Representatives",
-      description: "Advocates, legal advisors, consultants",
-      recordCount: 5,
-      status: "updated",
-      lastUpdate: "1 week ago",
-      icon: Scale,
-      statusColor: "text-green-600"
-    },
-    {
-      id: 6,
-      title: "CIRP/Liquidation Status",
-      description: "Process status, timelines, committees",
-      recordCount: 18,
-      status: "updated",
-      lastUpdate: "5 days ago",
-      icon: CheckCircle,
-      statusColor: "text-green-600"
+      title: "Creditor Amount Discrepancy",
+      source1: "Claims Module: SBI - ₹25,50,00,000",
+      source2: "Data Records: SBI - ₹25,00,00,000",
+      type: "amount_mismatch"
     }
   ];
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "updated":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "pending":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      default:
-        return <CheckCircle className="h-4 w-4 text-gray-400" />;
+  const errorLogs = [
+    {
+      id: 1,
+      module: "Litigation Module",
+      error: "API endpoint not responding - Connection timeout",
+      time: "3 days ago",
+      severity: "error"
+    },
+    {
+      id: 2,
+      module: "E-Voting Module",
+      error: "5 member records could not be matched",
+      time: "3 days ago",
+      severity: "warning"
     }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "updated":
-        return "Updated";
-      case "pending":
-        return "Pending";
-      case "warning":
-        return "Warning";
-      default:
-        return "Unknown";
-    }
-  };
+  ];
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto p-4">
+    <DashboardLayout userType="service_provider">
+      <div className="container mx-auto p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold">Data Records Room & Management</h1>
-            <p className="text-muted-foreground">Centralized entity data & cross-module syncing</p>
+            <p className="text-muted-foreground">
+              Central repository for cross-module data synchronization and AI-powered data mapping
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" className="h-9">
-              <CalendarDays className="mr-2 h-4 w-4" />
-              This Month
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Analytics
             </Button>
-            <Link to="/data-room/data-records/create">
-              <Button size="sm" className="h-9">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Record
-              </Button>
-            </Link>
+            <Button size="sm" className="h-9" onClick={() => navigate('/data-room/create-data-record')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Record
+            </Button>
           </div>
         </div>
 
-        {/* Data Records Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Database className="mr-2 h-4 w-4 text-primary" />
-                Record Categories
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{recordCategories.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Data categories
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <CheckCircle className="mr-2 h-4 w-4 text-primary" />
-                Total Records
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{recordCategories.reduce((sum, cat) => sum + cat.recordCount, 0)}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all categories
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Bot className="mr-2 h-4 w-4 text-primary" />
-                Auto-Sync Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">47</div>
-              <p className="text-xs text-muted-foreground">
-                Records synced
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <AlertTriangle className="mr-2 h-4 w-4 text-primary" />
-                Conflicts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">
-                Require review
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Entity Selector */}
+        {/* Module Selection */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Entity Context</CardTitle>
+            <CardTitle>Module & Section Selection</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2">
-                <Building className="h-5 w-5 text-muted-foreground" />
-                <span className="font-medium">Current Entity: {entityInfo.name}</span>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium">Selected:</span>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                🟢 Entity Module → Basic Information
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Module:</label>
+                <Select value={selectedModule} onValueChange={setSelectedModule}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entity">Entity Module</SelectItem>
+                    <SelectItem value="meetings">Meetings Module</SelectItem>
+                    <SelectItem value="claims">Claims Module</SelectItem>
+                    <SelectItem value="litigation">Litigation Module</SelectItem>
+                    <SelectItem value="evoting">E-Voting Module</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Entity Type: {entityInfo.type}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">CIN: {entityInfo.cin}</span>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Section:</label>
+                <Select value={selectedSection} onValueChange={setSelectedSection}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic-info">Basic Information</SelectItem>
+                    <SelectItem value="financial">Financial Data</SelectItem>
+                    <SelectItem value="legal">Legal Information</SelectItem>
+                    <SelectItem value="operational">Operational Data</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" size="sm">
-                Change Entity ▼
+          </CardContent>
+        </Card>
+
+        {/* Sync Settings */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>SYNC SETTINGS:</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm">Auto-sync enabled</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm">Real-time updates</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">Sync Frequency:</span>
+                  <Select value={syncSettings.syncFrequency}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2-hours">Every 2 hours</SelectItem>
+                      <SelectItem value="4-hours">Every 4 hours</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">Conflict Resolution:</span>
+                  <Select value={syncSettings.conflictResolution}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual Review</SelectItem>
+                      <SelectItem value="auto">Auto Resolve</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-medium mb-3">MAPPED FIELDS:</h4>
+                <div className="space-y-2 text-sm">
+                  {mappedFields.map((field, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span>• {field.source}</span>
+                      <span className="text-muted-foreground">↔</span>
+                      <span className="font-mono text-xs bg-muted px-1 rounded">{field.target}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-3">SYNC HISTORY:</h4>
+              <div className="space-y-1 text-sm">
+                {syncHistory.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span>• {entry.time} - {entry.action}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button size="sm">
+                <Download className="h-3 w-3 mr-1" />
+                Save Settings
+              </Button>
+              <Button size="sm" variant="outline">
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Force Sync Now
+              </Button>
+              <Button size="sm" variant="outline">
+                <BarChart3 className="h-3 w-3 mr-1" />
+                View Sync Log
               </Button>
             </div>
           </CardContent>
         </Card>
 
-
-
-        {/* View Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex justify-between items-center mb-4">
-            <TabsList>
-              <TabsTrigger value="recent">Recent</TabsTrigger>
-              <TabsTrigger value="all">All Records</TabsTrigger>
-              <TabsTrigger value="synced">Auto-Synced Data</TabsTrigger>
-            </TabsList>
-            
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">Filter:</span>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="basic">Basic Info</SelectItem>
-                    <SelectItem value="directors">Directors</SelectItem>
-                    <SelectItem value="shareholding">Shareholding</SelectItem>
-                    <SelectItem value="creditors">Creditors</SelectItem>
-                    <SelectItem value="legal">Legal</SelectItem>
-                    <SelectItem value="cirp">CIRP</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="updated">Updated</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="warning">Warning</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-sm">Sort:</span>
-                <Select value={sortOrder} onValueChange={setSortOrder}>
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue placeholder="Latest" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="latest">Latest</SelectItem>
-                    <SelectItem value="oldest">Oldest</SelectItem>
-                    <SelectItem value="alphabetical">A-Z</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                  Import Data
-                </Button>
-                <Button variant="outline">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Auto-Sync
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <TabsContent value="recent" className="mt-0">
-            <div className="border rounded-md">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 pl-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Category</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Records</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Update</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recordCategories.map((category) => {
-                    const Icon = category.icon;
-                    return (
-                      <tr key={category.id} className="border-b hover:bg-muted/50 transition-colors duration-200">
-                        <td className="p-3 pl-4">
-                          <div className="flex items-center gap-3">
-                            <Icon className="h-4 w-4 text-primary" />
-                            <div>
-                              <div className="font-medium">{category.title}</div>
-                              <div className="text-xs text-muted-foreground">{category.description}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-medium py-1">
-                            {category.recordCount} records
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(category.status)}
-                            <span className="text-sm">{getStatusText(category.status)}</span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground">{category.lastUpdate}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <FileSpreadsheet className="h-4 w-4 mr-1" />
-                              Export
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="all" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Records</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">All records view - comprehensive list of all data records</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="synced" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Auto-Synced Data</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Data automatically synchronized from other modules</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* AI Sync Status */}
+        {/* Conflict Resolution Queue */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              AI Sync Status
+              <AlertTriangle className="h-5 w-5 text-orange-600" />
+              CONFLICT RESOLUTION QUEUE
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="font-medium">🤖 Auto-Sync: ✅ Enabled</span>
+            <Alert className="border-orange-200 bg-orange-50 mb-4">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                <span className="font-semibold">⚠️ 2 CONFLICTS REQUIRE ATTENTION</span>
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-4">
+              {conflicts.map((conflict, index) => (
+                <div key={conflict.id} className="border rounded-lg p-4">
+                  <div className="space-y-3">
+                    <h4 className="font-medium">{index + 1}. {conflict.title}</h4>
+                    <div className="space-y-2 text-sm pl-4">
+                      <div>Meetings Module: "{conflict.source1.split(': ')[1]}"</div>
+                      <div>Data Records: "{conflict.source2.split(': ')[1]}"</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline">
+                        <Eye className="h-3 w-3 mr-1" />
+                        Review
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <FileText className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Accept Source
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Keep Current
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-sm text-muted-foreground">Last Sync: 15 mins ago</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <Database className="h-4 w-4 text-blue-600" />
-                  <span>📊 Synced 47 records from 5 modules</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                  <span>⚠️ 3 conflicts require manual review</span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Sync Now
-                </Button>
-                <Button variant="outline" size="sm">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Review Conflicts
-                </Button>
-              </div>
+              ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Error Logs & Troubleshooting */}
+        <Card>
+          <CardHeader>
+            <CardTitle>ERROR LOGS & TROUBLESHOOTING</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {errorLogs.map((log) => (
+              <div key={log.id} className={`border rounded-lg p-4 ${
+                log.severity === 'error' ? 'border-red-200 bg-red-50' : 'border-yellow-200 bg-yellow-50'
+              }`}>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {log.severity === 'error' ? (
+                      <div className="w-2 h-2 bg-red-500 rounded-full" />
+                    ) : (
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full" />
+                    )}
+                    <span className="font-medium">{log.module} Sync {log.severity === 'error' ? 'Error' : 'Partial Sync'}</span>
+                    <span className="text-sm text-muted-foreground">({log.time})</span>
+                  </div>
+                  <p className="text-sm">{log.severity === 'error' ? 'Error:' : 'Warning:'} "{log.error}"</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline">
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Retry Sync
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Phone className="h-3 w-3 mr-1" />
+                      Contact Support
+                    </Button>
+                    <Button size="sm" variant="outline">
+                      <Settings className="h-3 w-3 mr-1" />
+                      {log.severity === 'error' ? 'Reconfigure' : 'Configure'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>

@@ -358,7 +358,10 @@ const AuditTrail = () => {
                   Export to PDF
                 </Button>
                 <Button variant="outline">
-                  📋 Export to CSV
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Export to CSV
+                  </div>
                 </Button>
                 <Button variant="outline">
                   <Mail className="h-4 w-4 mr-2" />

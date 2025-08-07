@@ -18,7 +18,12 @@ import {
   FileText, 
   Bot, 
   Upload,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  X,
+  BarChart3,
+  Target,
+  Download
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -92,13 +97,13 @@ const CreateDataRecord = () => {
   const getStatusText = (status: string) => {
     switch (status) {
       case "completed":
-        return "✅";
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "in-progress":
-        return "🔄";
+        return <RefreshCw className="h-4 w-4 text-blue-500" />;
       case "warning":
         return "⚠️";
       case "not-set":
-        return "❌";
+        return <X className="h-4 w-4 text-red-500" />;
       default:
         return "⚪";
     }
@@ -112,7 +117,10 @@ const CreateDataRecord = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Create Data Records</h1>
             <p className="text-muted-foreground">
-              📊 Create Data Records &gt; {entityContext.name}
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Create Data Records {'>'}  {entityContext.name}
+              </div>
             </p>
           </div>
         </div>
@@ -126,15 +134,24 @@ const CreateDataRecord = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center gap-2">
                 <Building className="h-5 w-5 text-muted-foreground" />
-                <span>🏢 Entity: {entityContext.name}</span>
+                <span className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  Entity: {entityContext.name}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-muted-foreground" />
-                <span>📋 Type: {entityContext.type}</span>
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Type: {entityContext.type}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-muted-foreground" />
-                <span>🎯 Process: {entityContext.process}</span>
+                <span className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Process: {entityContext.process}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -187,7 +204,10 @@ const CreateDataRecord = () => {
               </Button>
               <Button variant="outline">
                 <Upload className="h-4 w-4 mr-2" />
-                📥 Import CSV
+                <div className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Import CSV
+                </div>
               </Button>
               <Button variant="outline">
                 <Bot className="h-4 w-4 mr-2" />

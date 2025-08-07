@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FolderOpen, 
   Database, 
@@ -12,271 +15,333 @@ import {
   Plus,
   ChevronRight,
   Building,
-  CalendarDays
+  CalendarDays,
+  AlertTriangle,
+  Settings,
+  BarChart3,
+  Link as LinkIcon,
+  CheckCircle,
+  Clock,
+  ArrowUpRight
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const VirtualDataRoom = () => {
-  const vdrStats = {
-    activeRooms: 3,
-    totalDocuments: 247,
-    sharedUsers: 12,
-    accessRequests: 2
-  };
+  const navigate = useNavigate();
+  const [selectedEntity, setSelectedEntity] = useState("abc-corp");
+  
+  // Mock data - replace with actual API calls
+  const entities = [
+    { id: "abc-corp", name: "ABC Corporation Ltd", type: "Corporate Debtor", status: "Active", cin: "L12345MH2020PLC" }
+  ];
+  
+  const currentEntity = entities.find(e => e.id === selectedEntity);
+  const hasMinimumEntities = entities.length >= 1; // Adjust based on requirements
 
   const recentActivity = [
     {
       id: 1,
-      action: "Financial_Report_Q3.pdf",
-      type: "Modified",
-      time: "2 hrs ago",
-      icon: FileText
+      action: "Q3 Audit Files - Document room created",
+      time: "2 hours ago",
+      icon: FolderOpen,
+      type: "created"
     },
     {
       id: 2,
-      action: "Due Diligence Room",
-      type: "Accessed",
-      time: "4 hrs ago",
-      icon: FolderOpen
+      action: "Board Resolution.pdf shared with audit@firm.com (Editor access)",
+      time: "4 hours ago",
+      icon: Users,
+      type: "shared"
     },
     {
       id: 3,
-      action: "Board_Resolution_Dec23.docx",
-      type: "Shared",
+      action: "CIRP Data Records synced from Claims Module",
       time: "1 day ago",
-      icon: Users
+      icon: Database,
+      type: "synced"
     },
     {
       id: 4,
-      action: "CIRP Documentation",
-      type: "Created",
+      action: "Financial Creditors data updated by Auto-Sync",
       time: "2 days ago",
-      icon: Plus
+      icon: CheckCircle,
+      type: "updated"
     }
   ];
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto p-6">
+    <DashboardLayout userType="service_provider">
+      <div className="container mx-auto p-4">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold">Virtual Data Room</h1>
-            <p className="text-muted-foreground">Secure document collaboration and entity data management</p>
+            <p className="text-muted-foreground">
+              Secure document sharing and collaboration platform
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" className="h-9">
               <CalendarDays className="mr-2 h-4 w-4" />
               This Month
             </Button>
+            <Button size="sm" className="h-9" onClick={() => navigate('/data-room/create-room')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Room
+            </Button>
           </div>
         </div>
 
-        {/* VDR Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <FolderOpen className="mr-2 h-4 w-4 text-primary" />
-                Active Rooms
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{vdrStats.activeRooms}</div>
-              <p className="text-xs text-muted-foreground">
-                Document storage rooms
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <FileText className="mr-2 h-4 w-4 text-primary" />
-                Total Documents
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{vdrStats.totalDocuments}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all rooms
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Users className="mr-2 h-4 w-4 text-primary" />
-                Shared Users
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{vdrStats.sharedUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                With access permissions
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Shield className="mr-2 h-4 w-4 text-primary" />
-                Access Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{vdrStats.accessRequests}</div>
-              <p className="text-xs text-muted-foreground">
-                Pending approvals
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Entity Validation Check */}
+        {!hasMinimumEntities && (
+          <Alert className="border-orange-200 bg-orange-50 mb-8">
+            <AlertTriangle className="h-4 w-4 text-orange-600" />
+            <AlertDescription className="text-orange-800">
+              <div className="space-y-2">
+                <p className="font-semibold">ENTITY VALIDATION CHECK</p>
+                <p>You need at least 1 entity to proceed with VDR module</p>
+                <p>Current Entities: {entities.length} | Required: 1</p>
+                <div className="flex gap-2 mt-3">
+                  <Button size="sm" variant="outline" onClick={() => navigate('/entity-management')}>
+                    <LinkIcon className="h-3 w-3 mr-1" />
+                    Subscribe to Entity Module
+                  </Button>
+                  <Button size="sm" onClick={() => navigate('/create-entity')}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Create New Entity
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
-        {/* Module Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <Link to="/data-room/document-storage">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardHeader className="pb-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-3 bg-primary/10 rounded-lg flex-shrink-0">
-                    <FolderOpen className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg mb-2">Document Storage & Management</CardTitle>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Secure document collaboration with granular access control and version management
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+        {/* Entity Selection */}
+        {hasMinimumEntities && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Entity Selection for VDR Access</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Select Entity:</label>
+                  <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an entity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {entities.map((entity) => (
+                        <SelectItem key={entity.id} value={entity.id}>
+                          {entity.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <FolderOpen className="h-4 w-4" />
-                    <span>3 Active Rooms</span>
+              </div>
+              
+              {currentEntity && (
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Building className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{currentEntity.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Entity Type: {currentEntity.type} • Status: 
+                        <Badge variant="secondary" className="ml-1">{currentEntity.status}</Badge>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        CIN: {currentEntity.cin}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <FileText className="h-4 w-4" />
-                    <span>247 Documents</span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => navigate('/entity-management')}>
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      View Entity Details
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Entity Settings
+                    </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </Link>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-          <Link to="/data-room/data-records">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
-              <CardHeader className="pb-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-3 bg-primary/10 rounded-lg flex-shrink-0">
-                    <Database className="h-6 w-6 text-primary" />
+        {/* VDR Modules */}
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          {/* Document Storage & Management */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <FolderOpen className="h-6 w-6 text-blue-600" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-lg mb-2">Data Records Room & Management</CardTitle>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Centralized entity data management with cross-module synchronization and AI-powered insights
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <Database className="h-4 w-4" />
-                    <span>6 Categories</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Activity className="h-4 w-4" />
-                    <span>Auto-Sync Active</span>
+                  <div>
+                    <CardTitle className="text-lg">Document Storage & Management</CardTitle>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </Link>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Granular Access</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Collaboration</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Version Control</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Audit Trail</span>
+                </div>
+              </div>
+              <div className="mt-6">
+                <Button 
+                  className="w-full" 
+                  onClick={() => navigate('/data-room/document-storage')}
+                >
+                  Enter Module
+                  <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data Records Room & Management */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Database className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Data Records Room & Management</CardTitle>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Central Repository</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Cross-Module Sync</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>AI Data Mapping</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Process-Based Org</span>
+                </div>
+              </div>
+              <div className="mt-6">
+                <Button 
+                  className="w-full" 
+                  onClick={() => navigate('/data-room/data-records')}
+                >
+                  Enter Module
+                  <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Recent Activity */}
-        <Card>
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Recent VDR Activity
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-md">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 pl-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
-                    <th className="text-left p-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentActivity.map((activity) => {
-                    const Icon = activity.icon;
-                    return (
-                      <tr key={activity.id} className="border-b hover:bg-muted/50 transition-colors duration-200">
-                        <td className="p-3 pl-4">
-                          <div className="flex items-center gap-3">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                            <div className="font-medium">{activity.action}</div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-medium py-1">
-                            {activity.type}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground">{activity.time}</td>
-                        <td className="p-3">
-                          <Button variant="ghost" size="sm">
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-4">
-              <Button variant="outline" className="w-full">
-                View All Recent Activity
-              </Button>
+            <div className="space-y-4">
+              {recentActivity.map((activity) => {
+                const Icon = activity.icon;
+                return (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className={`p-2 rounded-full ${
+                      activity.type === 'created' ? 'bg-blue-100' :
+                      activity.type === 'shared' ? 'bg-purple-100' :
+                      activity.type === 'synced' ? 'bg-green-100' :
+                      'bg-orange-100'
+                    }`}>
+                      <Icon className={`h-4 w-4 ${
+                        activity.type === 'created' ? 'text-blue-600' :
+                        activity.type === 'shared' ? 'text-purple-600' :
+                        activity.type === 'synced' ? 'text-green-600' :
+                        'text-orange-600'
+                      }`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{activity.action}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3" />
+                        {activity.time}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Entity Selection */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg">Entity Selection</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Building className="h-5 w-5 text-muted-foreground" />
-                <span className="font-medium">Current Entity: ABC Corp Ltd</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm">
-                  Change Entity ▼
-                </Button>
-                <Link to="/data-room/document-storage/create-room">
-                  <Button size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create New Room
-                  </Button>
-                </Link>
-              </div>
+        {/* Quick Actions */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/create-room')}>
+            <Plus className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-semibold">Create Room</div>
+              <div className="text-xs text-muted-foreground">New VDR workspace</div>
             </div>
-          </CardContent>
-        </Card>
+          </Button>
+          
+          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/manage-access')}>
+            <Users className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-semibold">Manage Access</div>
+              <div className="text-xs text-muted-foreground">User permissions</div>
+            </div>
+          </Button>
+          
+          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/analytics')}>
+            <BarChart3 className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-semibold">View Analytics</div>
+              <div className="text-xs text-muted-foreground">Usage reports</div>
+            </div>
+          </Button>
+          
+          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/settings')}>
+            <Settings className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-semibold">VDR Settings</div>
+              <div className="text-xs text-muted-foreground">Configure options</div>
+            </div>
+          </Button>
+        </div>
       </div>
     </DashboardLayout>
   );

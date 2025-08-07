@@ -21,8 +21,9 @@ import EVoting from "./pages/EVoting";
 import CreateVotingRequest from "./pages/CreateVotingRequest";
 import VotingParticipant from "./pages/VotingParticipant";
 import VirtualDataRoom from "./pages/VirtualDataRoom";
-import DocumentStorage from "./pages/DocumentStorage";
+import DocumentStorageEnhanced from "./pages/DocumentStorageEnhanced";
 import CreateDocumentRoom from "./pages/CreateDocumentRoom";
+import CreateVDRRoomComplete from "./pages/CreateVDRRoomComplete";
 import DocumentRoomView from "./pages/DocumentRoomView";
 import DataRecordsRoom from "./pages/DataRecordsRoom";
 import AccessManagement from "./pages/AccessManagement";
@@ -71,13 +72,25 @@ const App = () => (
           
           {/* Virtual Data Room Module Routes */}
           <Route path="/data-room" element={<VirtualDataRoom />} />
-          <Route path="/data-room/document-storage" element={<DocumentStorage />} />
+          
+          {/* Document Storage & Management Routes */}
+          <Route path="/data-room/document-storage" element={<DocumentStorageEnhanced />} />
+          <Route path="/data-room/create-room" element={<CreateVDRRoomComplete />} />
           <Route path="/data-room/document-storage/create-room" element={<CreateDocumentRoom />} />
+          <Route path="/data-room/room/:roomId" element={<DocumentRoomView />} />
           <Route path="/data-room/document-storage/room/:roomId" element={<DocumentRoomView />} />
           <Route path="/data-room/document-storage/room/:roomId/manage" element={<AccessManagement />} />
           <Route path="/data-room/document-storage/room/:roomId/activity" element={<AuditTrail />} />
+          
+          {/* Data Records Room & Management Routes */}
           <Route path="/data-room/data-records" element={<DataRecordsRoom />} />
+          <Route path="/data-room/create-data-record" element={<CreateDataRecord />} />
           <Route path="/data-room/data-records/create" element={<CreateDataRecord />} />
+          
+          {/* VDR Management Routes */}
+          <Route path="/data-room/manage-access" element={<AccessManagement />} />
+          <Route path="/data-room/analytics" element={<AuditTrail />} />
+          <Route path="/data-room/settings" element={<AccessManagement />} />
           <Route path="/data-room/external-access" element={<ExternalAccess />} />
           
           {/* Litigation Management Module Routes */}

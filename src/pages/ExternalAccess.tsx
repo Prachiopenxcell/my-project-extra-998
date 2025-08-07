@@ -14,7 +14,10 @@ import {
   Eye, 
   Calendar, 
   User,
-  Building
+  Building,
+  FolderOpen,
+  Target,
+  BarChart3
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -44,7 +47,10 @@ const ExternalAccess = () => {
           </div>
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4" />
-            <span>🔒 Secure Access</span>
+            <span className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Secure Access
+            </span>
           </div>
         </div>
 
@@ -55,11 +61,20 @@ const ExternalAccess = () => {
               <Lock className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-xl">🔐 Document Room Access</CardTitle>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Document Room Access
+              </CardTitle>
               <CardDescription className="mt-2">
                 <div className="space-y-1">
-                  <p>📁 {accessInfo.roomName}</p>
-                  <p>🏢 {accessInfo.entity}</p>
+                  <p className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    {accessInfo.roomName}
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    {accessInfo.entity}
+                  </p>
                 </div>
               </CardDescription>
             </div>
@@ -128,7 +143,10 @@ const ExternalAccess = () => {
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
               <Eye className="h-4 w-4 text-blue-600" />
-              <span className="text-sm">🎯 Your Access Level: <Badge variant="secondary">{accessInfo.accessLevel}</Badge></span>
+              <span className="text-sm flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Your Access Level: <Badge variant="secondary">{accessInfo.accessLevel}</Badge>
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-green-600" />
@@ -140,7 +158,10 @@ const ExternalAccess = () => {
             </div>
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-purple-600" />
-              <span className="text-sm">🔒 This is a secure, confidential workspace</span>
+              <span className="text-sm flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                This is a secure, confidential workspace
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -154,9 +175,18 @@ const ExternalAccess = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-orange-700">
-            <p>⚠️ All activities are logged for security and compliance</p>
-            <p>🔐 Documents are confidential and legally protected</p>
-            <p>📊 Your access and actions will be tracked</p>
+            <p className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              All activities are logged for security and compliance
+            </p>
+            <p className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              Documents are confidential and legally protected
+            </p>
+            <p className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Your access and actions will be tracked
+            </p>
           </CardContent>
         </Card>
 

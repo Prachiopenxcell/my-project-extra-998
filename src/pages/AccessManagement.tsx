@@ -269,7 +269,10 @@ const AccessManagement = () => {
                 <FileText className="h-3 w-3 mr-1" />
                 {roomData.documents} Documents
               </Badge>
-              <Badge variant="secondary">🔒 {roomData.privacy}</Badge>
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                {roomData.privacy}
+              </Badge>
             </div>
           </CardContent>
         </Card>

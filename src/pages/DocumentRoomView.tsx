@@ -98,7 +98,7 @@ const DocumentRoomView = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="container mx-auto flex-1 space-y-6 p-6">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Home className="h-4 w-4" />
