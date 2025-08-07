@@ -34,6 +34,12 @@ import LitigationManagement from "./pages/LitigationManagement";
 import CreatePreFiling from "./pages/CreatePreFiling";
 import LitigationDocuments from "./pages/LitigationDocuments";
 import LitigationCaseDetails from "./pages/LitigationCaseDetails";
+import RegulatoryCompliance from "./pages/RegulatoryCompliance";
+import ComplianceEntitySetup from "./pages/ComplianceEntitySetup";
+import ComplianceChecklistGeneration from "./pages/ComplianceChecklistGeneration";
+import ComplianceAssignmentManagement from "./pages/ComplianceAssignmentManagement";
+import ComplianceTrackingMonitoring from "./pages/ComplianceTrackingMonitoring";
+import ComplianceReportsAnalytics from "./pages/ComplianceReportsAnalytics";
 
 const queryClient = new QueryClient();
 
@@ -98,6 +104,14 @@ const App = () => (
           <Route path="/litigation/create" element={<CreatePreFiling />} />
           <Route path="/litigation/create/documents" element={<LitigationDocuments />} />
           <Route path="/litigation/case/:caseId" element={<LitigationCaseDetails />} />
+          
+          {/* Regulatory Compliance Module Routes */}
+          <Route path="/compliance" element={<RegulatoryCompliance />} />
+          <Route path="/compliance/setup" element={<ComplianceEntitySetup />} />
+          <Route path="/compliance/checklist" element={<ComplianceChecklistGeneration />} />
+          <Route path="/compliance/assignment" element={<ComplianceAssignmentManagement />} />
+          <Route path="/compliance/tracking" element={<ComplianceTrackingMonitoring />} />
+          <Route path="/compliance/reports" element={<ComplianceReportsAnalytics />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
