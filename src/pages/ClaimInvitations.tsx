@@ -23,7 +23,7 @@ import {
   Send,
   Trash2
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 interface ClaimInvitation {
   id: string;
@@ -39,6 +39,7 @@ interface ClaimInvitation {
 }
 
 const ClaimInvitations = () => {
+  const { id: invitationId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -162,6 +163,134 @@ const ClaimInvitations = () => {
   const startIndex = (currentPage - 1) * parseInt(pageSize);
   const paginatedInvitations = sortedInvitations.slice(startIndex, startIndex + parseInt(pageSize));
 
+  // Get specific invitation for details view
+  const currentInvitation = invitationId ? invitations.find(inv => inv.id === invitationId) : null;
+
+  // If invitationId is provided and invitation exists, show details view
+  if (invitationId && currentInvitation) {
+    return (
+      <DashboardLayout userType="service_provider">
+        <div className="container mx-auto p-6">
+          {/* Header with Back Navigation */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="flex items-center space-x-3 mb-2">
+                <Link 
+                  to="/claims/invitations"
+                  className="text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                >
+                  <ChevronDown className="h-4 w-4 rotate-90" />
+                  <span>Back to Invitations</span>
+                </Link>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Invitation Details - {currentInvitation.id}</h1>
+              <p className="text-gray-600 mt-1">{currentInvitation.entityName}</p>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => navigate(`/claims/edit-invitation/${currentInvitation.id}`)}>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Invitation
+              </Button>
+              <Button onClick={() => handleCopyLink(currentInvitation.inviteLink)}>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Link
+              </Button>
+            </div>
+          </div>
+
+          {/* Invitation Details Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-500">Entity Name</p>
+                  <p className="font-medium">{currentInvitation.entityName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Capacity</p>
+                  <p className="font-medium">{currentInvitation.capacity}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Authority</p>
+                  <p className="font-medium">{currentInvitation.authority}</p>
+                </div>
+                {currentInvitation.orderNumber && (
+                  <div>
+                    <p className="text-sm text-gray-500">Order Number</p>
+                    <p className="font-medium">{currentInvitation.orderNumber}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Status & Timeline</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-500">Current Status</p>
+                  <Badge className={getStatusColor(currentInvitation.status)}>
+                    {getStatusText(currentInvitation.status)}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Creation Date</p>
+                  <p className="font-medium">{new Date(currentInvitation.creationDate).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Cutoff Date</p>
+                  <p className="font-medium">{new Date(currentInvitation.cutoffDate).toLocaleDateString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Claims Statistics</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-500">Claims Received</p>
+                  <p className="text-2xl font-bold text-blue-600">{currentInvitation.claimsReceived}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Invitation Link</p>
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-600 truncate flex-1">{currentInvitation.inviteLink}</p>
+                    <Button size="sm" variant="outline" onClick={() => handleCopyLink(currentInvitation.inviteLink)}>
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Claims Received Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Claims Received ({currentInvitation.claimsReceived})</span>
+                <Button onClick={() => navigate('/claims/all-claims')}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  View All Claims
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Claims submitted for this invitation will appear here. Use the "View All Claims" button to see detailed claim information and manage submissions.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Default invitations list view
   return (
     <DashboardLayout userType="service_provider">
       <div className="container mx-auto p-6">

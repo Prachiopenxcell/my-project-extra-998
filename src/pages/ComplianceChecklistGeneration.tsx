@@ -32,7 +32,7 @@ interface ComplianceRequirement {
   id: string;
   title: string;
   authority: string;
-  category: 'core' | 'sectoral' | 'size-based';
+  category: 'core' | 'sectoral' | 'size-based' | 'jurisdiction';
   description: string;
   frequency: string;
   selected: boolean;
@@ -44,6 +44,13 @@ interface CustomRequirement {
   authority: string;
   frequency: string;
   documentation: File | null;
+  details: string;
+  complianceItem: string;
+  dueDate: string;
+  formFormat: string;
+  assignedTo: string;
+  status: string;
+  remarksLinks: string;
 }
 
 const ComplianceChecklistGeneration = () => {
@@ -52,8 +59,157 @@ const ComplianceChecklistGeneration = () => {
   const { toast } = useToast();
   const selectedEntities = location.state?.selectedEntities || [];
   
+  // Jurisdiction-based mapping state
+  const [selectedJurisdiction, setSelectedJurisdiction] = useState('');
+  const [jurisdictionLaws, setJurisdictionLaws] = useState<ComplianceRequirement[]>([]);
+  const [showJurisdictionMapping, setShowJurisdictionMapping] = useState(false);
+  
+  // Jurisdiction-specific law mappings
+  const jurisdictionMappings: Record<string, ComplianceRequirement[]> = {
+    'maharashtra': [
+      {
+        id: "mh-1",
+        title: "Shops & Establishment Act (Maharashtra)",
+        authority: "Maharashtra Labour Department",
+        category: "jurisdiction" as const,
+        description: "Shop and establishment registration and renewals for Maharashtra",
+        frequency: "Annual",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "mh-2",
+        title: "Maharashtra Professional Tax",
+        authority: "Maharashtra Revenue Department",
+        category: "jurisdiction" as const,
+        description: "Professional tax compliance for Maharashtra entities",
+        frequency: "Monthly",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "mh-3",
+        title: "Maharashtra VAT (Legacy)",
+        authority: "Maharashtra Commercial Tax Department",
+        category: "jurisdiction" as const,
+        description: "Legacy VAT compliance for pre-GST transactions",
+        frequency: "Monthly",
+        selected: false,
+        autoDetected: true
+      }
+    ],
+    'delhi': [
+      {
+        id: "dl-1",
+        title: "Delhi Shops & Establishment Act",
+        authority: "Delhi Labour Department",
+        category: "jurisdiction" as const,
+        description: "Shop and establishment compliance for Delhi",
+        frequency: "Annual",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "dl-2",
+        title: "Delhi Professional Tax",
+        authority: "Delhi Revenue Department",
+        category: "jurisdiction" as const,
+        description: "Professional tax for Delhi-based entities",
+        frequency: "Monthly",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "dl-3",
+        title: "Delhi Pollution Control Board",
+        authority: "Delhi PCB",
+        category: "jurisdiction" as const,
+        description: "Environmental clearances for Delhi operations",
+        frequency: "Annual",
+        selected: false,
+        autoDetected: true
+      }
+    ],
+    'karnataka': [
+      {
+        id: "ka-1",
+        title: "Karnataka Shops & Commercial Establishments Act",
+        authority: "Karnataka Labour Department",
+        category: "jurisdiction" as const,
+        description: "Shop and establishment compliance for Karnataka",
+        frequency: "Annual",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "ka-2",
+        title: "Karnataka Professional Tax",
+        authority: "Karnataka Revenue Department",
+        category: "jurisdiction" as const,
+        description: "Professional tax compliance for Karnataka",
+        frequency: "Monthly",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "ka-3",
+        title: "Karnataka IT Policy Benefits",
+        authority: "Karnataka IT Department",
+        category: "jurisdiction" as const,
+        description: "IT policy compliance and benefits for Karnataka",
+        frequency: "Annual",
+        selected: false,
+        autoDetected: true
+      }
+    ],
+    'gujarat': [
+      {
+        id: "gj-1",
+        title: "Gujarat Shops & Establishment Act",
+        authority: "Gujarat Labour Department",
+        category: "jurisdiction" as const,
+        description: "Shop and establishment compliance for Gujarat",
+        frequency: "Annual",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "gj-2",
+        title: "Gujarat Professional Tax",
+        authority: "Gujarat Revenue Department",
+        category: "jurisdiction" as const,
+        description: "Professional tax for Gujarat entities",
+        frequency: "Monthly",
+        selected: true,
+        autoDetected: true
+      }
+    ],
+    'tamilnadu': [
+      {
+        id: "tn-1",
+        title: "Tamil Nadu Shops & Commercial Establishments Act",
+        authority: "Tamil Nadu Labour Department",
+        category: "jurisdiction" as const,
+        description: "Shop and establishment compliance for Tamil Nadu",
+        frequency: "Annual",
+        selected: true,
+        autoDetected: true
+      },
+      {
+        id: "tn-2",
+        title: "Tamil Nadu Professional Tax",
+        authority: "Tamil Nadu Revenue Department",
+        category: "jurisdiction" as const,
+        description: "Professional tax compliance for Tamil Nadu",
+        frequency: "Monthly",
+        selected: true,
+        autoDetected: true
+      }
+    ]
+  };
+
   const [requirements, setRequirements] = useState<ComplianceRequirement[]>([
-    // Core Legal Requirements
+    // Core Legal Requirements (National Level)
     {
       id: "1",
       title: "Income Tax Act, 1961 - Annual Returns, TDS, Advance Tax",
@@ -91,16 +247,6 @@ const ComplianceChecklistGeneration = () => {
       category: "core",
       description: "Provident Fund, ESI, Professional Tax compliance",
       frequency: "Monthly",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "5",
-      title: "Shops & Establishment Act (Maharashtra)",
-      authority: "State Labour Department",
-      category: "core",
-      description: "Shop and establishment registration and renewals",
-      frequency: "Annual",
       selected: true,
       autoDetected: true
     },
@@ -162,7 +308,14 @@ const ComplianceChecklistGeneration = () => {
     title: '',
     authority: '',
     frequency: '',
-    documentation: null
+    documentation: null,
+    details: '',
+    complianceItem: '',
+    dueDate: '',
+    formFormat: '',
+    assignedTo: '',
+    status: 'pending',
+    remarksLinks: ''
   });
 
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -170,8 +323,59 @@ const ComplianceChecklistGeneration = () => {
   const [requirementToDelete, setRequirementToDelete] = useState<string | null>(null);
   const [editingRequirement, setEditingRequirement] = useState<string | null>(null);
 
+  // Jurisdiction-based auto-mapping functions
+  const handleJurisdictionChange = (jurisdiction: string) => {
+    setSelectedJurisdiction(jurisdiction);
+    const jurisdictionSpecificLaws = jurisdictionMappings[jurisdiction as keyof typeof jurisdictionMappings] || [];
+    setJurisdictionLaws(jurisdictionSpecificLaws);
+    
+    // Auto-merge jurisdiction laws with existing requirements
+    setRequirements(prev => {
+      // Remove any existing jurisdiction laws
+      const withoutJurisdiction = prev.filter(req => req.category !== 'jurisdiction');
+      // Add new jurisdiction laws
+      return [...withoutJurisdiction, ...jurisdictionSpecificLaws];
+    });
+    
+    toast({
+      title: "Jurisdiction Laws Applied",
+      description: `${jurisdictionSpecificLaws.length} jurisdiction-specific laws added for ${jurisdiction.charAt(0).toUpperCase() + jurisdiction.slice(1)}.`,
+    });
+  };
+
+  const autoDetectJurisdictionFromEntity = () => {
+    if (selectedEntities.length > 0) {
+      // Mock logic - in real implementation, this would read from entity data
+      const entityLocation = selectedEntities[0]?.location?.toLowerCase();
+      if (entityLocation) {
+        const jurisdictionMap = {
+          'mumbai': 'maharashtra',
+          'pune': 'maharashtra',
+          'delhi': 'delhi',
+          'bangalore': 'karnataka',
+          'ahmedabad': 'gujarat',
+          'chennai': 'tamilnadu'
+        };
+        
+        const detectedJurisdiction = jurisdictionMap[entityLocation as keyof typeof jurisdictionMap];
+        if (detectedJurisdiction) {
+          handleJurisdictionChange(detectedJurisdiction);
+          return detectedJurisdiction;
+        }
+      }
+    }
+    return null;
+  };
+
   const handleRequirementToggle = (id: string) => {
     setRequirements(prev => 
+      prev.map(req => 
+        req.id === id ? { ...req, selected: !req.selected } : req
+      )
+    );
+    
+    // Also update jurisdiction laws if applicable
+    setJurisdictionLaws(prev => 
       prev.map(req => 
         req.id === id ? { ...req, selected: !req.selected } : req
       )
@@ -230,7 +434,14 @@ const ComplianceChecklistGeneration = () => {
         title: "",
         authority: "",
         frequency: "monthly",
-        documentation: null
+        documentation: null,
+        details: '',
+        complianceItem: '',
+        dueDate: '',
+        formFormat: '',
+        assignedTo: '',
+        status: 'pending',
+        remarksLinks: ''
       });
       setShowCustomForm(false);
     }
@@ -250,6 +461,7 @@ const ComplianceChecklistGeneration = () => {
   const coreRequirements = requirements.filter(req => req.category === 'core');
   const sectoralRequirements = requirements.filter(req => req.category === 'sectoral');
   const sizeBasedRequirements = requirements.filter(req => req.category === 'size-based');
+  const jurisdictionRequirements = requirements.filter(req => req.category === 'jurisdiction');
 
   return (
     <DashboardLayout userType="service_provider">
@@ -271,6 +483,56 @@ const ComplianceChecklistGeneration = () => {
                 <h3 className="font-semibold text-slate-900">COMPLIANCE CHECKLIST FOR: ABC CORPORATION LTD</h3>
                 <p className="text-slate-700 text-sm mt-1">Step 2 of 3: Generate & Customize Compliance Requirements</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Jurisdiction Mapping Section */}
+        <Card className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center text-blue-700">
+              <Settings className="w-5 h-5 mr-2" />
+              JURISDICTION-BASED AUTO-MAPPING
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-blue-900 mb-2 block">
+                    Select Jurisdiction for Entity Location
+                  </label>
+                  <Select value={selectedJurisdiction} onValueChange={handleJurisdictionChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose jurisdiction..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="maharashtra">Maharashtra</SelectItem>
+                      <SelectItem value="delhi">Delhi</SelectItem>
+                      <SelectItem value="karnataka">Karnataka</SelectItem>
+                      <SelectItem value="gujarat">Gujarat</SelectItem>
+                      <SelectItem value="tamilnadu">Tamil Nadu</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  onClick={autoDetectJurisdictionFromEntity}
+                  variant="outline"
+                  className="mt-6"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Auto-Detect
+                </Button>
+              </div>
+              
+              {selectedJurisdiction && (
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>{jurisdictionLaws.length}</strong> jurisdiction-specific laws applied for{' '}
+                    <strong>{selectedJurisdiction.charAt(0).toUpperCase() + selectedJurisdiction.slice(1)}</strong>
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -375,6 +637,94 @@ const ComplianceChecklistGeneration = () => {
                         <SelectItem value="biannual">Bi-Annual</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Details
+                    </label>
+                    <Textarea
+                      value={customRequirement.details}
+                      onChange={(e) => setCustomRequirement(prev => ({ ...prev, details: e.target.value }))}
+                      placeholder="Enter detailed description of the compliance requirement"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Compliance Item
+                    </label>
+                    <Input
+                      value={customRequirement.complianceItem}
+                      onChange={(e) => setCustomRequirement(prev => ({ ...prev, complianceItem: e.target.value }))}
+                      placeholder="Enter specific compliance item or requirement"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={customRequirement.dueDate}
+                      onChange={(e) => setCustomRequirement(prev => ({ ...prev, dueDate: e.target.value }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Form/Format
+                    </label>
+                    <Input
+                      value={customRequirement.formFormat}
+                      onChange={(e) => setCustomRequirement(prev => ({ ...prev, formFormat: e.target.value }))}
+                      placeholder="Enter required form number or format (e.g., Form 16, GSTR-1)"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Assigned To
+                    </label>
+                    <Input
+                      value={customRequirement.assignedTo}
+                      onChange={(e) => setCustomRequirement(prev => ({ ...prev, assignedTo: e.target.value }))}
+                      placeholder="Enter person or department responsible"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <Select value={customRequirement.status} onValueChange={(value) => 
+                      setCustomRequirement(prev => ({ ...prev, status: value }))
+                    }>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="overdue">Overdue</SelectItem>
+                        <SelectItem value="not-applicable">Not Applicable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Remarks/Links
+                    </label>
+                    <Textarea
+                      value={customRequirement.remarksLinks}
+                      onChange={(e) => setCustomRequirement(prev => ({ ...prev, remarksLinks: e.target.value }))}
+                      placeholder="Enter additional remarks, notes, or relevant links"
+                      rows={2}
+                    />
                   </div>
 
                   <div>

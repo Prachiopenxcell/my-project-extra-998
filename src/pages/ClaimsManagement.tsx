@@ -224,7 +224,7 @@ const ClaimsManagement = () => {
                 <SelectItem value="entity-3">PQR Services Ltd</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleCreateInvitation} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleCreateInvitation}>
               <Plus className="w-4 h-4 mr-2" />
               Create Claim Invitation
             </Button>

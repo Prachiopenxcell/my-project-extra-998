@@ -42,8 +42,11 @@ import {
   FileSpreadsheet,
   Briefcase,
   Landmark,
+  Clock,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserRole, UserType } from "@/types/auth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -94,21 +97,29 @@ const professionalModules = [
   { name: "E-Voting", href: "/voting", icon: Vote },
   { name: "Virtual Data Room", href: "/data-room", icon: FolderOpen },
   { name: "Claims Management", href: "/claims", icon: AlertTriangle },
+  { name: "Timeline Management", href: "/timeline", icon: Clock },
+  { name: "AR & Facilitators", href: "/ar-facilitators", icon: UserCheck },
   { name: "Litigation Management", href: "/litigation", icon: Scale },
   { name: "Resolution System", href: "/resolution", icon: UserCheck },
-  { name: "Compliance", href: "/compliance", icon: Building },
+  { name: "Regulatory Compliance", href: "/compliance", icon: Building },
+ 
 ];
 
 export function DashboardLayout({
   children,
-  userType = "service_seeker",
-  userName = "John Doe",
+  userType,
+  userName,
 }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
+
+  // Get user data from auth context if not provided as props
+  const actualUserType = userType || (user?.userType === UserType.SERVICE_PROVIDER ? "service_provider" : "service_seeker");
+  const actualUserName = userName || (user ? `${user.firstName || 'User'} ${user.lastName || ''}`.trim() : "User") || "User";
 
   const currentNavItems =
-    navigationItems[userType] || navigationItems.service_seeker;
+    navigationItems[actualUserType] || navigationItems.service_seeker;
 
   const isActiveLink = (href: string) => {
     return (
@@ -190,21 +201,20 @@ export function DashboardLayout({
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10">
-            <AvatarImage src="/placeholder-avatar.jpg" alt={userName} />
+            <AvatarImage src="/placeholder-avatar.jpg" alt={actualUserName} />
             <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-sm font-medium">
-              {userName
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
+              {actualUserName
+                ? actualUserName.split(" ").map((n) => n[0]).join("").toUpperCase()
+                : "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {userName}
+                {actualUserName}
               </p>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sidebar-accent/20 text-sidebar-accent-foreground/80 font-medium">
-                {userType.replace("_", " ")}
+                {actualUserType.replace("_", " ")}
               </span>
             </div>
             <div className="mt-0.5">
@@ -255,8 +265,30 @@ export function DashboardLayout({
               </SheetTrigger>
             </Sheet>
 
+            {/* User Info */}
+            <div className="flex items-center gap-3">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="/placeholder-avatar.jpg" alt={userName} />
+                <AvatarFallback>
+                  {actualUserName
+                    ? actualUserName.split(" ").map((n) => n[0]).join("").toUpperCase()
+                    : "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="hidden sm:block">
+                <p className="text-sm font-medium text-foreground">
+                  {userName}
+                </p>
+                <p className="text-xs text-muted-foreground font-mono">
+                  REG-{Date.now().toString().slice(-6)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
             {/* Search */}
-            <div className="relative max-w-md flex-1">
+            <div className="relative max-w-md w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
@@ -264,9 +296,6 @@ export function DashboardLayout({
                 className="pl-10 bg-background"
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-5 w-5" />
@@ -282,9 +311,9 @@ export function DashboardLayout({
                   variant="ghost"
                   className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder-avatar.jpg" alt={userName} />
+                    <AvatarImage src="/placeholder-avatar.jpg" alt={actualUserName} />
                     <AvatarFallback>
-                      {userName
+                      {actualUserName
                         .split(" ")
                         .map((n) => n[0])
                         .join("")}
@@ -296,10 +325,10 @@ export function DashboardLayout({
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {userName}
+                      {actualUserName}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      john.doe@example.com
+                      {user?.email || "user@example.com"}
                     </p>
                   </div>
                 </DropdownMenuLabel>

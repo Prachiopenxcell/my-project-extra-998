@@ -245,7 +245,10 @@ const DataRecordsRoom = () => {
             <Alert className="border-orange-200 bg-orange-50 mb-4">
               <AlertTriangle className="h-4 w-4 text-orange-600" />
               <AlertDescription className="text-orange-800">
-                <span className="font-semibold">⚠️ 2 CONFLICTS REQUIRE ATTENTION</span>
+                <span className="font-semibold flex items-center gap-1">
+                  <AlertTriangle className="h-4 w-4" />
+                  2 CONFLICTS REQUIRE ATTENTION
+                </span>
               </AlertDescription>
             </Alert>
             

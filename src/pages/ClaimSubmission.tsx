@@ -13,9 +13,20 @@ import { useToast } from "@/components/ui/use-toast";
 import { 
   FileText, Upload, Download, Eye, Trash2, Plus, AlertTriangle, CheckCircle, 
   Clock, DollarSign, Calendar, User, Building, Phone, Mail, MapPin, FileCheck,
-  Save, Send, ArrowLeft, Info, HelpCircle, Calculator, Paperclip, Shield, Lock
+  Save, Send, ArrowLeft, Info, HelpCircle, Calculator, Paperclip, Shield, Lock, Users
 } from "lucide-react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+
+interface GroupClaimant {
+  id: string;
+  organizationName: string;
+  contactPersonName: string;
+  email: string;
+  phone: string;
+  claimAmount: number;
+  panNumber: string;
+  registrationNumber?: string;
+}
 
 interface ClaimFormData {
   claimantType: 'self' | 'representative' | 'group_representative';
@@ -29,6 +40,14 @@ interface ClaimFormData {
     pincode: string;
     panNumber: string;
   };
+  representativeInfo?: {
+    fullName: string;
+    email: string;
+    phone: string;
+    relationship: string;
+    authorizationDocument?: File;
+  };
+  groupClaimants?: GroupClaimant[];
   claimDetails: {
     claimAmount: number;
     claimDescription: string;
@@ -65,6 +84,10 @@ const ClaimSubmission = () => {
     personalInfo: {
       fullName: '', email: '', phone: '', address: '', city: '', state: '', pincode: '', panNumber: '',
     },
+    representativeInfo: {
+      fullName: '', email: '', phone: '', relationship: '',
+    },
+    groupClaimants: [],
     claimDetails: {
       claimAmount: 0, claimDescription: '', claimCategory: '', incidentDate: '', 
       claimBasis: '', interestClaimed: false,
@@ -83,9 +106,42 @@ const ClaimSubmission = () => {
     setFormData(prev => ({
       ...prev,
       [section]: {
-        ...(prev[section] as Record<string, any>),
+        ...(prev[section] as Record<string, unknown>),
         [field]: value
       }
+    }));
+  };
+
+  const addGroupClaimant = () => {
+    const newClaimant: GroupClaimant = {
+      id: `group-${Date.now()}`,
+      organizationName: '',
+      contactPersonName: '',
+      email: '',
+      phone: '',
+      claimAmount: 0,
+      panNumber: '',
+      registrationNumber: ''
+    };
+    setFormData(prev => ({
+      ...prev,
+      groupClaimants: [...(prev.groupClaimants || []), newClaimant]
+    }));
+  };
+
+  const removeGroupClaimant = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      groupClaimants: prev.groupClaimants?.filter(claimant => claimant.id !== id) || []
+    }));
+  };
+
+  const updateGroupClaimant = (id: string, field: keyof GroupClaimant, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      groupClaimants: prev.groupClaimants?.map(claimant => 
+        claimant.id === id ? { ...claimant, [field]: value } : claimant
+      ) || []
     }));
   };
 
@@ -197,6 +253,195 @@ const ClaimSubmission = () => {
                     <Input value={formData.personalInfo.pincode} onChange={(e) => handleInputChange('personalInfo', 'pincode', e.target.value)} placeholder="Enter PIN" />
                   </div>
                 </div>
+
+                {/* Representative Information */}
+                {formData.claimantType === 'representative' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Representative Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label>Representative Name *</Label>
+                          <Input
+                            value={formData.representativeInfo?.fullName || ''}
+                            onChange={(e) => handleInputChange('representativeInfo', 'fullName', e.target.value)}
+                            placeholder="Enter representative name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Relationship *</Label>
+                          <Input
+                            value={formData.representativeInfo?.relationship || ''}
+                            onChange={(e) => handleInputChange('representativeInfo', 'relationship', e.target.value)}
+                            placeholder="Enter relationship"
+                          />
+                        </div>
+                        <div>
+                          <Label>Representative Email *</Label>
+                          <Input
+                            type="email"
+                            value={formData.representativeInfo?.email || ''}
+                            onChange={(e) => handleInputChange('representativeInfo', 'email', e.target.value)}
+                            placeholder="Enter representative email"
+                          />
+                        </div>
+                        <div>
+                          <Label>Representative Phone *</Label>
+                          <Input
+                            value={formData.representativeInfo?.phone || ''}
+                            onChange={(e) => handleInputChange('representativeInfo', 'phone', e.target.value)}
+                            placeholder="Enter representative phone"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label>Authorization Document *</Label>
+                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground mb-2">Upload authorization document</p>
+                          <Input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => handleFileUpload(e.target.files)}
+                            className="max-w-xs mx-auto"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Group Claimants Information */}
+                {formData.claimantType === 'group_representative' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        <span>Group Claimants Information</span>
+                        <Button type="button" onClick={addGroupClaimant} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Claimant
+                        </Button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {formData.groupClaimants && formData.groupClaimants.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No group claimants added yet</p>
+                          <p className="text-sm">Click "Add Claimant" to add organizations/entities to this group claim</p>
+                        </div>
+                      )}
+                      
+                      {formData.groupClaimants?.map((claimant, index) => (
+                        <Card key={claimant.id} className="border-l-4 border-l-blue-500">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-base flex items-center justify-between">
+                              <span>Claimant #{index + 1}</span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeGroupClaimant(claimant.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label>Organization/Entity Name *</Label>
+                                <Input
+                                  value={claimant.organizationName}
+                                  onChange={(e) => updateGroupClaimant(claimant.id, 'organizationName', e.target.value)}
+                                  placeholder="Enter organization name"
+                                />
+                              </div>
+                              <div>
+                                <Label>Contact Person Name *</Label>
+                                <Input
+                                  value={claimant.contactPersonName}
+                                  onChange={(e) => updateGroupClaimant(claimant.id, 'contactPersonName', e.target.value)}
+                                  placeholder="Enter contact person name"
+                                />
+                              </div>
+                              <div>
+                                <Label>Email Address *</Label>
+                                <Input
+                                  type="email"
+                                  value={claimant.email}
+                                  onChange={(e) => updateGroupClaimant(claimant.id, 'email', e.target.value)}
+                                  placeholder="Enter email address"
+                                />
+                              </div>
+                              <div>
+                                <Label>Phone Number *</Label>
+                                <Input
+                                  value={claimant.phone}
+                                  onChange={(e) => updateGroupClaimant(claimant.id, 'phone', e.target.value)}
+                                  placeholder="Enter phone number"
+                                />
+                              </div>
+                              <div>
+                                <Label>PAN Number *</Label>
+                                <Input
+                                  value={claimant.panNumber}
+                                  onChange={(e) => updateGroupClaimant(claimant.id, 'panNumber', e.target.value)}
+                                  placeholder="Enter PAN number"
+                                />
+                              </div>
+                              <div>
+                                <Label>Registration Number</Label>
+                                <Input
+                                  value={claimant.registrationNumber || ''}
+                                  onChange={(e) => updateGroupClaimant(claimant.id, 'registrationNumber', e.target.value)}
+                                  placeholder="Enter registration number (optional)"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <Label>Individual Claim Amount (INR) *</Label>
+                                <div className="relative">
+                                  <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    type="number"
+                                    value={claimant.claimAmount}
+                                    onChange={(e) => updateGroupClaimant(claimant.id, 'claimAmount', parseFloat(e.target.value) || 0)}
+                                    placeholder="Enter claim amount for this entity"
+                                    className="pl-10"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      
+                      {formData.groupClaimants && formData.groupClaimants.length > 0 && (
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Users className="h-5 w-5 text-blue-600" />
+                            <span className="font-medium text-blue-900">Group Summary</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-blue-700">Total Claimants: </span>
+                              <span className="font-medium">{formData.groupClaimants.length}</span>
+                            </div>
+                            <div>
+                              <span className="text-blue-700">Total Claim Amount: </span>
+                              <span className="font-medium">
+                                ₹{formData.groupClaimants.reduce((sum, c) => sum + c.claimAmount, 0).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

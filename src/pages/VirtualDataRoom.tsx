@@ -158,10 +158,6 @@ const VirtualDataRoom = () => {
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => navigate('/entity-management')}>
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      View Entity Details
-                    </Button>
-                    <Button variant="outline" size="sm">
                       <Settings className="h-4 w-4 mr-2" />
                       Entity Settings
                     </Button>
@@ -310,7 +306,7 @@ const VirtualDataRoom = () => {
 
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/create-room')}>
+          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/create-document-storage-room')}>
             <Plus className="h-5 w-5" />
             <div className="text-left">
               <div className="font-semibold">Create Room</div>

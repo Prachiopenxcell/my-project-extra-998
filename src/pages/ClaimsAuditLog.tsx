@@ -44,7 +44,7 @@ import {
   Settings,
   Zap
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 interface AuditLogEntry {
   id: string;
@@ -71,6 +71,7 @@ interface AuditLogEntry {
 }
 
 const ClaimsAuditLog = () => {
+  const { claimId } = useParams<{ claimId?: string }>();
   const [searchTerm, setSearchTerm] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [userFilter, setUserFilter] = useState("all");
@@ -212,7 +213,10 @@ const ClaimsAuditLog = () => {
     const matchesEntity = entityFilter === "all" || log.entityType === entityFilter;
     const matchesSeverity = severityFilter === "all" || log.severity === severityFilter;
     
-    return matchesSearch && matchesAction && matchesUser && matchesEntity && matchesSeverity;
+    // If claimId is provided in URL, filter logs for that specific claim
+    const matchesClaim = !claimId || log.claimId === claimId || log.entityId === claimId;
+    
+    return matchesSearch && matchesAction && matchesUser && matchesEntity && matchesSeverity && matchesClaim;
   });
 
   const sortedLogs = [...filteredLogs].sort((a, b) => {
@@ -304,12 +308,26 @@ const ClaimsAuditLog = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
+            <div className="flex items-center space-x-3 mb-2">
+              {claimId && (
+                <Link 
+                  to="/claims/all-claims"
+                  className="text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Back to Claims</span>
+                </Link>
+              )}
+            </div>
             <h1 className="text-2xl font-bold flex items-center space-x-2">
               <Activity className="h-6 w-6" />
-              <span>Claims Audit Log</span>
+              <span>{claimId ? `Audit Log - Claim ${claimId}` : 'Claims Audit Log'}</span>
             </h1>
             <p className="text-muted-foreground">
-              Complete activity tracking and audit trail for claims management
+              {claimId 
+                ? `Activity tracking and audit trail for claim ${claimId}`
+                : 'Complete activity tracking and audit trail for claims management'
+              }
             </p>
           </div>
           <div className="flex items-center space-x-2">

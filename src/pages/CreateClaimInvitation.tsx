@@ -160,7 +160,7 @@ const CreateClaimInvitation = () => {
               <Save className="w-4 h-4 mr-2" />
               Save as Draft
             </Button>
-            <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-primary hover:bg-primary-hover text-primary-foreground">
               <CheckCircle className="w-4 h-4 mr-2" />
               Save & Publish
             </Button>
@@ -281,12 +281,12 @@ const CreateClaimInvitation = () => {
                       Save Draft
                     </Button>
                     {!isLastTab() ? (
-                      <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                      <Button onClick={handleNext} className="bg-primary hover:bg-primary-hover text-primary-foreground">
                         Save & Next
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     ) : (
-                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-green-600 hover:bg-green-700">
+                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-success hover:bg-success/90 text-success-foreground">
                         <Send className="h-4 w-4 mr-2" />
                         Save & Publish
                       </Button>
@@ -353,12 +353,12 @@ const CreateClaimInvitation = () => {
                       Save Draft
                     </Button>
                     {!isLastTab() ? (
-                      <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                      <Button onClick={handleNext} className="bg-primary hover:bg-primary-hover text-primary-foreground">
                         Save & Next
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     ) : (
-                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-green-600 hover:bg-green-700">
+                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-success hover:bg-success/90 text-success-foreground">
                         <Send className="h-4 w-4 mr-2" />
                         Save & Publish
                       </Button>
@@ -429,12 +429,12 @@ const CreateClaimInvitation = () => {
                       Save Draft
                     </Button>
                     {!isLastTab() ? (
-                      <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                      <Button onClick={handleNext} className="bg-primary hover:bg-primary-hover text-primary-foreground">
                         Save & Next
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     ) : (
-                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-green-600 hover:bg-green-700">
+                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-success hover:bg-success/90 text-success-foreground">
                         <Send className="h-4 w-4 mr-2" />
                         Save & Publish
                       </Button>
@@ -601,8 +601,8 @@ const CreateClaimInvitation = () => {
                 </div>
 
                 {!formData.aiAssistanceOpted && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="bg-info/10 p-4 rounded-lg border border-info/20">
+                    <p className="text-sm text-info">
                       <AlertTriangle className="w-4 h-4 inline mr-2" />
                       AI assistance helps with document analysis, interest calculations, and forex conversions.
                     </p>
@@ -651,12 +651,12 @@ const CreateClaimInvitation = () => {
                       Save Draft
                     </Button>
                     {!isLastTab() ? (
-                      <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                      <Button onClick={handleNext} className="bg-primary hover:bg-primary-hover text-primary-foreground">
                         Save & Next
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     ) : (
-                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-green-600 hover:bg-green-700">
+                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-success hover:bg-success/90 text-success-foreground">
                         <Send className="h-4 w-4 mr-2" />
                         Save & Publish
                       </Button>
@@ -706,8 +706,8 @@ const CreateClaimInvitation = () => {
                     </span>
                   </div>
                 </div>
-                <div className="bg-yellow-50 p-4 rounded-lg">
-                  <p className="text-sm text-yellow-800">
+                <div className="bg-warning/10 p-4 rounded-lg border border-warning/20">
+                  <p className="text-sm text-warning-foreground">
                     All generated reports will include this digital signature with a disclaimer about digital signing.
                   </p>
                 </div>
@@ -728,12 +728,12 @@ const CreateClaimInvitation = () => {
                       Save Draft
                     </Button>
                     {!isLastTab() ? (
-                      <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
+                      <Button onClick={handleNext} className="bg-primary hover:bg-primary-hover text-primary-foreground">
                         Save & Next
                         <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     ) : (
-                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-green-600 hover:bg-green-700">
+                      <Button onClick={handleSaveAndPublish} disabled={loading} className="bg-success hover:bg-success/90 text-success-foreground">
                         <Send className="h-4 w-4 mr-2" />
                         Save & Publish
                       </Button>

@@ -54,7 +54,7 @@ const MeetingDetails = ({ formData, setFormData, prevStep, nextStep, saveAsDraft
           <div>
             <Label>Class of Meeting:</Label>
             <div className="flex flex-wrap gap-2 mt-2">
-              {["AGM", "COC", "BM", "EGM", "Valuer Meeting"].map((type) => (
+              {["AGM", "COC", "BM", "EGM", "Valuer Meeting", "SEC", "Other"].map((type) => (
                 <Button 
                   key={type} 
                   variant={formData.meetingClass === type ? "default" : "outline"}
@@ -65,6 +65,19 @@ const MeetingDetails = ({ formData, setFormData, prevStep, nextStep, saveAsDraft
                 </Button>
               ))}
             </div>
+            {formData.meetingClass === "Other" && (
+              <div className="mt-3">
+                <Label htmlFor="customMeetingClass">Custom Meeting Class:</Label>
+                <Input 
+                  id="customMeetingClass" 
+                  name="customMeetingClass" 
+                  value={formData.customMeetingClass || ""} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter custom meeting class"
+                  className="mt-1"
+                />
+              </div>
+            )}
           </div>
           
           <div>

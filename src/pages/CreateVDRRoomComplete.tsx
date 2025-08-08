@@ -260,102 +260,152 @@ const CreateVDRRoomComplete = () => {
               <CardTitle>STEP 1: TEMPLATE SELECTION</CardTitle>
               <p className="text-sm text-muted-foreground">Choose how to set up your document storage room</p>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-6">
-                {/* System Template (AI-powered) */}
-                <div className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Bot className="h-6 w-6 text-blue-600" />
-                    <div>
-                      <h4 className="font-medium">System Template (AI-powered)</h4>
-                      <p className="text-sm text-muted-foreground">AI will create structure based on your process</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Select Entity:</label>
-                      <Select defaultValue="abc-corp">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
-                          <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
-                          <SelectItem value="def-llc">DEF LLC</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Process Type:</label>
-                      <Select defaultValue="due-diligence">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="due-diligence">Due Diligence</SelectItem>
-                          <SelectItem value="cirp">CIRP Process</SelectItem>
-                          <SelectItem value="audit">Audit Review</SelectItem>
-                          <SelectItem value="compliance">Compliance Check</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <Button className="w-full">
-                      <Bot className="mr-2 h-4 w-4" />
-                      Generate AI Template
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Custom Template */}
-                <div className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Settings className="h-6 w-6 text-gray-600" />
-                    <div>
-                      <h4 className="font-medium">Custom Template</h4>
-                      <p className="text-sm text-muted-foreground">Manually configure your room structure</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Room Title:</label>
-                      <Input placeholder="Enter room title" defaultValue="ABC Corp Due Diligence" />
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Description:</label>
-                      <textarea 
-                        className="w-full p-2 border rounded-md text-sm" 
-                        rows={3}
-                        placeholder="Describe the purpose of this room"
-                        defaultValue="Due diligence documentation for ABC Corporation acquisition process."
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Select Entity:</label>
-                      <Select defaultValue="abc-corp">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
-                          <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
-                          <SelectItem value="def-llc">DEF LLC</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <Button variant="outline" className="w-full">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Configure Manually
-                    </Button>
-                  </div>
-                </div>
+            <CardContent className="space-y-6">
+              {/* Template Toggle Buttons */}
+              <div className="flex items-center gap-2 p-1 bg-muted rounded-lg w-fit">
+                <Button
+                  variant={templateType === 'ai' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTemplateType('ai')}
+                  className="flex items-center gap-2"
+                >
+                  <Bot className="h-4 w-4" />
+                  AI-Generated
+                </Button>
+                <Button
+                  variant={templateType === 'custom' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTemplateType('custom')}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Custom-Generated
+                </Button>
               </div>
+
+              {/* System Template Card */}
+              {templateType === 'ai' && (
+                <Card className="border-2 border-blue-500 bg-blue-50">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 bg-blue-100 rounded-lg">
+                        <Bot className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-blue-900">
+                          System Template (AI-Powered)
+                        </h3>
+                        <Badge variant="secondary" className="mt-1">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Recommended
+                        </Badge>
+                      </div>
+                    </div>
+                    <p className="text-blue-800 mb-6">
+                      AI will automatically set up the file structure and folders based on your entity details and selected process type.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block text-blue-900">Select Entity:</label>
+                        <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                          <SelectTrigger className="bg-white border-blue-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
+                            <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
+                            <SelectItem value="def-llc">DEF LLC</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium mb-2 block text-blue-900">Process Type:</label>
+                        <Select value={selectedProcess} onValueChange={setSelectedProcess}>
+                          <SelectTrigger className="bg-white border-blue-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="due-diligence">Due Diligence</SelectItem>
+                            <SelectItem value="cirp">CIRP Process</SelectItem>
+                            <SelectItem value="audit">Audit Review</SelectItem>
+                            <SelectItem value="compliance">Compliance Check</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                        <Bot className="mr-2 h-4 w-4" />
+                        Generate AI Template
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Custom Template Card */}
+              {templateType === 'custom' && (
+                <Card className="border-2 border-purple-500 bg-purple-50">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-3 bg-purple-100 rounded-lg">
+                        <Settings className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-purple-900">
+                          Custom Template (Manual Setup)
+                        </h3>
+                      </div>
+                    </div>
+                    <p className="text-purple-800 mb-6">
+                      Manually create the Document Storage Room by providing specific details and customizing the structure according to your requirements.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block text-purple-900">Room Title:</label>
+                        <Input 
+                          placeholder="Enter room title" 
+                          value={roomTitle}
+                          onChange={(e) => setRoomTitle(e.target.value)}
+                          className="bg-white border-purple-200"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium mb-2 block text-purple-900">Description:</label>
+                        <Textarea 
+                          placeholder="Describe the purpose of this room"
+                          value={roomDescription}
+                          onChange={(e) => setRoomDescription(e.target.value)}
+                          rows={3}
+                          className="bg-white border-purple-200"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium mb-2 block text-purple-900">Select Entity:</label>
+                        <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                          <SelectTrigger className="bg-white border-purple-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
+                            <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
+                            <SelectItem value="def-llc">DEF LLC</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button className="w-full bg-purple-600 hover:bg-purple-700">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Configure Manually
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         )}

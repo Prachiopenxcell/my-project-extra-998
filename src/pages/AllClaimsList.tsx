@@ -12,20 +12,28 @@ import { useToast } from "@/components/ui/use-toast";
 import { 
   Search, 
   Plus, 
+  Calendar, 
+  AlertTriangle, 
+  Clock, 
+  TrendingUp,
+  Building,
   Eye,
+  FileText,
+  BarChart3,
+  Zap,
+  Activity,
+  Users,
+  Filter,
   Edit,
   Trash2,
-  Filter,
   MoreHorizontal,
-  Upload,
-  Users,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  FileText,
-  Activity,
+  DollarSign,
+  UserCheck,
+  ClipboardList,
   Settings,
-  Download
+  Download,
+  Upload,
+  CheckCircle
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -62,7 +70,7 @@ const AllClaimsList = () => {
   // Mock data - replace with actual API calls
   const [claims, setClaims] = useState<Claim[]>([
     {
-      id: "claim-001",
+      id: "INV001",
       claimantName: "State Bank of India",
       claimantCategory: "Financial Creditor - Secured",
       claimedAmount: 5000000,
@@ -73,7 +81,7 @@ const AllClaimsList = () => {
       entityName: "ABC Corporation Ltd"
     },
     {
-      id: "claim-002",
+      id: "INV002",
       claimantName: "HDFC Bank Ltd",
       claimantCategory: "Financial Creditor - Unsecured",
       claimedAmount: 2500000,
@@ -86,7 +94,7 @@ const AllClaimsList = () => {
       entityName: "ABC Corporation Ltd"
     },
     {
-      id: "claim-003",
+      id: "INV003",
       claimantName: "ABC Suppliers Ltd",
       claimantCategory: "Operational Creditor",
       claimedAmount: 750000,
@@ -97,7 +105,7 @@ const AllClaimsList = () => {
       entityName: "ABC Corporation Ltd"
     },
     {
-      id: "claim-004",
+      id: "INV004",
       claimantName: "Employee Union",
       claimantCategory: "Workmen/Staff/Employees",
       claimedAmount: 1200000,
@@ -171,6 +179,34 @@ const AllClaimsList = () => {
 
   const handleViewAuditLog = (id: string) => {
     navigate(`/claims/audit-log/${id}`);
+  };
+
+  const handleEditClaim = (id: string) => {
+    navigate(`/claims/edit/${id}`);
+    toast({
+      title: "Edit Claim",
+      description: "Opening claim for editing...",
+    });
+  };
+
+  const handleDeleteClaim = (id: string) => {
+    // Show confirmation dialog
+    if (window.confirm('Are you sure you want to delete this claim? This action cannot be undone.')) {
+      setClaims(prev => prev.filter(claim => claim.id !== id));
+      toast({
+        title: "Claim Deleted",
+        description: "The claim has been successfully deleted.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleVerifyClaim = (id: string) => {
+    navigate(`/claims/verify/${id}`);
+  };
+
+  const handleAdmitClaim = (id: string) => {
+    navigate(`/claims/admit/${id}`);
   };
 
   const filteredClaims = claims.filter(claim => {
@@ -325,6 +361,10 @@ const AllClaimsList = () => {
               onViewDetails={handleViewDetails}
               onAllocate={handleAllocateClaim}
               onViewAuditLog={handleViewAuditLog}
+              onEdit={handleEditClaim}
+              onDelete={handleDeleteClaim}
+              onVerify={handleVerifyClaim}
+              onAdmit={handleAdmitClaim}
               showAllActions={false}
               primaryAction="allocate"
             />
@@ -336,6 +376,10 @@ const AllClaimsList = () => {
               onViewDetails={handleViewDetails}
               onAllocate={handleAllocateClaim}
               onViewAuditLog={handleViewAuditLog}
+              onEdit={handleEditClaim}
+              onDelete={handleDeleteClaim}
+              onVerify={handleVerifyClaim}
+              onAdmit={handleAdmitClaim}
               showAllActions={false}
               primaryAction="verify"
             />
@@ -347,6 +391,10 @@ const AllClaimsList = () => {
               onViewDetails={handleViewDetails}
               onAllocate={handleAllocateClaim}
               onViewAuditLog={handleViewAuditLog}
+              onEdit={handleEditClaim}
+              onDelete={handleDeleteClaim}
+              onVerify={handleVerifyClaim}
+              onAdmit={handleAdmitClaim}
               showAllActions={false}
               primaryAction="admit"
             />
@@ -358,6 +406,10 @@ const AllClaimsList = () => {
               onViewDetails={handleViewDetails}
               onAllocate={handleAllocateClaim}
               onViewAuditLog={handleViewAuditLog}
+              onEdit={handleEditClaim}
+              onDelete={handleDeleteClaim}
+              onVerify={handleVerifyClaim}
+              onAdmit={handleAdmitClaim}
               showAllActions={true}
               showEditDelete={true}
             />
@@ -405,6 +457,10 @@ interface ClaimsTableProps {
   onViewDetails: (id: string) => void;
   onAllocate: (id: string) => void;
   onViewAuditLog: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onVerify?: (id: string) => void;
+  onAdmit?: (id: string) => void;
   showAllActions?: boolean;
   showEditDelete?: boolean;
   primaryAction?: 'allocate' | 'verify' | 'admit';
@@ -414,7 +470,11 @@ const ClaimsTable = ({
   claims, 
   onViewDetails, 
   onAllocate, 
-  onViewAuditLog, 
+  onViewAuditLog,
+  onEdit,
+  onDelete,
+  onVerify,
+  onAdmit,
   showAllActions = true,
   showEditDelete = false,
   primaryAction
@@ -478,6 +538,7 @@ const ClaimsTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Claim ID</TableHead>
                 <TableHead>Claimant</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Amount</TableHead>
@@ -491,6 +552,9 @@ const ClaimsTable = ({
             <TableBody>
               {claims.map((claim) => (
                 <TableRow key={claim.id}>
+                  <TableCell className="font-mono font-semibold text-blue-600">
+                    {claim.id}
+                  </TableCell>
                   <TableCell className="font-medium">
                     {claim.claimantName}
                     {claim.assignedTo && (
@@ -540,17 +604,54 @@ const ClaimsTable = ({
                           variant="outline"
                           size="sm"
                           onClick={() => onAllocate(claim.id)}
+                          title="Allocate Claim"
                         >
                           <Users className="w-4 h-4" />
                         </Button>
                       )}
                       
+                      {primaryAction === 'verify' && claim.status === 'verification_pending' && onVerify && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onVerify(claim.id)}
+                          title="Verify Claim"
+                          className="text-yellow-600 hover:text-yellow-700"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </Button>
+                      )}
+                      
+                      {primaryAction === 'admit' && claim.status === 'admission_pending' && onAdmit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onAdmit(claim.id)}
+                          title="Admit Claim"
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </Button>
+                      )}
+                      
                       {showEditDelete && (
                         <>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => onEdit && onEdit(claim.id)}
+                            title="Edit Claim"
+                            className="text-blue-600 hover:text-blue-700"
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => onDelete && onDelete(claim.id)}
+                            title="Delete Claim"
+                            className="text-red-600 hover:text-red-700"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </>

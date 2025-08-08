@@ -659,7 +659,7 @@ const LitigationDocuments = () => {
                 <Save className="h-4 w-4 mr-2" />
                 Save as Draft
               </Button>
-              <Button onClick={() => navigate('/litigation/create/review')}>
+              <Button onClick={() => navigate('/litigation/review-submit')}>
                 Review & Submit
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>

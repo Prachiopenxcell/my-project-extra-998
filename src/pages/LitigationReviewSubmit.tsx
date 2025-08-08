@@ -411,15 +411,15 @@ const LitigationReviewSubmit = () => {
             </Card>
 
             {/* Action Buttons */}
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={handleSaveDraft} className="flex items-center gap-2">
-                <Save className="h-4 w-4" />
-                Save Draft
+            <div className="flex justify-between items-center">
+              <Button variant="outline" onClick={() => navigate('/litigation/create/documents')} className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back
               </Button>
-              <div className="space-x-2">
-                <Button variant="outline" onClick={() => navigate('/litigation/create/documents')}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={handleSaveDraft} className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  Save Draft
                 </Button>
                 <Button 
                   onClick={handleSubmit} 
