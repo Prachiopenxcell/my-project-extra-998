@@ -101,6 +101,16 @@ import TermsConditions from "./pages/TermsConditions";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiesPolicy from "./pages/CookiesPolicy";
 import LegalCompliance from "./pages/LegalCompliance";
+
+// Subscription Management Module
+import SubscriptionManagement from "./pages/SubscriptionManagement";
+import SubscriptionPackages from "./pages/SubscriptionPackages";
+import SubscriptionBilling from "./pages/SubscriptionBilling";
+import SubscriptionDetails from "./pages/SubscriptionDetails";
+import SubscriptionPaymentMethods from "./pages/SubscriptionPaymentMethods";
+import SubscriptionInvoiceDetail from "./pages/SubscriptionInvoiceDetail";
+import SubscriptionPurchase from "./pages/SubscriptionPurchase";
+import SubscriptionRenewal from "./pages/SubscriptionRenewal";
 const queryClient = new QueryClient();
 
 function App() {
@@ -245,6 +255,80 @@ function App() {
               <Route path="/compliance/assignment" element={<ComplianceAssignmentManagement />} />
               <Route path="/compliance/tracking" element={<ComplianceTrackingMonitoring />} />
               <Route path="/compliance/reports" element={<ComplianceReportsAnalytics />} />
+              
+              {/* Subscription Management Module Routes */}
+              <Route 
+                path="/subscription" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionManagement />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/browse" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionPackages />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/billing" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionBilling />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/:subscriptionId/details" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionDetails />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/:subscriptionId/manage" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionDetails />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/payment-methods" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionPaymentMethods />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/invoice/:invoiceId" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionInvoiceDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/purchase/:type/:itemId" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionPurchase />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/:subscriptionId/renew" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionRenewal />
+                  </ProtectedRoute>
+                } 
+              />
               
               
               {/* Catch-all routes for unimplemented sub-pages */}
