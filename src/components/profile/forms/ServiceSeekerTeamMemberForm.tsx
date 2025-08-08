@@ -10,9 +10,10 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { User, FileText, MapPin, Save, Clock, CheckCircle } from 'lucide-react';
-import { PersonType, IdentityDocumentType } from '@/types/profile';
+import { PersonType, IdentityDocumentType, AccountType } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProfileStepNavigation } from '../utils/profileStepNavigation';
 
 interface ServiceSeekerTeamMemberFormProps {
   onComplete: () => void;
@@ -384,7 +385,6 @@ export const ServiceSeekerTeamMemberForm: React.FC<ServiceSeekerTeamMemberFormPr
           {currentSection < sections.length - 1 ? (
             <Button 
               onClick={() => setCurrentSection(currentSection + 1)}
-              className="flex-1"
             >
               Next Section
             </Button>
@@ -392,7 +392,6 @@ export const ServiceSeekerTeamMemberForm: React.FC<ServiceSeekerTeamMemberFormPr
             <Button 
               onClick={handleSubmit} 
               disabled={loading}
-              className="flex-1"
             >
               {loading ? (
                 <>

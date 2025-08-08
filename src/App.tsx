@@ -89,6 +89,18 @@ import ClaimsReports from "./pages/ClaimsReports";
 import ClaimSubmission from "./pages/ClaimSubmission";
 import ClaimsAuditLog from "./pages/ClaimsAuditLog";
 import ClaimsAllocationSettings from "./pages/ClaimsAllocationSettings";
+// Static Pages
+import FAQ from "./pages/FAQ";
+import UserFAQ from "./pages/UserFAQ";
+import ContactUs from "./pages/ContactUs";
+import ModulesSubscription from "./pages/ModulesSubscription";
+import Articles from "./pages/Articles";
+import AboutUs from "./pages/AboutUs";
+import HowItWorks from "./pages/HowItWorks";
+import TermsConditions from "./pages/TermsConditions";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import CookiesPolicy from "./pages/CookiesPolicy";
+import LegalCompliance from "./pages/LegalCompliance";
 const queryClient = new QueryClient();
 
 function App() {
@@ -109,7 +121,18 @@ function App() {
               <Route path="/unauthorized" element={<Unauthorized />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/verify-otp" element={<VerifyOTP />} />
-              
+               
+              {/* Static Pages */}
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/contact" element={<ContactUs />} />
+              <Route path="/modules-subscription" element={<ModulesSubscription />} />
+              <Route path="/articles" element={<Articles />} />
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/terms" element={<TermsConditions />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/cookies" element={<CookiesPolicy />} />
+              <Route path="/legal-compliance" element={<LegalCompliance />} />
               {/* Protected Routes - Dashboard */}
               <Route 
                 path="/dashboard" 
@@ -138,310 +161,51 @@ function App() {
                 } 
               />
               
-              {/* Protected Routes - Entity Management */}
-              <Route 
-                path="/entity-management" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'organization', action: 'view' }}
-                  >
-                    <EntityManagement />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/entity-management/create" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'organization', action: 'create' }}
-                  >
-                    <CreateEntity />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/entity-management/:id" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'organization', action: 'view' }}
-                  >
-                    <EntityDetails />
-                  </ProtectedRoute>
-                } 
-              />
+              {/* Entity Management Module Routes */}
+              <Route path="/entity-management" element={<EntityManagement />} />
+              <Route path="/create-entity" element={<CreateEntity />} />
+              <Route path="/edit-entity/:id" element={<CreateEntity />} />
+              <Route path="/entity/:id" element={<EntityDetails />} />
               
-              {/* Protected Routes - Meetings */}
-              <Route 
-                path="/meetings" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'meetings', action: 'view' }}
-                  >
-                    <Meetings />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/meetings/create" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'meetings', action: 'create' }}
-                  >
-                    <CreateMeeting />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/meetings/:id" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'meetings', action: 'view' }}
-                  >
-                    <MeetingDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/meetings/:id/live" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'meetings', action: 'join' }}
-                  >
-                    <LiveMeeting />
-                  </ProtectedRoute>
-                } 
-              />
+              {/* Meetings Module Routes */}
+              <Route path="/meetings" element={<Meetings />} />
+              <Route path="/meetings/:id" element={<MeetingDetails />} />
+              <Route path="/create-meeting" element={<CreateMeeting />} />
+              <Route path="/edit-meeting/:id" element={<CreateMeeting />} />
+              <Route path="/live-meeting/:id" element={<LiveMeeting />} />
               
-              {/* Protected Routes - Voting */}
-              <Route 
-                path="/voting" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'voting', action: 'view' }}
-                  >
-                    <EVoting />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/voting/create" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'voting', action: 'create' }}
-                  >
-                    <CreateVotingRequest />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/voting/:id/participate" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'voting', action: 'participate' }}
-                  >
-                    <VotingParticipant />
-                  </ProtectedRoute>
-                } 
-              />
-          
-              {/* Protected Routes - AR & Facilitators Module */}
-              <Route 
-                path="/ar-facilitators" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <ARFacilitators />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/ar-facilitators/selection" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <ARSelectionProcess />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/ar-facilitators/eoi" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <ARCallEOI />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/ar-facilitators/consent" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <ARConsentRequest />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/ar-facilitators/selection/:id" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <ARSelectionDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/ar-facilitators/:id" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <ARDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/ar-facilitators/fee-structure" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <ARFeeStructure />
-                  </ProtectedRoute>
-                } 
-              />
-          
-              {/* Protected Routes - Litigation */}
-              <Route 
-                path="/litigation" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
-                    ]}
-                  >
-                    <LitigationManagement />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/litigation/pre-filing" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <CreatePreFiling />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/litigation/active" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <CreateActiveLitigation />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/litigation/documents" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
-                    ]}
-                  >
-                    <LitigationDocuments />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/litigation/case/:id" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
-                    ]}
-                  >
-                    <LitigationCaseDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/litigation/review" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <LitigationReviewSubmit />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/litigation/stage-selection" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <LitigationStageSelection />
-                  </ProtectedRoute>
-                } 
-              />
-          
-              {/* Protected Routes - Resolution System */}
-              <Route 
-                path="/resolution" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
-                    ]}
-                  >
-                    <ResolutionDashboard />
-                  </ProtectedRoute>
-                } 
-              />
+              {/* E-Voting Module Routes */}
+              <Route path="/voting" element={<EVoting />} />
+              <Route path="/voting/create" element={<CreateVotingRequest />} />
+              <Route path="/voting/edit/:id" element={<CreateVotingRequest />} />
+              <Route path="/voting/:id" element={<VotingParticipant />} />
+              
+              {/* AR & Facilitators Module Routes */}
+              <Route path="/ar-facilitators" element={<ARFacilitators />} />
+              <Route path="/ar-selection-process" element={<ARSelectionProcess />} />
+              <Route path="/ar-call-eoi" element={<ARCallEOI />} />
+              <Route path="/ar-consent-request" element={<ARConsentRequest />} />
+              <Route path="/ar-selection-details" element={<ARSelectionDetails />} />
+              <Route path="/ar-details" element={<ARDetails />} />
+              <Route path="/ar-fee-structure" element={<ARFeeStructure />} />
+              
+               {/* Litigation Management Module Routes */}
+               <Route path="/litigation" element={<LitigationManagement />} />
+              <Route path="/litigation/stage-selection" element={<LitigationStageSelection />} />
+              <Route path="/litigation/create" element={<CreatePreFiling />} />
+              <Route path="/litigation/create-active" element={<CreateActiveLitigation />} />
+              <Route path="/litigation/create/documents" element={<LitigationDocuments />} />
+              <Route path="/litigation/review-submit" element={<LitigationReviewSubmit />} />
+              <Route path="/litigation/review-submit/:caseId" element={<LitigationReviewSubmit />} />
+              <Route path="/litigation/case/:caseId" element={<LitigationCaseDetails />} />
+              
+              {/* Timeline Module Routes */}
+              <Route path="/timeline" element={<Timeline />} />
+              <Route path="/create-timeline-event" element={<CreateTimelineEvent />} />
+              <Route path="/edit-timeline-event/:id" element={<CreateTimelineEvent />} />
+              
+              {/* Resolution System Module Routes */}
+              <Route path="/resolution" element={<ResolutionDashboard />} />
               <Route path="/resolution/dashboard" element={<ResolutionDashboard />} />
               <Route path="/resolution/create-eoi" element={<EOIManagement />} />
               <Route path="/resolution/eoi/:id" element={<EOIDetails />} />
@@ -450,213 +214,64 @@ function App() {
               <Route path="/resolution/plans" element={<ResolutionPlanManagement />} />
               <Route path="/resolution/plan/:id" element={<ResolutionPlanManagement />} />
               <Route path="/resolution/upload-plan" element={<ResolutionPlanManagement />} />
-          
-              {/* Protected Routes - VDR */}
-              <Route 
-                path="/vdr" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <VirtualDataRoom />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/documents" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <DocumentStorageEnhanced />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/create-room" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_SEEKER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL
-                    ]}
-                  >
-                    <CreateDocumentRoom />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/create-room/complete" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_SEEKER_INDIVIDUAL,
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL
-                    ]}
-                  >
-                    <CreateVDRRoomComplete />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/room/:id" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <DocumentRoomView />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/records" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <DataRecordsRoom />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/access" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <AccessManagement />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/audit" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <AuditTrail />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/vdr/external" 
-                element={
-                  <ProtectedRoute 
-                    accessLevel={AccessLevel.AUTHENTICATED}
-                  >
-                    <ExternalAccess />
-                  </ProtectedRoute>
-                } 
-              />
-          
-              {/* Protected Routes - Claims Management */}
-              <Route 
-                path="/claims" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'claims', action: 'view' }}
-                  >
-                    <ClaimsManagement />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/create-invitation" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN
-                    ]}
-                  >
-                    <CreateClaimInvitation />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/all" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'claims', action: 'view' }}
-                  >
-                    <AllClaimsList />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/:id" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'claims', action: 'view' }}
-                  >
-                    <ClaimDetails />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/:id/verify" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL
-                    ]}
-                  >
-                    <ClaimVerification />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/submit" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'claims', action: 'submit' }}
-                  >
-                    <ClaimSubmission />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/reports" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'reports', action: 'view' }}
-                  >
-                    <ClaimsReports />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/audit-log" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'claims', action: 'view' }}
-                  >
-                    <ClaimsAuditLog />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/claims/:id/audit-log" 
-                element={
-                  <ProtectedRoute 
-                    requiredPermission={{ module: 'claims', action: 'view' }}
-                  >
-                    <ClaimsAuditLog />
-                  </ProtectedRoute>
-                } 
-              />
+              
+              {/* Virtual Data Room Module Routes */}
+              <Route path="/data-room" element={<VirtualDataRoom />} />
+              
+              {/* Document Storage & Management Routes */}
+              <Route path="/data-room/document-storage" element={<DocumentStorageEnhanced />} />
+              <Route path="/data-room/create-room" element={<CreateVDRRoomComplete />} />
+              <Route path="/data-room/document-storage/create-room" element={<CreateDocumentRoom />} />
+              <Route path="/data-room/room/:roomId" element={<DocumentRoomView />} />
+              <Route path="/data-room/document-storage/room/:roomId" element={<DocumentRoomView />} />
+              <Route path="/data-room/document-storage/room/:roomId/manage" element={<AccessManagement />} />
+              <Route path="/data-room/document-storage/room/:roomId/activity" element={<AuditTrail />} />
+              
+              {/* Data Records Room & Management Routes */}
+              <Route path="/data-room/data-records" element={<DataRecordsRoom />} />
+              <Route path="/data-room/create-data-record" element={<CreateDataRecord />} />
+             
+              
+              {/* VDR Management Routes */}
+              <Route path="/data-room/manage-access" element={<AccessManagement />} />
+              <Route path="/data-room/analytics" element={<AuditTrail />} />
+              <Route path="/data-room/settings" element={<AccessManagement />} />
+              <Route path="/data-room/external-access" element={<ExternalAccess />} />
+              
+              {/* Regulatory Compliance Module Routes */}
+              <Route path="/compliance" element={<RegulatoryCompliance />} />
+              <Route path="/compliance/setup" element={<ComplianceEntitySetup />} />
+              <Route path="/compliance/checklist" element={<ComplianceChecklistGeneration />} />
+              <Route path="/compliance/assignment" element={<ComplianceAssignmentManagement />} />
+              <Route path="/compliance/tracking" element={<ComplianceTrackingMonitoring />} />
+              <Route path="/compliance/reports" element={<ComplianceReportsAnalytics />} />
+              
+              
+              {/* Catch-all routes for unimplemented sub-pages */}
+              <Route path="/entity-management/*" element={<ComingSoon />} />
+              <Route path="/meetings/*" element={<ComingSoon />} />
+              <Route path="/voting/*" element={<ComingSoon />} />
+              <Route path="/ar-facilitators/*" element={<ComingSoon />} />
+              <Route path="/litigation/*" element={<ComingSoon />} />
+              <Route path="/timeline/*" element={<ComingSoon />} />
+              <Route path="/resolution/*" element={<ComingSoon />} />
+              <Route path="/data-room/*" element={<ComingSoon />} />
+              <Route path="/compliance/*" element={<ComingSoon />} />
+
+               
+              {/* Claims Management Module Routes */}
+              <Route path="/claims" element={<ClaimsManagement />} />
+              <Route path="/claims/invitations" element={<ClaimInvitations />} />
+              <Route path="/claims/invitation/:id" element={<ClaimInvitations />} />
+              <Route path="/claims/create-invitation" element={<CreateClaimInvitation />} />
+              <Route path="/claims/edit-invitation/:id" element={<CreateClaimInvitation />} />
+              <Route path="/claims/all-claims" element={<AllClaimsList />} />
+              <Route path="/claims/claim/:id" element={<ClaimDetails />} />
+              <Route path="/claims/verify/:id" element={<ClaimVerification />} />
+              <Route path="/claims/reports" element={<ClaimsReports />} />
+              <Route path="/claims/submit/:invitationId" element={<ClaimSubmission />} />
+              <Route path="/claims/audit-log" element={<ClaimsAuditLog />} />
+              <Route path="/claims/audit-log/:claimId" element={<ClaimsAuditLog />} />
               <Route path="/claims/allocation-settings" element={<ClaimsAllocationSettings />} />
           
               {/* Fallback Routes */}

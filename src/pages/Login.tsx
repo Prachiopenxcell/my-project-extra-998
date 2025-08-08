@@ -55,12 +55,7 @@ const USER_CATEGORIES = {
   }
 };
 
-interface Organization {
-  id: string;
-  name: string;
-  role: string;
-  type: string;
-}
+
 
 const Login = () => {
   const navigate = useNavigate();
@@ -68,7 +63,7 @@ const Login = () => {
   const { login, isLoading } = useAuth();
   
   // Main form state
-  const [currentStep, setCurrentStep] = useState<'category' | 'login' | 'organization' | 'admin'>('category');
+  const [currentStep, setCurrentStep] = useState<'category' | 'login' | 'admin'>('category');
   const [selectedCategory, setSelectedCategory] = useState<'SERVICE_SEEKER' | 'SERVICE_PROVIDER' | 'ADMIN'>('SERVICE_SEEKER');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
@@ -99,13 +94,7 @@ const Login = () => {
   const [resetStep, setResetStep] = useState<'email' | 'otp' | 'password'>('email');
   const [resetData, setResetData] = useState({ email: '', otp: '', newPassword: '', confirmPassword: '' });
   
-  // Mock organizations for multi-org users
-  const [organizations, setOrganizations] = useState<Organization[]>([
-    { id: '1', name: 'TechCorp Solutions', role: 'Partner', type: 'Technology' },
-    { id: '2', name: 'Legal Associates Ltd', role: 'Team Member', type: 'Legal Services' },
-    { id: '3', name: 'Finance Partners', role: 'Individual', type: 'Financial Services' }
-  ]);
-  const [selectedOrganization, setSelectedOrganization] = useState<string>('');
+
 
   // Initialize from URL params
   useEffect(() => {
@@ -198,75 +187,39 @@ const Login = () => {
     setError('');
 
     try {
-      // Validate form based on login method
-      if (loginMethod === 'password') {
-        const contact = formData.contactMethod === 'email' ? formData.email : formData.phone;
-        if (!contact || !formData.password) {
-          throw new Error('Please fill in all required fields');
-        }
-      } else {
-        const contact = formData.contactMethod === 'email' ? formData.email : formData.phone;
-        if (!contact || !formData.otp) {
-          throw new Error('Please enter the OTP');
-        }
-      }
+      // Skip all field validation - allow login with any input or empty fields
+      // Set default values if fields are empty
+      const defaultEmail = formData.email || 'user@example.com';
+      const defaultPassword = formData.password || 'password';
+      const defaultOtp = formData.otp || '123456';
       
-      // Mock login validation
-      const isValidLogin = Math.random() > 0.3; // 70% success rate for demo
+      // Always successful login - skip validation
+      const isValidLogin = true; // Always true for successful login
       
-      if (!isValidLogin) {
-        throw new Error('Invalid credentials');
-      }
-      
-      // Simulate login
+      // Simulate login with default values
       await login({
-        email: formData.email || formData.phone,
-        password: loginMethod === 'password' ? formData.password : formData.otp,
+        email: defaultEmail,
+        password: loginMethod === 'password' ? defaultPassword : defaultOtp,
         userRole: formData.userRole
       });
       
-      // Check if user has multiple organizations
-      const hasMultipleOrgs = Math.random() > 0.5; // 50% chance for demo
-      
-      if (hasMultipleOrgs && !isAdminLogin) {
-        setCurrentStep('organization');
-      } else {
-        toast.success('Login successful!');
-        const redirectPath = getRoleBasedRedirect(formData.userRole);
-        navigate(redirectPath);
-      }
+      // Skip organization selection - go directly to dashboard
+      toast.success('Login successful!');
+      const redirectPath = getRoleBasedRedirect(formData.userRole);
+      navigate(redirectPath);
       
     } catch (error) {
-      console.error('Login error:', error);
-      const newFailedAttempts = failedAttempts + 1;
-      setFailedAttempts(newFailedAttempts);
-      
-      if (newFailedAttempts >= 5) {
-        setIsLocked(true);
-        setLockoutTime(300); // 5 minutes lockout
-        setError('Account locked due to multiple failed attempts. Please try again in 5 minutes or use account recovery.');
-        toast.error('Account locked. Check your email for recovery instructions.');
-      } else if (newFailedAttempts >= 3) {
-        setError(`Invalid credentials. ${5 - newFailedAttempts} attempts remaining before account lockout.`);
-        toast.error('Invalid credentials. Account will be locked after 5 failed attempts.');
-      } else {
-        setError('Invalid credentials. Please try again.');
-        toast.error('Login failed. Please check your credentials.');
-      }
+      // Always succeed - ignore any errors and proceed with login
+      console.log('Login attempted, proceeding with success');
+      toast.success('Login successful!');
+      const redirectPath = getRoleBasedRedirect(formData.userRole);
+      navigate(redirectPath);
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // Handle organization selection
-  const handleOrganizationSelect = (orgId: string) => {
-    setSelectedOrganization(orgId);
-    const org = organizations.find(o => o.id === orgId);
-    if (org) {
-      toast.success(`Logged in to ${org.name}`);
-      navigate('/dashboard');
-    }
-  };
+
   
   // Handle admin login with 2FA
   const handleAdminSubmit = async (e: React.FormEvent) => {
@@ -275,28 +228,15 @@ const Login = () => {
     setError('');
     
     try {
-      if (!formData.email || !formData.password) {
-        throw new Error('Please enter email and password');
-      }
+      // Skip all admin validation - allow login with any input or empty fields
+      const defaultEmail = formData.email || 'admin@example.com';
+      const defaultPassword = formData.password || 'admin123';
+      const defaultTwoFactorCode = formData.twoFactorCode || '123456';
       
-      // First step: validate credentials
-      if (!formData.twoFactorCode) {
-        // Mock credential validation
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast.success('Credentials verified. Please enter 2FA code.');
-        // In real app, 2FA code would be sent here
-        return;
-      }
-      
-      // Second step: validate 2FA
-      if (formData.twoFactorCode.length !== 6) {
-        throw new Error('Please enter a valid 6-digit 2FA code');
-      }
-      
-      // Mock admin login
+      // Always successful admin login - skip all validation
       await login({
-        email: formData.email,
-        password: formData.password,
+        email: defaultEmail,
+        password: defaultPassword,
         userRole: UserRole.SERVICE_PROVIDER_ENTITY_ADMIN // Mock admin role
       });
       
@@ -304,9 +244,10 @@ const Login = () => {
       navigate('/admin/dashboard');
       
     } catch (error) {
-      console.error('Admin login error:', error);
-      setError(error instanceof Error ? error.message : 'Login failed');
-      toast.error('Admin login failed');
+      // Always succeed - ignore any errors and proceed with admin login
+      console.log('Admin login attempted, proceeding with success');
+      toast.success('Admin login successful!');
+      navigate('/admin/dashboard');
     } finally {
       setIsSubmitting(false);
     }
@@ -355,19 +296,8 @@ const Login = () => {
   };
 
   const getRoleBasedRedirect = (role: UserRole): string => {
-    // Admin roles go to admin dashboard
-    if (role.includes('admin')) {
-      return '/admin/dashboard';
-    }
-    // Team members go to limited dashboard
-    if (role.includes('team_member')) {
-      return '/dashboard';
-    }
-    // Service providers go to provider dashboard
-    if (role.includes('service_provider')) {
-      return '/provider/dashboard';
-    }
-    // Individual users go to standard dashboard
+    // All roles go to the standard dashboard
+    // Service Seeker Entity Admin, Service Provider Entity Admin, etc. all use /dashboard
     return '/dashboard';
   };
 
@@ -405,13 +335,11 @@ const Login = () => {
           <h1 className="text-2xl font-bold text-gray-900">
             {currentStep === 'category' && 'Select Your Category'}
             {currentStep === 'login' && 'Welcome Back'}
-            {currentStep === 'organization' && 'Select Organization'}
             {currentStep === 'admin' && 'Admin Portal'}
           </h1>
           <p className="text-gray-600 mt-2">
             {currentStep === 'category' && 'Choose how you want to access the platform'}
             {currentStep === 'login' && 'Sign in to access your dashboard'}
-            {currentStep === 'organization' && 'Choose the organization you want to access'}
             {currentStep === 'admin' && 'Secure administrative access'}
           </p>
         </div>
@@ -846,41 +774,7 @@ const Login = () => {
           </Card>
         )}
 
-        {/* Organization Selection Step */}
-        {currentStep === 'organization' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Building className="h-5 w-5" />
-                <span>Select Organization</span>
-              </CardTitle>
-              <CardDescription>
-                You are associated with multiple organizations. Choose which one to access.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {organizations.map((org) => (
-                <Button
-                  key={org.id}
-                  variant="outline"
-                  className="w-full h-auto p-4 text-left hover:bg-blue-50 hover:border-blue-300"
-                  onClick={() => handleOrganizationSelect(org.id)}
-                >
-                  <div className="flex items-center space-x-3 w-full">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Building className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{org.name}</div>
-                      <div className="text-sm text-gray-500">{org.type}</div>
-                    </div>
-                    <Badge variant="secondary">{org.role}</Badge>
-                  </div>
-                </Button>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+
 
         {/* Admin Login Step */}
         {currentStep === 'admin' && (

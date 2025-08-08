@@ -21,12 +21,13 @@ import {
 import { UserRole } from '@/types/auth';
 import { useToast } from '@/hooks/use-toast';
 
-// Import form components
-import { ServiceSeekerIndividualForm } from '@/components/profile/ServiceSeekerIndividualForm';
-import { ServiceSeekerEntityForm } from '@/components/profile/ServiceSeekerEntityForm';
-import { ServiceProviderIndividualForm } from '@/components/profile/ServiceProviderIndividualForm';
-import { ServiceProviderEntityForm } from '@/components/profile/ServiceProviderEntityForm';
-import { TeamMemberForm } from '@/components/profile/TeamMemberForm';
+// Import enhanced form components with Save and Next functionality
+import { ServiceSeekerIndividualForm } from '@/components/profile/forms/ServiceSeekerIndividualForm';
+import { ServiceSeekerEntityAdminForm } from '@/components/profile/forms/ServiceSeekerEntityAdminForm';
+import { ServiceSeekerTeamMemberForm } from '@/components/profile/forms/ServiceSeekerTeamMemberForm';
+import { ServiceProviderIndividualFormNew } from '@/components/profile/forms/ServiceProviderIndividualFormNew';
+import { ServiceProviderEntityAdminFormNew } from '@/components/profile/forms/ServiceProviderEntityAdminFormNew';
+import { ServiceProviderTeamMemberFormNew } from '@/components/profile/forms/ServiceProviderTeamMemberFormNew';
 
 import {
   Save,
@@ -242,6 +243,18 @@ const ProfileEdit: React.FC = () => {
     }
   };
 
+  const handleComplete = () => {
+    toast({
+      title: "Success",
+      description: "Profile completed successfully!",
+    });
+    navigate('/dashboard');
+  };
+
+  const handleSkip = () => {
+    navigate('/dashboard');
+  };
+
   const renderProfileForm = () => {
     if (!profile || !user) return null;
 
@@ -249,51 +262,48 @@ const ProfileEdit: React.FC = () => {
       case UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER:
         return (
           <ServiceSeekerIndividualForm 
-            profile={profile as ServiceSeekerIndividualProfile}
-            onSave={handleSave}
-            loading={saving}
-            activeSection={activeSection}
+            onComplete={handleComplete}
+            onSkip={handleSkip}
           />
         );
       
       case UserRole.SERVICE_SEEKER_ENTITY_ADMIN:
         return (
-          <ServiceSeekerEntityForm 
-            profile={profile as ServiceSeekerEntityProfile}
-            onSave={handleSave}
-            loading={saving}
-            activeSection={activeSection}
+          <ServiceSeekerEntityAdminForm 
+            onComplete={handleComplete}
+            onSkip={handleSkip}
           />
         );
       
       case UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER:
         return (
-          <ServiceProviderIndividualForm 
-            profile={profile as ServiceProviderIndividualProfile}
-            onSave={handleSave}
-            loading={saving}
-            activeSection={activeSection}
+          <ServiceProviderIndividualFormNew 
+            onComplete={handleComplete}
+            onSkip={handleSkip}
           />
         );
       
       case UserRole.SERVICE_PROVIDER_ENTITY_ADMIN:
         return (
-          <ServiceProviderEntityForm 
-            profile={profile as ServiceProviderEntityProfile}
-            onSave={handleSave}
-            loading={saving}
-            activeSection={activeSection}
+          <ServiceProviderEntityAdminFormNew 
+            onComplete={handleComplete}
+            onSkip={handleSkip}
           />
         );
       
       case UserRole.SERVICE_SEEKER_TEAM_MEMBER:
+        return (
+          <ServiceSeekerTeamMemberForm 
+            onComplete={handleComplete}
+            onSkip={handleSkip}
+          />
+        );
+      
       case UserRole.SERVICE_PROVIDER_TEAM_MEMBER:
         return (
-          <TeamMemberForm 
-            profile={profile as TeamMemberProfile}
-            onSave={handleSave}
-            loading={saving}
-            activeSection={activeSection}
+          <ServiceProviderTeamMemberFormNew 
+            onComplete={handleComplete}
+            onSkip={handleSkip}
           />
         );
       

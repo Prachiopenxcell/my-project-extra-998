@@ -65,16 +65,33 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
     opportunities: { total: 24, open: 8, closed: 16 },
     workOrders: { total: 15, inProgress: 5, completed: 10 },
     subscriptions: [
+      { name: "Entity Management", endDate: "2024-12-31", status: "active" },
+      { name: "Meeting Management", endDate: "2024-11-30", status: "active" },
+      { name: "E-Voting System", endDate: "2024-10-15", status: "expiring-soon" },
       { name: "Claims Management", endDate: "2024-12-31", status: "active" },
-      { name: "Meeting Management", endDate: "2024-11-30", status: "active" }
+      { name: "Resolution System", endDate: "2025-01-15", status: "active" },
+      { name: "Litigation Support", endDate: "2024-09-30", status: "active" },
+      { name: "Virtual Data Room", endDate: "2024-10-15", status: "expiring-soon" },
+      { name: "AR & Facilitators", endDate: "2024-11-30", status: "active" },
+      { name: "Timeline Management", endDate: "2024-12-31", status: "active" },
+      { name: "Regulatory Compliance", endDate: "2025-02-28", status: "active" },
+      { name: "System Administration", endDate: "2025-01-31", status: "active" }
     ],
     recentModules: [
       { name: "Claims Management", lastVisited: "2024-08-07", status: "active" },
-      { name: "Meeting Management", lastVisited: "2024-08-06", status: "active" }
+      { name: "Meeting Management", lastVisited: "2024-08-06", status: "active" },
+      { name: "Timeline Management", lastVisited: "2024-08-05", status: "active" },
+      { name: "Entity Management", lastVisited: "2024-08-04", status: "active" },
+      { name: "Regulatory Compliance", lastVisited: "2024-08-03", status: "active" },
+      { name: "Virtual Data Room", lastVisited: "2024-08-02", status: "active" }
     ],
     recentEntities: [
       { name: "ABC Corporation", moduleActivated: "Claims Management", status: "active" },
-      { name: "XYZ Ltd", moduleActivated: "Meeting Management", status: "active" }
+      { name: "XYZ Ltd", moduleActivated: "Meeting Management", status: "active" },
+      { name: "Tech Solutions Inc", moduleActivated: "Timeline Management", status: "active" },
+      { name: "Global Enterprises", moduleActivated: "Regulatory Compliance", status: "active" },
+      { name: "Innovation Partners", moduleActivated: "Virtual Data Room", status: "active" },
+      { name: "Strategic Advisors", moduleActivated: "Resolution System", status: "active" }
     ],
     recentOpportunities: [
       { srn: "SRN-2024-001", raisedOn: "2024-08-05", bidClosureDate: "2024-08-10", status: "open" },
@@ -95,7 +112,13 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
     ],
     assignedEntities: [
       { name: "ABC Corporation", moduleActivated: "Claims Management" },
-      { name: "XYZ Ltd", moduleActivated: "Meeting Management" }
+      { name: "XYZ Ltd", moduleActivated: "Meeting Management" },
+      { name: "Tech Solutions Inc", moduleActivated: "Timeline Management" },
+      { name: "Global Enterprises", moduleActivated: "Regulatory Compliance" },
+      { name: "Innovation Partners", moduleActivated: "Virtual Data Room" },
+      { name: "Strategic Advisors", moduleActivated: "Resolution System" },
+      { name: "Enterprise Holdings", moduleActivated: "Entity Management" },
+      { name: "Legal Associates", moduleActivated: "Litigation Support" }
     ]
   };
 
@@ -223,6 +246,38 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
         </div>
       </div>
 
+      {/* Profile Completion Widget */}
+      {mockData.profileCompletion < 100 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <User className="h-5 w-5" />
+              Complete Your Profile
+            </CardTitle>
+            <CardDescription className="text-orange-700">
+              Complete your profile to get your permanent registration number and access all features.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-orange-800">Profile Completion</span>
+                <span className="text-sm font-bold text-orange-800">{mockData.profileCompletion}%</span>
+              </div>
+              <Progress value={mockData.profileCompletion} className="h-2" />
+              <div className="flex gap-2">
+                <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
+                  <Link to="/profile">Complete Profile</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                  <Link to="/settings">Settings</Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {renderIndividualDashboardContent()}
 
       <Card>
@@ -285,6 +340,43 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
           </CardContent>
         </Card>
       </div>
+
+      {/* Subscriptions Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Subscriptions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {mockData.subscriptions.slice(0, 3).map((subscription, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <h4 className="font-medium">{subscription.name}</h4>
+                  <p className="text-sm text-muted-foreground">Ends: {subscription.endDate}</p>
+                </div>
+                <Badge 
+                  variant={subscription.status === 'active' ? 'default' : subscription.status === 'expiring-soon' ? 'destructive' : 'secondary'}
+                  className={subscription.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                >
+                  {subscription.status === 'active' ? 'Active' : 
+                   subscription.status === 'expiring-soon' ? 'Expiring Soon' : subscription.status}
+                </Badge>
+              </div>
+            ))}
+            <div className="flex items-center justify-center pt-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/subscription" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  View Subscription Packages
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -300,6 +392,38 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
           <p className="text-lg font-semibold text-primary">{mockData.registrationNumber}</p>
         </div>
       </div>
+
+      {/* Profile Completion Widget */}
+      {mockData.profileCompletion < 100 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <User className="h-5 w-5" />
+              Complete Your Profile
+            </CardTitle>
+            <CardDescription className="text-orange-700">
+              Complete your organization profile to get your permanent registration number and access all features.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-orange-800">Profile Completion</span>
+                <span className="text-sm font-bold text-orange-800">{mockData.profileCompletion}%</span>
+              </div>
+              <Progress value={mockData.profileCompletion} className="h-2" />
+              <div className="flex gap-2">
+                <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
+                  <Link to="/profile">Complete Profile</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                  <Link to="/settings">Settings</Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* All Individual Dashboard content without duplicate title */}
       {renderIndividualDashboardContent()}
@@ -345,6 +469,43 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
           </div>
         </CardContent>
       </Card>
+
+      {/* Subscriptions Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Subscriptions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {mockData.subscriptions.slice(0, 4).map((subscription, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <h4 className="font-medium">{subscription.name}</h4>
+                  <p className="text-sm text-muted-foreground">Ends: {subscription.endDate}</p>
+                </div>
+                <Badge 
+                  variant={subscription.status === 'active' ? 'default' : subscription.status === 'expiring-soon' ? 'destructive' : 'secondary'}
+                  className={subscription.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                >
+                  {subscription.status === 'active' ? 'Active' : 
+                   subscription.status === 'expiring-soon' ? 'Expiring Soon' : subscription.status}
+                </Badge>
+              </div>
+            ))}
+            <div className="flex items-center justify-center pt-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/subscription" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  View Subscription Packages
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -360,6 +521,38 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
           <p className="text-lg font-semibold text-primary">{mockData.registrationNumber}</p>
         </div>
       </div>
+
+      {/* Profile Completion Widget */}
+      {mockData.profileCompletion < 100 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <User className="h-5 w-5" />
+              Complete Your Profile
+            </CardTitle>
+            <CardDescription className="text-orange-700">
+              Complete your profile to get your permanent registration number and access all features.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-orange-800">Profile Completion</span>
+                <span className="text-sm font-bold text-orange-800">{mockData.profileCompletion}%</span>
+              </div>
+              <Progress value={mockData.profileCompletion} className="h-2" />
+              <div className="flex gap-2">
+                <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700">
+                  <Link to="/profile">Complete Profile</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-100">
+                  <Link to="/settings">Settings</Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -385,6 +578,45 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
                 </Button>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Available Modules Card - Note: Team members don't manage subscriptions directly */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Available Modules
+          </CardTitle>
+          <CardDescription>
+            Modules available through your organization's subscriptions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {mockData.subscriptions.slice(0, 3).map((subscription, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <h4 className="font-medium">{subscription.name}</h4>
+                  <p className="text-sm text-muted-foreground">Access via assigned entities</p>
+                </div>
+                <Badge 
+                  variant={subscription.status === 'active' ? 'default' : 'secondary'}
+                  className={subscription.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                >
+                  {subscription.status === 'active' ? 'Available' : 'Unavailable'}
+                </Badge>
+              </div>
+            ))}
+            <div className="flex items-center justify-center pt-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/subscription" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  View Organization Subscriptions
+                </Link>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

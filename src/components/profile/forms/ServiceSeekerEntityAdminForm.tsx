@@ -8,11 +8,32 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Building, Users, FileText, UserCheck, Save, Clock, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { 
+  Building, 
+  Users, 
+  FileText, 
+  UserCheck, 
+  Save, 
+  Clock, 
+  Plus, 
+  Trash2, 
+  CheckCircle, 
+  Upload, 
+  Loader2, 
+  X,
+  MapPin,
+  CreditCard,
+  User,
+  AlertCircle
+} from 'lucide-react';
 import { PersonType, IdentityDocumentType, AccountType } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProfileStepNavigation } from '../utils/profileStepNavigation';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ServiceSeekerEntityAdminFormProps {
   onComplete: () => void;
@@ -24,15 +45,56 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
   onSkip
 }) => {
   const { user } = useAuth();
-  const [currentSection, setCurrentSection] = useState(0);
+  const [currentTab, setCurrentTab] = useState('basic');
   const [loading, setLoading] = useState(false);
+  const [documentVerifying, setDocumentVerifying] = useState(false);
+  const [documentVerified, setDocumentVerified] = useState(false);
+  const [sameBillingAddress, setSameBillingAddress] = useState(true);
   const [formData, setFormData] = useState({
     // Basic entity info
     personType: '',
     name: user?.name || '',
+    clientLogo: null as File | null,
     email: user?.email || '',
     contactNumber: user?.phone || '',
-    address: { street: '', city: '', state: '', pinCode: '' },
+    
+    // Identity Document Details
+    identityDocument: {
+      type: '',
+      number: '',
+      uploadedFile: null as File | null
+    },
+    
+    // Address details
+    address: { 
+      street: '', 
+      city: '', 
+      state: '', 
+      pinCode: '' 
+    },
+    billingAddress: { 
+      street: '', 
+      city: '', 
+      state: '', 
+      pinCode: '' 
+    },
+    
+    // Tax Information
+    panNumber: '',
+    panCopy: null as File | null,
+    tanNumber: '',
+    tanCopy: null as File | null,
+    gstNumber: '',
+    gstCopy: null as File | null,
+    
+    // Banking Details (Multiple accounts support)
+    bankingDetails: [{
+      beneficiaryName: '',
+      accountNumber: '',
+      confirmAccountNumber: '',
+      accountType: '',
+      ifscCode: ''
+    }],
     
     // AR details
     authorizedRepresentative: {
@@ -40,7 +102,8 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
       designation: '',
       email: '',
       contactNumber: '',
-      identityDocument: { type: '', number: '', proof: null }
+      address: { street: '', city: '', state: '', pinCode: '' },
+      identityDocument: { type: '', number: '', uploadedFile: null as File | null }
     },
     
     // Resource infrastructure
@@ -50,49 +113,112 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
       numberOfProfessionalStaff: 0,
       numberOfOtherStaff: 0,
       numberOfInternsArticledClerks: 0
-    },
-    
-    // Banking
-    bankingDetails: {
-      beneficiaryName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      accountType: '',
-      ifscCode: ''
     }
   });
 
-  const sections = [
+  const tabs = [
     { id: 'basic', title: 'Basic Info', icon: Building, required: true },
+    { id: 'identity', title: 'Identity Documents', icon: FileText, required: true },
+    { id: 'address', title: 'Address Details', icon: MapPin, required: true },
+    { id: 'tax', title: 'Tax Information', icon: Building, required: false },
+    { id: 'banking', title: 'Banking Details', icon: CreditCard, required: true },
     { id: 'ar', title: 'AR Details', icon: UserCheck, required: true },
-    { id: 'resource', title: 'Resources', icon: Users, required: true },
-    { id: 'banking', title: 'Banking', icon: FileText, required: true }
+    { id: 'resources', title: 'Resources', icon: Users, required: true }
   ];
 
   const calculateCompletion = () => {
     const mandatoryFields = [
       formData.name, formData.email, formData.contactNumber,
       formData.address.street, formData.address.city, formData.address.pinCode,
+      formData.identityDocument.type, formData.identityDocument.number,
       formData.authorizedRepresentative.name, formData.authorizedRepresentative.designation,
       formData.authorizedRepresentative.email, formData.authorizedRepresentative.contactNumber,
-      formData.bankingDetails.beneficiaryName, formData.bankingDetails.accountNumber,
-      formData.bankingDetails.ifscCode
+      formData.bankingDetails[0].beneficiaryName, formData.bankingDetails[0].accountNumber,
+      formData.bankingDetails[0].ifscCode
     ];
     const completed = mandatoryFields.filter(field => field && field.toString().trim() !== '').length;
     return Math.round((completed / mandatoryFields.length) * 100);
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number | boolean | File | null) => {
     setFormData(prev => {
       const keys = field.split('.');
       if (keys.length === 1) return { ...prev, [field]: value };
-      if (keys.length === 2) return { ...prev, [keys[0]]: { ...prev[keys[0] as keyof typeof prev], [keys[1]]: value }};
-      if (keys.length === 3) return {
-        ...prev,
-        [keys[0]]: { ...prev[keys[0] as keyof typeof prev], [keys[1]]: { ...(prev[keys[0] as keyof typeof prev] as any)[keys[1]], [keys[2]]: value }}
-      };
+      if (keys.length === 2) {
+        const parentKey = keys[0] as keyof typeof prev;
+        return { ...prev, [parentKey]: { ...(prev[parentKey] as Record<string, unknown>), [keys[1]]: value }};
+      }
+      if (keys.length === 3) {
+        const parentKey = keys[0] as keyof typeof prev;
+        const childKey = keys[1];
+        return {
+          ...prev,
+          [parentKey]: { 
+            ...(prev[parentKey] as Record<string, unknown>), 
+            [childKey]: { 
+              ...((prev[parentKey] as Record<string, unknown>)[childKey] as Record<string, unknown>), 
+              [keys[2]]: value 
+            }
+          }
+        };
+      }
       return prev;
     });
+  };
+
+  const handleFileUpload = async (field: string, file: File) => {
+    if (field === 'identityDocument.uploadedFile') {
+      setDocumentVerifying(true);
+      try {
+        const verification = await ProfileService.verifyDocument(file, formData.identityDocument.type);
+        
+        if (verification.isValid) {
+          setDocumentVerified(true);
+          handleInputChange(field, file);
+          toast.success("Document verified successfully!");
+        } else {
+          toast.error(verification.errors?.[0] || "Please upload a valid document.");
+        }
+      } catch (error) {
+        toast.error("Failed to verify document. Please try again.");
+      } finally {
+        setDocumentVerifying(false);
+      }
+    } else {
+      handleInputChange(field, file);
+    }
+  };
+
+  const handleSaveAndNext = async () => {
+    setLoading(true);
+    try {
+      const profileData = {
+        userId: user?.id,
+        ...formData,
+        step: currentTab,
+        lastUpdated: new Date()
+      };
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      toast.success('Progress saved!');
+      
+      // Move to next tab
+      const currentIndex = tabs.findIndex(tab => tab.id === currentTab);
+      if (currentIndex < tabs.length - 1) {
+        setCurrentTab(tabs[currentIndex + 1].id);
+      }
+    } catch (error) {
+      toast.error('Failed to save progress. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrevious = () => {
+    const currentIndex = tabs.findIndex(tab => tab.id === currentTab);
+    if (currentIndex > 0) {
+      setCurrentTab(tabs[currentIndex - 1].id);
+    }
   };
 
   const addPartner = () => {
@@ -127,6 +253,37 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
     }));
   };
 
+  const addBankingDetail = () => {
+    setFormData(prev => ({
+      ...prev,
+      bankingDetails: [...prev.bankingDetails, {
+        beneficiaryName: '',
+        accountNumber: '',
+        confirmAccountNumber: '',
+        accountType: '',
+        ifscCode: ''
+      }]
+    }));
+  };
+
+  const removeBankingDetail = (index: number) => {
+    if (formData.bankingDetails.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        bankingDetails: prev.bankingDetails.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const updateBankingDetail = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      bankingDetails: prev.bankingDetails.map((banking, i) => 
+        i === index ? { ...banking, [field]: value } : banking
+      )
+    }));
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
     setLoading(true);
@@ -148,9 +305,9 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
     }
   };
 
-  const renderCurrentSection = () => {
-    switch (currentSection) {
-      case 0: // Basic Information
+  const renderCurrentTab = () => {
+    switch (currentTab) {
+      case 'basic': // Basic Information
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -182,6 +339,51 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Client Logo</Label>
+              <Input type="file" onChange={(e) => handleFileUpload('clientLogo', e.target.files?.[0] || null)} />
+            </div>
+          </div>
+        );
+
+      case 'identity': // Identity Documents
+        return (
+          <div className="space-y-6">
+            <Alert><FileText className="h-4 w-4" /><AlertDescription>Identity documents are mandatory.</AlertDescription></Alert>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>ID Type *</Label>
+                <Select value={formData.identityDocument.type} onValueChange={(value) => handleInputChange('identityDocument.type', value)}>
+                  <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={IdentityDocumentType.PAN}>PAN</SelectItem>
+                    <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar</SelectItem>
+                    <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>ID Number *</Label>
+                <Input value={formData.identityDocument.number} onChange={(e) => handleInputChange('identityDocument.number', e.target.value)} placeholder="ID number" required />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Upload ID Document *</Label>
+              <Input type="file" onChange={(e) => handleFileUpload('identityDocument.uploadedFile', e.target.files?.[0] || null)} required />
+              {documentVerifying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : documentVerified ? (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              ) : (
+                <X className="h-4 w-4 text-red-600" />
+              )}
+            </div>
+          </div>
+        );
+
+      case 'address': // Address Details
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
               <Label>Address *</Label>
               <Textarea value={formData.address.street} onChange={(e) => handleInputChange('address.street', e.target.value)} placeholder="Enter address" required />
             </div>
@@ -199,10 +401,119 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
                 <Input value={formData.address.pinCode} onChange={(e) => handleInputChange('address.pinCode', e.target.value)} placeholder="PIN" required />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Billing Address</Label>
+              <div className="flex items-center gap-2">
+                <Input type="checkbox" checked={sameBillingAddress} onChange={(e) => setSameBillingAddress(e.target.checked)} />
+                <span>Same as above</span>
+              </div>
+              {!sameBillingAddress && (
+                <div className="space-y-2">
+                  <Textarea value={formData.billingAddress.street} onChange={(e) => handleInputChange('billingAddress.street', e.target.value)} placeholder="Enter billing address" />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>City</Label>
+                      <Input value={formData.billingAddress.city} onChange={(e) => handleInputChange('billingAddress.city', e.target.value)} placeholder="City" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>State</Label>
+                      <Input value={formData.billingAddress.state} onChange={(e) => handleInputChange('billingAddress.state', e.target.value)} placeholder="State" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>PIN Code</Label>
+                      <Input value={formData.billingAddress.pinCode} onChange={(e) => handleInputChange('billingAddress.pinCode', e.target.value)} placeholder="PIN" />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
 
-      case 1: // AR Details
+      case 'tax': // Tax Information
+        return (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label>PAN Number</Label>
+              <Input value={formData.panNumber} onChange={(e) => handleInputChange('panNumber', e.target.value)} placeholder="PAN number" />
+            </div>
+            <div className="space-y-2">
+              <Label>PAN Copy</Label>
+              <Input type="file" onChange={(e) => handleFileUpload('panCopy', e.target.files?.[0] || null)} />
+            </div>
+            <div className="space-y-2">
+              <Label>TAN Number</Label>
+              <Input value={formData.tanNumber} onChange={(e) => handleInputChange('tanNumber', e.target.value)} placeholder="TAN number" />
+            </div>
+            <div className="space-y-2">
+              <Label>TAN Copy</Label>
+              <Input type="file" onChange={(e) => handleFileUpload('tanCopy', e.target.files?.[0] || null)} />
+            </div>
+            <div className="space-y-2">
+              <Label>GST Number</Label>
+              <Input value={formData.gstNumber} onChange={(e) => handleInputChange('gstNumber', e.target.value)} placeholder="GST number" />
+            </div>
+            <div className="space-y-2">
+              <Label>GST Copy</Label>
+              <Input type="file" onChange={(e) => handleFileUpload('gstCopy', e.target.files?.[0] || null)} />
+            </div>
+          </div>
+        );
+
+      case 'banking': // Banking Details
+        return (
+          <div className="space-y-6">
+            {formData.bankingDetails.map((banking, index) => (
+              <Card key={index} className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Banking Detail {index + 1}</h4>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeBankingDetail(index)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Beneficiary Name *</Label>
+                    <Input value={banking.beneficiaryName} onChange={(e) => updateBankingDetail(index, 'beneficiaryName', e.target.value)} placeholder="Beneficiary name" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Number *</Label>
+                    <Input value={banking.accountNumber} onChange={(e) => updateBankingDetail(index, 'accountNumber', e.target.value)} placeholder="Account number" required />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Confirm Account *</Label>
+                    <Input value={banking.confirmAccountNumber} onChange={(e) => updateBankingDetail(index, 'confirmAccountNumber', e.target.value)} placeholder="Confirm account" required />
+                    {banking.accountNumber && banking.confirmAccountNumber && 
+                     banking.accountNumber !== banking.confirmAccountNumber && (
+                      <p className="text-sm text-red-600">Account numbers do not match</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Type *</Label>
+                    <Select value={banking.accountType} onValueChange={(value) => updateBankingDetail(index, 'accountType', value)}>
+                      <SelectTrigger><SelectValue placeholder="Account type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={AccountType.CURRENT}>Current</SelectItem>
+                        <SelectItem value={AccountType.BUSINESS}>Business</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>IFSC Code *</Label>
+                  <Input value={banking.ifscCode} onChange={(e) => updateBankingDetail(index, 'ifscCode', e.target.value)} placeholder="IFSC code" required />
+                </div>
+              </Card>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={addBankingDetail}>
+              <Plus className="h-4 w-4 mr-2" />Add Banking Detail
+            </Button>
+          </div>
+        );
+
+      case 'ar': // AR Details
         return (
           <div className="space-y-6">
             <Alert><UserCheck className="h-4 w-4" /><AlertDescription>Authorized Representative details are mandatory.</AlertDescription></Alert>
@@ -243,10 +554,28 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
                 <Input value={formData.authorizedRepresentative.identityDocument.number} onChange={(e) => handleInputChange('authorizedRepresentative.identityDocument.number', e.target.value)} placeholder="ID number" />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>AR Address</Label>
+              <Textarea value={formData.authorizedRepresentative.address.street} onChange={(e) => handleInputChange('authorizedRepresentative.address.street', e.target.value)} placeholder="Enter address" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input value={formData.authorizedRepresentative.address.city} onChange={(e) => handleInputChange('authorizedRepresentative.address.city', e.target.value)} placeholder="City" />
+              </div>
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Input value={formData.authorizedRepresentative.address.state} onChange={(e) => handleInputChange('authorizedRepresentative.address.state', e.target.value)} placeholder="State" />
+              </div>
+              <div className="space-y-2">
+                <Label>PIN Code</Label>
+                <Input value={formData.authorizedRepresentative.address.pinCode} onChange={(e) => handleInputChange('authorizedRepresentative.address.pinCode', e.target.value)} placeholder="PIN" />
+              </div>
+            </div>
           </div>
         );
 
-      case 2: // Resources
+      case 'resources': // Resources
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -292,125 +621,777 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
           </div>
         );
 
-      case 3: // Banking
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label>Beneficiary Name *</Label>
-              <Input value={formData.bankingDetails.beneficiaryName} onChange={(e) => handleInputChange('bankingDetails.beneficiaryName', e.target.value)} placeholder="Name as per bank" required />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Account Number *</Label>
-                <Input value={formData.bankingDetails.accountNumber} onChange={(e) => handleInputChange('bankingDetails.accountNumber', e.target.value)} placeholder="Account number" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Confirm Account *</Label>
-                <Input value={formData.bankingDetails.confirmAccountNumber} onChange={(e) => handleInputChange('bankingDetails.confirmAccountNumber', e.target.value)} placeholder="Confirm account" required />
-                {formData.bankingDetails.accountNumber && formData.bankingDetails.confirmAccountNumber && 
-                 formData.bankingDetails.accountNumber !== formData.bankingDetails.confirmAccountNumber && (
-                  <p className="text-sm text-red-600">Account numbers do not match</p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Account Type *</Label>
-                <Select value={formData.bankingDetails.accountType} onValueChange={(value) => handleInputChange('bankingDetails.accountType', value)}>
-                  <SelectTrigger><SelectValue placeholder="Account type" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={AccountType.CURRENT}>Current</SelectItem>
-                    <SelectItem value={AccountType.BUSINESS}>Business</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>IFSC Code *</Label>
-                <Input value={formData.bankingDetails.ifscCode} onChange={(e) => handleInputChange('bankingDetails.ifscCode', e.target.value)} placeholder="IFSC code" required />
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return null;
     }
   };
 
-  const completionPercentage = calculateCompletion();
-  const currentSectionData = sections[currentSection];
-  const IconComponent = currentSectionData.icon;
+  const completion = calculateCompletion();
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5 text-green-600" />
-                Service Seeker Entity Admin Profile
-              </CardTitle>
-              <CardDescription>Complete your organization profile and AR details</CardDescription>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-green-600">{completionPercentage}%</div>
-              <div className="text-sm text-muted-foreground">Complete</div>
+    <div className="container mx-auto p-6 max-w-6xl">
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Entity/Organization Admin Profile</h1>
+            <p className="text-muted-foreground">Complete your organization profile</p>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-muted-foreground mb-1">Profile Completion</div>
+            <div className="flex items-center gap-2">
+              <Progress value={completion} className="w-32" />
+              <span className="text-sm font-medium">{completion}%</span>
             </div>
           </div>
-          <Progress value={completionPercentage} className="mt-4" />
-        </CardHeader>
-      </Card>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {sections.map((section, index) => {
-          const SectionIcon = section.icon;
-          const isActive = index === currentSection;
-          const isCompleted = index < currentSection;
-          return (
-            <Button
-              key={section.id}
-              variant={isActive ? "default" : isCompleted ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setCurrentSection(index)}
-              className="flex flex-col h-auto p-3 gap-1"
-            >
-              <SectionIcon className="h-4 w-4" />
-              <span className="text-xs">{section.title}</span>
-              {section.required && <Badge variant="secondary" className="text-xs">Required</Badge>}
-            </Button>
-          );
-        })}
+        </div>
+        
+        {completion < 100 && (
+          <Alert className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Complete all mandatory sections to get your permanent registration number. Missing: name, mobile, identity document number, and {13 - Math.floor((completion / 100) * 13)} more.
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IconComponent className="h-5 w-5" />
-            {currentSectionData.title}
-            {currentSectionData.required && <Badge variant="secondary">Required</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>{renderCurrentSection()}</CardContent>
-      </Card>
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="basic">Basic Info</TabsTrigger>
+          <TabsTrigger value="identity">Identity</TabsTrigger>
+          <TabsTrigger value="address">Address</TabsTrigger>
+          <TabsTrigger value="tax">Tax Details</TabsTrigger>
+          <TabsTrigger value="banking">Banking</TabsTrigger>
+          <TabsTrigger value="ar">AR Details</TabsTrigger>
+          <TabsTrigger value="resources">Resources</TabsTrigger>
+        </TabsList>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-3 flex-1">
-          {currentSection > 0 && (
-            <Button variant="outline" onClick={() => setCurrentSection(currentSection - 1)}>Previous</Button>
-          )}
-          {currentSection < sections.length - 1 ? (
-            <Button onClick={() => setCurrentSection(currentSection + 1)} className="flex-1">Next Section</Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={loading} className="flex-1">
-              {loading ? <><Clock className="h-4 w-4 mr-2 animate-spin" />Saving...</> : <><Save className="h-4 w-4 mr-2" />Complete Profile</>}
+        {/* Basic Information Tab */}
+        <TabsContent value="basic" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Basic Information
+              </CardTitle>
+              <CardDescription>
+                Provide your basic organization details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="personType">Person Type *</Label>
+                <Select value={formData.personType} onValueChange={(value) => handleInputChange('personType', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select person type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PersonType.PUBLIC_LIMITED}>Public Limited</SelectItem>
+                    <SelectItem value={PersonType.PRIVATE_LIMITED}>Private Limited</SelectItem>
+                    <SelectItem value={PersonType.LIMITED_LIABILITY_PARTNERSHIP}>Limited Liability Partnership</SelectItem>
+                    <SelectItem value={PersonType.REGISTERED_PARTNERSHIP}>Registered Partnership</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="clientName">Name of the Client *</Label>
+                  <Input
+                    id="clientName"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter client name"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter email address"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="contactNumber">Contact Number *</Label>
+                  <Input
+                    id="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+                    placeholder="Enter contact number"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="clientLogo">Client Logo</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="clientLogo"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => e.target.files?.[0] && handleFileUpload('clientLogo', e.target.files[0])}
+                      className="flex-1"
+                    />
+                    <Upload className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Identity Document Tab */}
+        <TabsContent value="identity" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Identity Document Details
+                <Badge variant="destructive" className="ml-2">Required</Badge>
+              </CardTitle>
+              <CardDescription>
+                Upload your identity proof for verification
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="identityType">Identity Document *</Label>
+                  <Select 
+                    value={formData.identityDocument.type} 
+                    onValueChange={(value) => handleInputChange('identityDocument.type', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={IdentityDocumentType.PAN}>PAN Card</SelectItem>
+                      <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar Card</SelectItem>
+                      <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
+                      <SelectItem value={IdentityDocumentType.VOTER_ID}>Voter ID</SelectItem>
+                      <SelectItem value={IdentityDocumentType.DRIVING_LICENSE}>Driving License</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="identityNumber">Identity No. *</Label>
+                  <Input
+                    id="identityNumber"
+                    value={formData.identityDocument.number}
+                    onChange={(e) => handleInputChange('identityDocument.number', e.target.value)}
+                    placeholder="Enter ID number"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="identityUpload">Upload Identity Proof *</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="identityUpload"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => e.target.files?.[0] && handleFileUpload('identityDocument.uploadedFile', e.target.files[0])}
+                    className="flex-1"
+                    disabled={documentVerifying}
+                  />
+                  {documentVerifying && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {documentVerified && <CheckCircle className="h-4 w-4 text-green-600" />}
+                </div>
+                {documentVerifying && (
+                  <Alert className="mt-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <AlertDescription>
+                      Verifying your document with AI. Please wait...
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Address Tab */}
+        <TabsContent value="address" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Address Details
+                <Badge variant="destructive" className="ml-2">Required</Badge>
+              </CardTitle>
+              <CardDescription>
+                Provide your address information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="street">Address (with City and PIN code) *</Label>
+                <Textarea
+                  id="street"
+                  value={formData.address.street}
+                  onChange={(e) => handleInputChange('address.street', e.target.value)}
+                  placeholder="Enter complete address"
+                  required
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="city">City *</Label>
+                  <Input
+                    id="city"
+                    value={formData.address.city}
+                    onChange={(e) => handleInputChange('address.city', e.target.value)}
+                    placeholder="Enter city"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="state">State *</Label>
+                  <Input
+                    id="state"
+                    value={formData.address.state}
+                    onChange={(e) => handleInputChange('address.state', e.target.value)}
+                    placeholder="Enter state"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pinCode">PIN Code *</Label>
+                  <Input
+                    id="pinCode"
+                    value={formData.address.pinCode}
+                    onChange={(e) => handleInputChange('address.pinCode', e.target.value)}
+                    placeholder="Enter PIN code"
+                    required
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="sameBilling" 
+                  checked={sameBillingAddress}
+                  onCheckedChange={(checked) => setSameBillingAddress(checked === true)}
+                />
+                <Label htmlFor="sameBilling">Billing address is same as above address</Label>
+              </div>
+
+              {!sameBillingAddress && (
+                <Card className="p-4 bg-muted/50">
+                  <h4 className="font-medium mb-3">Billing Address</h4>
+                  <div className="space-y-4">
+                    <Textarea
+                      value={formData.billingAddress.street}
+                      onChange={(e) => handleInputChange('billingAddress.street', e.target.value)}
+                      placeholder="Enter billing address"
+                    />
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Input
+                        value={formData.billingAddress.city}
+                        onChange={(e) => handleInputChange('billingAddress.city', e.target.value)}
+                        placeholder="City"
+                      />
+                      <Input
+                        value={formData.billingAddress.state}
+                        onChange={(e) => handleInputChange('billingAddress.state', e.target.value)}
+                        placeholder="State"
+                      />
+                      <Input
+                        value={formData.billingAddress.pinCode}
+                        onChange={(e) => handleInputChange('billingAddress.pinCode', e.target.value)}
+                        placeholder="PIN Code"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tax Information Tab */}
+        <TabsContent value="tax" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Tax Information
+              </CardTitle>
+              <CardDescription>
+                Provide your tax-related information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="panNumber">PAN #</Label>
+                  <Input
+                    id="panNumber"
+                    value={formData.panNumber}
+                    onChange={(e) => handleInputChange('panNumber', e.target.value)}
+                    placeholder="Enter PAN number"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="panCopy">Option to upload copy</Label>
+                  <Input
+                    id="panCopy"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => e.target.files?.[0] && handleFileUpload('panCopy', e.target.files[0])}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="tanNumber">TAN #</Label>
+                  <Input
+                    id="tanNumber"
+                    value={formData.tanNumber}
+                    onChange={(e) => handleInputChange('tanNumber', e.target.value)}
+                    placeholder="Enter TAN number"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="tanCopy">Option to upload copy</Label>
+                  <Input
+                    id="tanCopy"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => e.target.files?.[0] && handleFileUpload('tanCopy', e.target.files[0])}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="gstNumber">GST #</Label>
+                  <Input
+                    id="gstNumber"
+                    value={formData.gstNumber}
+                    onChange={(e) => handleInputChange('gstNumber', e.target.value)}
+                    placeholder="Enter GST number"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="gstCopy">Option to upload a copy</Label>
+                  <Input
+                    id="gstCopy"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(e) => e.target.files?.[0] && handleFileUpload('gstCopy', e.target.files[0])}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Banking Details Tab */}
+        <TabsContent value="banking" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Banking Details
+                  </CardTitle>
+                  <CardDescription>
+                    Add your banking information for transactions
+                  </CardDescription>
+                </div>
+                <Button onClick={addBankingDetail} variant="outline" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Account
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {formData.bankingDetails.map((banking, index) => (
+                <Card key={index} className="p-4 bg-muted/50">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium">Account {index + 1}</h4>
+                    {formData.bankingDetails.length > 1 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => removeBankingDetail(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label>Name (as per Bank Account) *</Label>
+                      <Input
+                        value={banking.beneficiaryName}
+                        onChange={(e) => updateBankingDetail(index, 'beneficiaryName', e.target.value)}
+                        placeholder="Enter beneficiary name"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Account Type</Label>
+                      <Select 
+                        value={banking.accountType} 
+                        onValueChange={(value) => updateBankingDetail(index, 'accountType', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select account type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={AccountType.SAVINGS}>Savings</SelectItem>
+                          <SelectItem value={AccountType.CURRENT}>Current</SelectItem>
+                          <SelectItem value={AccountType.BUSINESS}>Business</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 mt-4">
+                    <div>
+                      <Label>Account number *</Label>
+                      <Input
+                        value={banking.accountNumber}
+                        onChange={(e) => updateBankingDetail(index, 'accountNumber', e.target.value)}
+                        placeholder="Enter account number"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Confirm Account Number *</Label>
+                      <Input
+                        value={banking.confirmAccountNumber}
+                        onChange={(e) => updateBankingDetail(index, 'confirmAccountNumber', e.target.value)}
+                        placeholder="Confirm account number"
+                        required
+                      />
+                      {banking.accountNumber && banking.confirmAccountNumber && 
+                       banking.accountNumber !== banking.confirmAccountNumber && (
+                        <p className="text-sm text-red-600 mt-1">Account numbers do not match</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <Label>IFSC Code *</Label>
+                    <Input
+                      value={banking.ifscCode}
+                      onChange={(e) => updateBankingDetail(index, 'ifscCode', e.target.value)}
+                      placeholder="Enter IFSC code"
+                      required
+                    />
+                  </div>
+                </Card>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AR Details Tab */}
+        <TabsContent value="ar" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                AR details
+                <Badge variant="destructive" className="ml-2">Required</Badge>
+              </CardTitle>
+              <CardDescription>
+                Authorized Representative details are mandatory for Entity/Organization Admin
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Name of the Authorised Representative *</Label>
+                  <Input 
+                    value={formData.authorizedRepresentative.name} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.name', e.target.value)} 
+                    placeholder="Enter AR name" 
+                    required 
+                  />
+                </div>
+                <div>
+                  <Label>Designation *</Label>
+                  <Input 
+                    value={formData.authorizedRepresentative.designation} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.designation', e.target.value)} 
+                    placeholder="Enter designation" 
+                    required 
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Email *</Label>
+                  <Input 
+                    type="email" 
+                    value={formData.authorizedRepresentative.email} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.email', e.target.value)} 
+                    placeholder="Enter AR email" 
+                    required 
+                  />
+                </div>
+                <div>
+                  <Label>Contact No. *</Label>
+                  <Input 
+                    type="tel" 
+                    value={formData.authorizedRepresentative.contactNumber} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.contactNumber', e.target.value)} 
+                    placeholder="Enter AR contact" 
+                    required 
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label>Address</Label>
+                <Textarea 
+                  value={formData.authorizedRepresentative.address.street} 
+                  onChange={(e) => handleInputChange('authorizedRepresentative.address.street', e.target.value)} 
+                  placeholder="Enter AR address" 
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>City</Label>
+                  <Input 
+                    value={formData.authorizedRepresentative.address.city} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.address.city', e.target.value)} 
+                    placeholder="City" 
+                  />
+                </div>
+                <div>
+                  <Label>State</Label>
+                  <Input 
+                    value={formData.authorizedRepresentative.address.state} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.address.state', e.target.value)} 
+                    placeholder="State" 
+                  />
+                </div>
+                <div>
+                  <Label>PIN Code</Label>
+                  <Input 
+                    value={formData.authorizedRepresentative.address.pinCode} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.address.pinCode', e.target.value)} 
+                    placeholder="PIN" 
+                  />
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Identity Document</Label>
+                  <Select 
+                    value={formData.authorizedRepresentative.identityDocument.type} 
+                    onValueChange={(value) => handleInputChange('authorizedRepresentative.identityDocument.type', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select ID type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={IdentityDocumentType.PAN}>PAN</SelectItem>
+                      <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar</SelectItem>
+                      <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Identity No.</Label>
+                  <Input 
+                    value={formData.authorizedRepresentative.identityDocument.number} 
+                    onChange={(e) => handleInputChange('authorizedRepresentative.identityDocument.number', e.target.value)} 
+                    placeholder="Enter ID number" 
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label>Upload Identity Proof</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => e.target.files?.[0] && handleInputChange('authorizedRepresentative.identityDocument.uploadedFile', e.target.files[0])}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Resources Tab */}
+        <TabsContent value="resources" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Resource Infra
+              </CardTitle>
+              <CardDescription>
+                Provide information about your organization's resources
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>No. of professionally qualified staff</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    value={formData.resourceInfra.numberOfProfessionalStaff} 
+                    onChange={(e) => handleInputChange('resourceInfra.numberOfProfessionalStaff', parseInt(e.target.value) || 0)} 
+                  />
+                </div>
+                <div>
+                  <Label>No. of other staff</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    value={formData.resourceInfra.numberOfOtherStaff} 
+                    onChange={(e) => handleInputChange('resourceInfra.numberOfOtherStaff', parseInt(e.target.value) || 0)} 
+                  />
+                </div>
+                <div>
+                  <Label>No. of interns/articled clerks</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    value={formData.resourceInfra.numberOfInternsArticledClerks} 
+                    onChange={(e) => handleInputChange('resourceInfra.numberOfInternsArticledClerks', parseInt(e.target.value) || 0)} 
+                  />
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <Label>No. of partners, if applicable</Label>
+                    <p className="text-sm text-muted-foreground">Based on the number added the system will provide sections to add partners</p>
+                  </div>
+                  <Button onClick={addPartner} variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Partner
+                  </Button>
+                </div>
+                
+                {formData.resourceInfra.partners.map((partner, index) => (
+                  <Card key={index} className="p-4 bg-muted/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">Partner {index + 1}</h4>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => removePartner(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <Label>Name of partner</Label>
+                        <Input
+                          value={partner.name}
+                          onChange={(e) => updatePartner(index, 'name', e.target.value)}
+                          placeholder="Enter partner name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Professional Profile</Label>
+                        <Input
+                          value={partner.professionalProfileLink}
+                          onChange={(e) => updatePartner(index, 'professionalProfileLink', e.target.value)}
+                          placeholder="Link to create another profile"
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex items-center justify-between py-6 border-t">
+        <div className="flex items-center gap-4">
+          {currentTab !== 'basic' && (
+            <Button variant="outline" onClick={handlePrevious} className="min-w-[100px]">
+              Previous
             </Button>
           )}
         </div>
-        <Button variant="outline" onClick={onSkip}>Skip for Now</Button>
+        
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={onSkip} className="min-w-[120px]">
+            Skip for Now
+          </Button>
+          
+          {currentTab !== 'resources' ? (
+            <Button onClick={handleSaveAndNext} disabled={loading} className="min-w-[140px]">
+              {loading ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save and Next
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={loading} className="min-w-[140px]">
+              {loading ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Completing...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Complete Profile
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {calculateCompletion() === 100 ? (
+      {completion === 100 ? (
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">

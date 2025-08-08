@@ -32,9 +32,14 @@ const ProfileCompletion: React.FC = () => {
   const [completionStatus, setCompletionStatus] = useState<ProfileCompletionStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Redirect directly to profile edit to bypass unnecessary dashboard
   useEffect(() => {
+    if (user && !loading) {
+      navigate('/profile/edit');
+      return;
+    }
     loadProfile();
-  }, [user]);
+  }, [user, loading, navigate]);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -165,6 +170,8 @@ const ProfileCompletion: React.FC = () => {
       </DashboardLayout>
     );
   }
+
+
 
   return (
     <DashboardLayout>

@@ -476,7 +476,6 @@ export const ServiceProviderTeamMemberForm: React.FC<ServiceProviderTeamMemberFo
           {currentSection < sections.length - 1 ? (
             <Button 
               onClick={() => setCurrentSection(currentSection + 1)}
-              className="flex-1"
             >
               Next Section
             </Button>
@@ -484,7 +483,6 @@ export const ServiceProviderTeamMemberForm: React.FC<ServiceProviderTeamMemberFo
             <Button 
               onClick={handleSubmit} 
               disabled={loading}
-              className="flex-1"
             >
               {loading ? (
                 <>

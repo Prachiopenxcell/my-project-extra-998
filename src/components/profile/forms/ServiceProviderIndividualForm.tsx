@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   User, 
@@ -22,9 +23,19 @@ import {
   Clock, 
   Plus, 
   Trash2, 
-  CheckCircle 
+  CheckCircle,
+  Upload,
+  Building,
+  CreditCard,
+  Globe,
+  Phone,
+  Mail,
+  Calendar,
+  Shield,
+  Languages,
+  Settings
 } from 'lucide-react';
-import { PersonType, IdentityDocumentType, AccountType, ServiceLevel } from '@/types/profile';
+import { IdentityDocumentType, AccountType, ServiceLevel, ServiceSector, ServiceIndustry, LanguageProficiency } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -33,72 +44,215 @@ interface ServiceProviderIndividualFormProps {
   onSkip: () => void;
 }
 
+interface FormData {
+  // Personal Details
+  title: string;
+  name: string;
+  companyName: string;
+  companyLogo: File | null;
+  
+  // User Details (Mandatory for permanent reference number)
+  email: string;
+  mobile: string;
+  
+  // Alternate Contact Details (for account recovery)
+  alternateContacts: Array<{
+    email: string;
+    mobile: string;
+  }>;
+  
+  // DOB/Date of Incorporation
+  dateOfBirth: string;
+  dateOfIncorporation: string;
+  
+  // Identity Document (Mandatory)
+  identityDocument: {
+    type: IdentityDocumentType | '';
+    number: string;
+    uploadedFile: File | null;
+  };
+  
+  // Qualifications (Mandatory)
+  qualifications: string;
+  
+  // Membership Details (Mandatory)
+  membershipDetails: Array<{
+    bodyInstitute: string; // ICAI/IIIPI/ICSI
+    membershipNumber: string;
+    memberSince: string;
+    uploadedCopy: File | null;
+    practiceLicenseNumber: string;
+    licenseValidity: string;
+    licenseCopy: File | null;
+  }>;
+  
+  // Language Known
+  languageSkills: Array<{
+    language: string;
+    speak: LanguageProficiency;
+    read: LanguageProficiency;
+    write: LanguageProficiency;
+  }>;
+  
+  // Resources and Infrastructure
+  resourceInfra: {
+    numberOfPartners: number;
+    numberOfProfessionalStaff: number;
+    numberOfOtherStaff: number;
+    numberOfInternsArticledClerks: number;
+  };
+  
+  // Work Location
+  workLocations: Array<{
+    city: string;
+    location: string;
+    pinCode: string;
+  }>;
+  
+  // Open to work remotely
+  openToRemoteWork: boolean;
+  
+  // Billing Details
+  billingDetails: Array<{
+    tradeName: string;
+    billingAddress: {
+      street: string;
+      city: string;
+      state: string;
+      pinCode: string;
+    };
+    gstState: string;
+    gstRegistrationNumber: string;
+    gstCopy: File | null;
+    panNumber: string;
+    panCopy: File | null;
+    tanNumber: string;
+    tanCopy: File | null;
+    isDefault: boolean;
+  }>;
+  
+  // Banking Details
+  bankingDetails: Array<{
+    beneficiaryName: string;
+    accountType: AccountType | '';
+    accountNumber: string;
+    confirmAccountNumber: string;
+    ifscCode: string;
+    isDefault: boolean;
+  }>;
+  
+  // Services Offered
+  servicesOffered: Array<{
+    category: string;
+    level: ServiceLevel | '';
+    sector: ServiceSector | '';
+    industry: ServiceIndustry | '';
+    services: string[];
+    hashtags: string[];
+  }>;
+}
+
 export const ServiceProviderIndividualForm: React.FC<ServiceProviderIndividualFormProps> = ({
   onComplete,
   onSkip
 }) => {
   const { user } = useAuth();
-  const [currentSection, setCurrentSection] = useState(0);
+  const [currentTab, setCurrentTab] = useState('personal');
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    // Basic details
-    personType: PersonType.INDIVIDUAL,
+  const [formData, setFormData] = useState<FormData>({
+    // Personal Details
+    title: 'Mr.',
     name: user?.name || '',
-    email: user?.email || '',
-    contactNumber: user?.phone || '',
+    companyName: '',
+    companyLogo: null,
     
-    // Identity verification
+    // User Details
+    email: user?.email || '',
+    mobile: user?.phone || '',
+    
+    // Alternate Contact Details
+    alternateContacts: [{ email: '', mobile: '' }],
+    
+    // DOB/Date of Incorporation
+    dateOfBirth: '',
+    dateOfIncorporation: '',
+    
+    // Identity Document
     identityDocument: {
       type: '',
       number: '',
-      proof: null as File | null
-    },
-    
-    // Address
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      pinCode: ''
+      uploadedFile: null
     },
     
     // Qualifications
-    qualifications: [] as Array<{
-      degree: string;
-      institution: string;
-      year: string;
-      certificate: File | null;
-    }>,
+    qualifications: '',
     
-    // Memberships
-    memberships: [] as Array<{
-      organization: string;
-      membershipNumber: string;
-      validTill: string;
-      certificate: File | null;
-    }>,
+    // Membership Details
+    membershipDetails: [{
+      bodyInstitute: '',
+      membershipNumber: '',
+      memberSince: '',
+      uploadedCopy: null,
+      practiceLicenseNumber: '',
+      licenseValidity: '',
+      licenseCopy: null
+    }],
     
-    // Language skills
-    languageSkills: [] as string[],
+    // Language Skills
+    languageSkills: [{
+      language: '',
+      speak: LanguageProficiency.LOW,
+      read: LanguageProficiency.LOW,
+      write: LanguageProficiency.LOW
+    }],
     
-    // Work locations
-    workLocations: [] as string[],
-    
-    // Services offered
-    servicesOffered: {
-      serviceLevel: '',
-      categories: [] as string[],
-      description: ''
+    // Resources and Infrastructure
+    resourceInfra: {
+      numberOfPartners: 0,
+      numberOfProfessionalStaff: 0,
+      numberOfOtherStaff: 0,
+      numberOfInternsArticledClerks: 0
     },
     
-    // Banking
-    bankingDetails: {
+    // Work Locations
+    workLocations: [{ city: '', location: '', pinCode: '' }],
+    
+    // Open to remote work
+    openToRemoteWork: false,
+    
+    // Billing Details
+    billingDetails: [{
+      tradeName: '',
+      billingAddress: { street: '', city: '', state: '', pinCode: '' },
+      gstState: '',
+      gstRegistrationNumber: '',
+      gstCopy: null,
+      panNumber: '',
+      panCopy: null,
+      tanNumber: '',
+      tanCopy: null,
+      isDefault: true
+    }],
+    
+    // Banking Details
+    bankingDetails: [{
       beneficiaryName: '',
+      accountType: '',
       accountNumber: '',
       confirmAccountNumber: '',
-      accountType: '',
-      ifscCode: ''
-    }
+      ifscCode: '',
+      isDefault: true
+    }],
+    
+    // Services Offered
+    servicesOffered: [{
+      category: '',
+      level: '',
+      sector: '',
+      industry: '',
+      services: [],
+      hashtags: []
+    }]
   });
 
   const sections = [

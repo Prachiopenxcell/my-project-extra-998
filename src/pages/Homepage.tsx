@@ -20,7 +20,9 @@ import {
   Globe,
   LogIn,
   UserPlus,
-
+  Clock,
+  BookOpen,
+  Settings,
   Menu,
   X
 } from 'lucide-react';
@@ -73,7 +75,20 @@ const platformFeatures = [
     title: 'AR & Facilitators',
     description: 'Administrator and facilitator selection with transparent evaluation processes.',
     features: ['Selection Process', 'Evaluation Criteria', 'Consent Management', 'Fee Structure']
-  }
+  },
+  {
+    icon: Clock,
+    title: 'Timeline Management',
+    description: 'Comprehensive timeline tracking and milestone management for all processes.',
+    features: ['Event Tracking', 'Milestone Management', 'Activity Logging', 'Progress Monitoring']
+  },
+  {
+    icon: BookOpen,
+    title: 'Regulatory Compliance',
+    description: 'Complete regulatory compliance management with automated monitoring and reporting.',
+    features: ['Compliance Tracking', 'Regulatory Updates', 'Automated Reporting', 'Risk Assessment']
+  },
+  
 ];
 
 const stats = [
@@ -100,11 +115,12 @@ export default function Homepage() {
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-8">
               <a href="#home" className="text-gray-700 hover:text-slate-700 font-medium">Home</a>
-              <a href="#about" className="text-gray-700 hover:text-slate-700 font-medium">About Us</a>
-              <a href="#services" className="text-gray-700 hover:text-slate-700 font-medium">Services</a>
-              <a href="#plans" className="text-gray-700 hover:text-slate-700 font-medium">Purchase Subscriptions</a>
-              <a href="#contact" className="text-gray-700 hover:text-slate-700 font-medium">Contact Us</a>
-              <a href="#articles" className="text-gray-700 hover:text-slate-700 font-medium">Articles</a>
+              <Link to="/about" className="text-gray-700 hover:text-slate-700 font-medium">About Us</Link>
+              <Link to="/how-it-works" className="text-gray-700 hover:text-slate-700 font-medium">Services</Link>
+              <Link to="/modules-subscription" className="text-gray-700 hover:text-slate-700 font-medium">Purchase Subscriptions</Link>
+              <Link to="/contact" className="text-gray-700 hover:text-slate-700 font-medium">Contact Us</Link>
+              <Link to="/articles" className="text-gray-700 hover:text-slate-700 font-medium">Articles</Link>
+              <Link to="/faq" className="text-gray-700 hover:text-slate-700 font-medium">FAQ</Link>
               
               {/* Direct Login Button */}
               <Button variant="outline" asChild className="flex items-center space-x-2">
@@ -144,11 +160,12 @@ export default function Homepage() {
             <div className="lg:hidden border-t border-gray-200 py-4">
               <nav className="flex flex-col space-y-4">
                 <a href="#home" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Home</a>
-                <a href="#about" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">About Us</a>
-                <a href="#services" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Services</a>
-                <a href="#plans" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Purchase Subscriptions</a>
-                <a href="#contact" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Contact Us</a>
-                <a href="#articles" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Articles</a>
+                <Link to="/about" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">About Us</Link>
+                <Link to="/how-it-works" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Services</Link>
+                <Link to="/modules-subscription" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Purchase Subscriptions</Link>
+                <Link to="/contact" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Contact Us</Link>
+                <Link to="/articles" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Articles</Link>
+                <Link to="/faq" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">FAQ</Link>
                 
                 <div className="border-t border-gray-200 pt-4">
                   <Link
@@ -279,7 +296,7 @@ export default function Homepage() {
             <Button size="lg" variant="secondary" className="bg-white text-slate-700 hover:bg-gray-100">
               Contact Sales
             </Button>
-            <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-slate-700">
+            <Button size="lg" variant="primary" className="text-white border-white hover:bg-white hover:text-slate-700">
               Schedule Demo
             </Button>
           </div>
@@ -310,28 +327,37 @@ export default function Homepage() {
             </div>
             
             <div>
-              <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+              <h3 className="text-lg font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#about" className="hover:text-white">About Us</a></li>
-                <li><a href="#services" className="hover:text-white">Services</a></li>
-                <li><a href="#plans" className="hover:text-white">Pricing</a></li>
-                <li><a href="#articles" className="hover:text-white">Resources</a></li>
+                <li><Link to="/about" className="hover:text-white">About Us</Link></li>
+                <li><Link to="/how-it-works" className="hover:text-white">How It Works</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Contact Us</Link></li>
+                <li><Link to="/articles" className="hover:text-white">Articles & Blog</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Services</h3>
+              <ul className="space-y-2 text-gray-400">
+                <li><Link to="/modules-subscription" className="hover:text-white">Modules & Plans</Link></li>
+                <li><Link to="/faq" className="hover:text-white">FAQ</Link></li>
+                <li><Link to="/legal-compliance" className="hover:text-white">Compliance Info</Link></li>
               </ul>
             </div>
             
             <div>
               <h3 className="text-lg font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="/terms" className="hover:text-white">Terms & Conditions</a></li>
-                <li><a href="/privacy" className="hover:text-white">Privacy Policy</a></li>
-                <li><a href="/security" className="hover:text-white">Security</a></li>
-                <li><a href="/compliance" className="hover:text-white">Compliance</a></li>
+                <li><Link to="/terms" className="hover:text-white">Terms & Conditions</Link></li>
+                <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
+                <li><Link to="/cookies" className="hover:text-white">Cookies Policy</Link></li>
+                <li><Link to="/legal-compliance" className="hover:text-white">Legal & Compliance</Link></li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 998-P Platform. All rights reserved.</p>
+            <p>&copy; 2025 998-P Platform. All rights reserved.</p>
           </div>
         </div>
       </footer>

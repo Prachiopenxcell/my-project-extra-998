@@ -12,15 +12,13 @@ const Dashboard = () => {
     
     // Map user roles to layout user types
     switch (user.role) {
-      case UserRole.SERVICE_PROVIDER_INDIVIDUAL:
-      case UserRole.SERVICE_PROVIDER_PARTNER:
+      case UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER:
       case UserRole.SERVICE_PROVIDER_ENTITY_ADMIN:
       case UserRole.SERVICE_PROVIDER_TEAM_MEMBER:
-      case UserRole.ANCILLARY_SERVICE_PROVIDER:
         return "service_provider";
-      case UserRole.SUPER_ADMIN:
-      case UserRole.SUB_ADMIN:
-        return "admin";
+      case UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER:
+      case UserRole.SERVICE_SEEKER_ENTITY_ADMIN:
+      case UserRole.SERVICE_SEEKER_TEAM_MEMBER:
       default:
         return "service_seeker";
     }

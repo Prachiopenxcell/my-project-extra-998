@@ -43,6 +43,7 @@ import {
   Briefcase,
   Landmark,
   Clock,
+  Book,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,25 +60,28 @@ const navigationItems = {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "My Service Requests", href: "/service-requests", icon: FileText },
     { name: "My Work Orders", href: "/work-orders", icon: Users },
+    { name:'Subscriptions', href: "/subscription", icon: CreditCard},
     { name: "My Workspace", href: "/workspace", icon: Building },
-    { name: "Timeline", href: "/timeline", icon: Calendar },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "System Settings", href: "/settings", icon: Settings },
   ],
   service_provider: [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Service Requests", href: "/service-requests", icon: FileText },
-    { name: "My Bids", href: "/bids", icon: FileText },
+    { name: "Service Requests", href: "/service-requests", icon: FileText }, //change name to opportunities after module is ready
     { name: "My Work Orders", href: "/work-orders", icon: Users },
-    { name: "My Workspace", href: "/workspace", icon: Building },
+    { name:'Feedback', href: "/feedback", icon:Users},
+    { name:'Guidance and Reference', href: "/guidance-and-reference", icon: Book},
     {
       name: "Resource Pooling/Sharing",
       href: "/resource-pooling-sharing",
       icon: Users,
-    },
+    },  
+    { name:'Subscriptions', href: "/subscription", icon: CreditCard},
+    { name: "My Workspace", href: "/workspace", icon: Building },
+   
 
     { name: "Settings", href: "/settings", icon: Settings },
   ],
-  admin: [
+  /* admin: [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Users", href: "/admin/users", icon: Users },
     {
@@ -88,10 +92,11 @@ const navigationItems = {
     { name: "Work Orders", href: "/admin/work-orders", icon: Users },
     { name: "Reports", href: "/admin/reports", icon: BarChart3 },
     { name: "Settings", href: "/admin/settings", icon: Settings },
-  ],
+  ], */
 };
 
-const professionalModules = [
+// All available professional modules
+const allProfessionalModules = [
   { name: "My Entity", href: "/entity-management", icon: Briefcase },
   { name: "Meetings", href: "/meetings", icon: Calendar },
   { name: "E-Voting", href: "/voting", icon: Vote },
@@ -102,8 +107,9 @@ const professionalModules = [
   { name: "Litigation Management", href: "/litigation", icon: Scale },
   { name: "Resolution System", href: "/resolution", icon: UserCheck },
   { name: "Regulatory Compliance", href: "/compliance", icon: Building },
- 
 ];
+
+// All professional modules are now accessible to all users without restrictions
 
 export function DashboardLayout({
   children,
@@ -175,7 +181,7 @@ export function DashboardLayout({
               Professional Modules
             </h3>
             <nav className="space-y-1">
-              {professionalModules.map((item) => {
+              {allProfessionalModules.map((item) => {
                 const Icon = item.icon;
                 const isActive = isActiveLink(item.href);
                 return (
