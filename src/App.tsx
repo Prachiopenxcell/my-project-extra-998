@@ -83,12 +83,36 @@ import ClaimsManagement from "./pages/ClaimsManagement";
 import ClaimInvitations from "./pages/ClaimInvitations";
 import CreateClaimInvitation from "./pages/CreateClaimInvitation";
 import AllClaimsList from "./pages/AllClaimsList";
+
+// Service Request and Bid Submission Module
+import ServiceRequests from "./pages/ServiceRequests";
+import ServiceRequestDetails from "./pages/ServiceRequestDetails";
+import EditServiceRequest from "./pages/EditServiceRequest";
+import BidDetails from "./pages/BidDetails";
+import EditBid from "./pages/EditBid";
+
+// Work Order Module
+import WorkOrders from "./pages/WorkOrders";
+import WorkOrderDetails from "./pages/WorkOrderDetails";
+import CreateWorkOrder from "./pages/CreateWorkOrder";
 import ClaimDetails from "./pages/ClaimDetails";
 import ClaimVerification from "./pages/ClaimVerification";
 import ClaimsReports from "./pages/ClaimsReports";
 import ClaimSubmission from "./pages/ClaimSubmission";
 import ClaimsAuditLog from "./pages/ClaimsAuditLog";
 import ClaimsAllocationSettings from "./pages/ClaimsAllocationSettings";
+
+// Subscription Management Module
+import SubscriptionManagement from "./pages/SubscriptionManagement";
+import SubscriptionPackages from "./pages/SubscriptionPackages";
+import SubscriptionBilling from "./pages/SubscriptionBilling";
+import SubscriptionDetails from "./pages/SubscriptionDetails";
+import SubscriptionPaymentMethods from "./pages/SubscriptionPaymentMethods";
+import SubscriptionInvoiceDetail from "./pages/SubscriptionInvoiceDetail";
+import SubscriptionPurchase from "./pages/SubscriptionPurchase";
+import SubscriptionRenewal from "./pages/SubscriptionRenewal";
+import CreateServiceRequest from "./pages/CreateServiceRequest";
+
 // Static Pages
 import FAQ from "./pages/FAQ";
 import UserFAQ from "./pages/UserFAQ";
@@ -101,16 +125,9 @@ import TermsConditions from "./pages/TermsConditions";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiesPolicy from "./pages/CookiesPolicy";
 import LegalCompliance from "./pages/LegalCompliance";
-
-// Subscription Management Module
-import SubscriptionManagement from "./pages/SubscriptionManagement";
-import SubscriptionPackages from "./pages/SubscriptionPackages";
-import SubscriptionBilling from "./pages/SubscriptionBilling";
-import SubscriptionDetails from "./pages/SubscriptionDetails";
-import SubscriptionPaymentMethods from "./pages/SubscriptionPaymentMethods";
-import SubscriptionInvoiceDetail from "./pages/SubscriptionInvoiceDetail";
-import SubscriptionPurchase from "./pages/SubscriptionPurchase";
-import SubscriptionRenewal from "./pages/SubscriptionRenewal";
+// Guidance and Resource Modules
+import GuidanceAndReference from './pages/GuidanceAndReferenceNew';
+import ResourceSharingPooling from "./pages/ResourceSharingPooling";
 const queryClient = new QueryClient();
 
 function App() {
@@ -170,7 +187,25 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+               {/* Guidance and Reference Module Routes */}
+               <Route 
+                path="/guidance-reference" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED} requiredRole={[UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER, UserRole.SERVICE_PROVIDER_ENTITY_ADMIN, UserRole.SERVICE_PROVIDER_TEAM_MEMBER]}>
+                    <GuidanceAndReference />
+                  </ProtectedRoute>
+                } 
+              />
               
+              {/* Resource Sharing and Pooling Module Routes */}
+              <Route 
+                path="/resource-sharing" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED} requiredRole={[UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER, UserRole.SERVICE_PROVIDER_ENTITY_ADMIN, UserRole.SERVICE_PROVIDER_TEAM_MEMBER]}>
+                    <ResourceSharingPooling />
+                  </ProtectedRoute>
+                } 
+              />
               {/* Entity Management Module Routes */}
               <Route path="/entity-management" element={<EntityManagement />} />
               <Route path="/create-entity" element={<CreateEntity />} />
@@ -256,6 +291,7 @@ function App() {
               <Route path="/compliance/tracking" element={<ComplianceTrackingMonitoring />} />
               <Route path="/compliance/reports" element={<ComplianceReportsAnalytics />} />
               
+                
               {/* Subscription Management Module Routes */}
               <Route 
                 path="/subscription" 
@@ -329,8 +365,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
-              
-              
+
               {/* Catch-all routes for unimplemented sub-pages */}
               <Route path="/entity-management/*" element={<ComingSoon />} />
               <Route path="/meetings/*" element={<ComingSoon />} />
@@ -343,6 +378,207 @@ function App() {
               <Route path="/compliance/*" element={<ComingSoon />} />
 
                
+              {/* Service Request and Bid Submission Module Routes */}
+              <Route 
+                path="/service-requests" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                  >
+                    <ServiceRequests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/create-service-request" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                  >
+                    <CreateServiceRequest />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/service-requests/:id" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                  >
+                    <ServiceRequestDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/opportunities/:id" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                  >
+                    <ServiceRequestDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/service-requests/:id/edit" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                  >
+                    <EditServiceRequest />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/bids/:id" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                  >
+                    <BidDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/bids/:id/edit" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                  >
+                    <EditBid />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Work Order Module Routes */}
+              {/* Main Work Orders List - Both Service Seekers and Service Providers */}
+              <Route 
+                path="/work-orders" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login?redirect=/work-orders"
+                  >
+                    <WorkOrders />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Create Work Order - Service Seekers Only (can create from bids) */}
+              <Route 
+                path="/work-orders/create" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login?redirect=/work-orders/create"
+                  >
+                    <CreateWorkOrder />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Create Work Order - Service Providers Only (can initiate work orders) */}
+              <Route 
+                path="/work-orders/create-provider" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login?redirect=/work-orders/create-provider"
+                  >
+                    <CreateWorkOrder />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Work Order Details - Both Service Seekers and Service Providers */}
+              <Route 
+                path="/work-orders/:id" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login?redirect=/work-orders"
+                  >
+                    <WorkOrderDetails />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Work Order Feedback - Both roles can provide feedback */}
+              <Route 
+                path="/work-orders/:id/feedback" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login"
+                  >
+                    <WorkOrderDetails />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Claims Management Module Routes */}
               <Route path="/claims" element={<ClaimsManagement />} />
               <Route path="/claims/invitations" element={<ClaimInvitations />} />

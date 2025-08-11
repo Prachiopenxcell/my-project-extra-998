@@ -41,8 +41,20 @@ export function ProtectedRoute({
   // Check role requirements
   if (requiredRole && user) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    
+    // Debug: Log role checking
+    console.log('🔒 PROTECTED ROUTE DEBUG:', {
+      userRole: user.role,
+      requiredRoles: roles,
+      hasAccess: roles.includes(user.role),
+      currentPath: location.pathname
+    });
+    
     if (!roles.includes(user.role)) {
+      console.log('❌ ACCESS DENIED - Redirecting to unauthorized');
       return <Navigate to="/unauthorized" replace />;
+    } else {
+      console.log('✅ ACCESS GRANTED');
     }
   }
 

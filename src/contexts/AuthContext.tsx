@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         firstName: 'John',
         lastName: 'Doe',
         role: credentials.userRole,
-        userType: credentials.userRole.includes('service_seeker') ? UserType.SERVICE_SEEKER : UserType.SERVICE_PROVIDER,
+        userType: credentials.userRole.startsWith('service_seeker') ? UserType.SERVICE_SEEKER : UserType.SERVICE_PROVIDER,
         permissions: ROLE_PERMISSIONS[credentials.userRole] || [],
         isActive: true,
         isVerified: true,

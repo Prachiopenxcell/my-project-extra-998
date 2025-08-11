@@ -66,13 +66,13 @@ const navigationItems = {
   ],
   service_provider: [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Service Requests", href: "/service-requests", icon: FileText }, //change name to opportunities after module is ready
+    { name: "Opportunities", href: "/service-requests", icon: FileText }, //change name to opportunities after module is ready
     { name: "My Work Orders", href: "/work-orders", icon: Users },
     { name:'Feedback', href: "/feedback", icon:Users},
-    { name:'Guidance and Reference', href: "/guidance-and-reference", icon: Book},
+    { name:'Guidance and Reference', href: "/guidance-reference", icon: Book},
     {
       name: "Resource Pooling/Sharing",
-      href: "/resource-pooling-sharing",
+      href: "/resource-sharing",
       icon: Users,
     },  
     { name:'Subscriptions', href: "/subscription", icon: CreditCard},
