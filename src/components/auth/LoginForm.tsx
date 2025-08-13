@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Captcha } from "@/components/ui/captcha";
 import { Eye, EyeOff, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -18,6 +19,7 @@ interface LoginFormData {
   password: string;
   userType: "service_seeker" | "service_provider";
   rememberMe: boolean;
+  captchaVerified: boolean;
 }
 
 export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
@@ -26,11 +28,15 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
     password: "",
     userType: "service_seeker",
     rememberMe: false,
+    captchaVerified: false,
   });
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.captchaVerified) {
+      return;
+    }
     onSubmit(formData);
   };
 
@@ -109,6 +115,12 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
                 </div>
               </div>
 
+              {/* Captcha */}
+              <Captcha
+                onVerify={(isValid) => handleInputChange("captchaVerified", isValid)}
+                className=""
+              />
+
               {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -127,13 +139,11 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
                 </Link>
               </div>
 
-
-
               {/* Login Button */}
               <Button 
                 type="submit" 
                 className="w-full h-12 text-base font-semibold"
-                disabled={isLoading}
+                disabled={isLoading || !formData.captchaVerified}
                 variant="professional"
               >
                 {isLoading ? "Logging in..." : "Login"}

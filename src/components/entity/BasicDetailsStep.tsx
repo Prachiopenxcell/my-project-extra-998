@@ -283,22 +283,38 @@ export const BasicDetailsStep = ({ formData, updateFormData }: StepComponentProp
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="companyStatus">Company Status</Label>
-            <Input
-              id="companyStatus"
-              value={formData.companyStatus}
-              readOnly
-              className="bg-muted/30"
-            />
+            <Select 
+              value={formData.companyStatus} 
+              onValueChange={(value) => updateFormData({ companyStatus: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select company status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="Dormant">Dormant</SelectItem>
+                <SelectItem value="Under Liquidation">Under Liquidation</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-
+          
           <div className="space-y-2">
-            <Label htmlFor="indexOfCharges">Index of Charges</Label>
-            <Input
-              id="indexOfCharges"
-              value={formData.indexOfCharges}
-              readOnly
-              className="bg-muted/30"
-            />
+            <Label htmlFor="entityStatus">Entity Status</Label>
+            <Select 
+              value={formData.entityStatus || 'pending'} 
+              onValueChange={(value: 'pending' | 'active' | 'suspended' | 'inactive') => updateFormData({ entityStatus: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select entity status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

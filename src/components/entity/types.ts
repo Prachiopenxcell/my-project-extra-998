@@ -9,6 +9,27 @@ export interface Address {
   country?: string;
 }
 
+// Factory/Branch Office Address interface
+export interface FactoryBranchAddress {
+  type: 'factory' | 'branch';
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  isMain?: boolean;
+}
+
+// Additional Business Location interface
+export interface BusinessLocation {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  type: 'office' | 'warehouse' | 'factory' | 'branch' | 'other';
+}
+
 // Entity form data types
 export interface EntityFormData {
   // System fields
@@ -25,6 +46,7 @@ export interface EntityFormData {
   lastAgmDate: string;
   balanceSheetDate: string;
   companyStatus: string;
+  entityStatus: 'pending' | 'active' | 'suspended' | 'inactive';
   indexOfCharges: string;
   directors: Director[];
   pan: string;
@@ -49,6 +71,8 @@ export interface EntityFormData {
   correspondenceAddress?: string;
   sameAddress: boolean;
   businessLocations: string[];
+  factoryBranchOffices?: FactoryBranchAddress[];
+  additionalBusinessLocations?: BusinessLocation[];
   email?: string;
   phone?: string;
   registeredEmail: string;
@@ -68,6 +92,10 @@ export interface EntityFormData {
   employeeCount?: number;
   maleEmployeeCount?: number;
   femaleEmployeeCount?: number;
+  employeesForVDR?: number;
+  installedCapacity?: string;
+  salesQuantity?: string;
+  salesValue?: string;
   operationalStatus?: string;
   complianceRating?: string;
   riskCategory?: string;
@@ -89,6 +117,59 @@ export interface EntityFormData {
   // Bank & Investment Documents
   bankDocuments?: BankDocument[];
   investmentSummary?: string;
+  
+  // Team Management
+  teamMembers?: TeamMember[];
+  entityAllocation?: EntityAllocation[];
+  activityLog?: ActivityLogEntry[];
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  permissions: string[];
+  assignedDate: string;
+  status: 'active' | 'inactive' | 'pending';
+  lastActivity?: string;
+  journey?: JourneyStep[];
+}
+
+export interface EntityAllocation {
+  id: string;
+  entityId: string;
+  entityName: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  allocationType: 'primary' | 'secondary' | 'viewer';
+  allocatedDate: string;
+  allocatedBy: string;
+  permissions: string[];
+  status: 'active' | 'inactive';
+  department: string;
+  workload: string;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  entityId: string;
+  userId: string;
+  userName: string;
+  action: string;
+  description: string;
+  timestamp: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface JourneyStep {
+  id: string;
+  step: string;
+  description: string;
+  completedDate?: string;
+  status: 'completed' | 'in-progress' | 'pending';
+  assignedBy?: string;
 }
 
 export interface Director {
@@ -122,9 +203,10 @@ export interface IndustryDetail {
   industry: string;
   subIndustry?: string;
   products?: string[];
-  installedCapacity?: number;
-  salesQuantity?: number;
-  salesValue?: number;
+  installedCapacity?: string;
+  salesQuantity?: string;
+  salesValue?: string;
+  employeesForVDR?: number;
 }
 
 export interface FinancialRecord {

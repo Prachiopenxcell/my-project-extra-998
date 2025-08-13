@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Authentication
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { UserRole, AccessLevel } from "@/types/auth";
 
@@ -54,6 +55,7 @@ import LitigationStageSelection from "./pages/LitigationStageSelection";
 import CreateActiveLitigation from "./pages/CreateActiveLitigation";
 /* VDR */
 import VirtualDataRoom from "./pages/VirtualDataRoom";
+import EntityDataCompletion from "./pages/EntityDataCompletion";
 import DocumentStorageEnhanced from "./pages/DocumentStorageEnhanced";
 import CreateDocumentRoom from "./pages/CreateDocumentRoom";
 import CreateVDRRoomComplete from "./pages/CreateVDRRoomComplete";
@@ -135,8 +137,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner />
+          <SubscriptionProvider>
+            <Toaster />
+            <Sonner />
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
@@ -262,6 +265,7 @@ function App() {
               
               {/* Virtual Data Room Module Routes */}
               <Route path="/data-room" element={<VirtualDataRoom />} />
+              <Route path="/data-room/entity-data-completion" element={<EntityDataCompletion />} />
               
               {/* Document Storage & Management Routes */}
               <Route path="/data-room/document-storage" element={<DocumentStorageEnhanced />} />
@@ -599,6 +603,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </SubscriptionProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

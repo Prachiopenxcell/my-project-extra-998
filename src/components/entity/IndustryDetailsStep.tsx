@@ -34,9 +34,15 @@ export const IndustryDetailsStep = ({ formData, updateFormData }: StepComponentP
   // Employee counts
   const [maleEmployeeCount, setMaleEmployeeCount] = useState<number>(formData.maleEmployeeCount || 0);
   const [femaleEmployeeCount, setFemaleEmployeeCount] = useState<number>(formData.femaleEmployeeCount || 0);
+  const [employeesForVDR, setEmployeesForVDR] = useState<number>(formData.employeesForVDR || 0);
 
   // State for operational status
   const [operationalStatus, setOperationalStatus] = useState<string>(formData.operationalStatus || "Active");
+  
+  // State for VDR-related fields
+  const [installedCapacity, setInstalledCapacity] = useState<string>(formData.installedCapacity || "");
+  const [salesQuantity, setSalesQuantity] = useState<string>(formData.salesQuantity || "");
+  const [salesValue, setSalesValue] = useState<string>(formData.salesValue || "");
 
   // State for tags/keywords
   const [keyword, setKeyword] = useState("");
@@ -51,9 +57,13 @@ export const IndustryDetailsStep = ({ formData, updateFormData }: StepComponentP
     updateFormData({ 
       maleEmployeeCount, 
       femaleEmployeeCount, 
-      employeeCount: totalCount 
+      employeeCount: totalCount,
+      employeesForVDR,
+      installedCapacity,
+      salesQuantity,
+      salesValue
     });
-  }, [maleEmployeeCount, femaleEmployeeCount, updateFormData]);
+  }, [maleEmployeeCount, femaleEmployeeCount, employeesForVDR, installedCapacity, salesQuantity, salesValue, updateFormData]);
 
   // Update operational status
   useEffect(() => {
@@ -110,9 +120,10 @@ export const IndustryDetailsStep = ({ formData, updateFormData }: StepComponentP
       const newDetail: IndustryDetail = {
         industry,
         products: [],
-        installedCapacity: 0,
-        salesQuantity: 0,
-        salesValue: 0
+        installedCapacity: "",
+        salesQuantity: "",
+        salesValue: "",
+        employeesForVDR: 0
       };
 
       const updatedDetails = [...industryDetails, newDetail];
@@ -310,44 +321,38 @@ export const IndustryDetailsStep = ({ formData, updateFormData }: StepComponentP
           </div>
         )}
 
-        {/* Employee Counts */}
+       
+        
+        {/* VDR Operational Details */}
         <div className="space-y-4 pt-4 border-t">
-          <h3 className="text-lg font-medium">Employee Information</h3>
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="maleEmployeeCount">Male Employees</Label>
+              <Label htmlFor="installedCapacity">Installed Capacity</Label>
               <Input
-                id="maleEmployeeCount"
-                type="number"
-                min="0"
-                value={maleEmployeeCount}
-                onChange={(e) => setMaleEmployeeCount(parseInt(e.target.value) || 0)}
-                placeholder="Enter number of male employees"
+                id="installedCapacity"
+                value={installedCapacity}
+                onChange={(e) => setInstalledCapacity(e.target.value)}
+                placeholder="e.g., 1000 units/month"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="femaleEmployeeCount">Female Employees</Label>
+              <Label htmlFor="salesQuantity">Sales Quantity</Label>
               <Input
-                id="femaleEmployeeCount"
-                type="number"
-                min="0"
-                value={femaleEmployeeCount}
-                onChange={(e) => setFemaleEmployeeCount(parseInt(e.target.value) || 0)}
-                placeholder="Enter number of female employees"
+                id="salesQuantity"
+                value={salesQuantity}
+                onChange={(e) => setSalesQuantity(e.target.value)}
+                placeholder="e.g., 800 units/month"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="totalEmployeeCount">Total Employees</Label>
+              <Label htmlFor="salesValue">Sales Value</Label>
               <Input
-                id="totalEmployeeCount"
-                type="number"
-                min="0"
-                value={maleEmployeeCount + femaleEmployeeCount}
-                readOnly
-                className="bg-muted"
+                id="salesValue"
+                value={salesValue}
+                onChange={(e) => setSalesValue(e.target.value)}
+                placeholder="e.g., ₹50,00,000"
               />
             </div>
           </div>
@@ -376,6 +381,10 @@ export const IndustryDetailsStep = ({ formData, updateFormData }: StepComponentP
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="Under Liquidation" id="status-liquidation" />
               <Label htmlFor="status-liquidation">Under Liquidation</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="Under CIRP" id="status-cirp" />
+              <Label htmlFor="status-cirp">Under CIRP</Label>
             </div>
           </RadioGroup>
         </div>

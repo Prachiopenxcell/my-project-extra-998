@@ -286,6 +286,15 @@ export const DETAILED_REGISTRATION_OPTIONS = [
     category: 'Service Provider',
     description: 'Join as a team member of a service providing organization',
     requiresOrganization: false
+  },
+  {
+    id: 'ancillary-service-provider',
+    label: 'ancillary service providers.',
+    role: 'ANCILLARY_SERVICE_PROVIDER',
+    userType: 'ANCILLARY_SERVICE_PROVIDER',
+    category: 'Service Provider',
+    description: 'Join as a team member of a service providing organization',
+    requiresOrganization: false
   }
 ];
 

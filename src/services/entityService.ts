@@ -95,9 +95,9 @@ const mockEntities: EntityFormData[] = [
         industry: "Manufacturing",
         subIndustry: "Electronics",
         products: ["Electronic components", "Circuit boards"],
-        installedCapacity: 10000,
-        salesQuantity: 8500,
-        salesValue: 25000000
+        installedCapacity: "10000",
+        salesQuantity: "8500",
+        salesValue: "25000000"
       }
     ],
     businessActivity: "Manufacturing of electronic components and circuit boards for industrial applications.",
@@ -319,9 +319,9 @@ const mockEntities: EntityFormData[] = [
         industry: "Service",
         subIndustry: "IT Services",
         products: ["Software development", "IT consulting", "Fintech solutions"],
-        installedCapacity: 0,
-        salesQuantity: 0,
-        salesValue: 75000000
+        installedCapacity: "5000",
+        salesQuantity: "4200",
+        salesValue: "15000000"
       }
     ],
     businessActivity: "Software development and IT consulting services for financial institutions.",
@@ -668,23 +668,51 @@ export const entityService = {
 
   // Update a bank document
   updateBankDocument(entityId: string, documentId: string, updates: Partial<BankDocument>): Promise<BankDocument> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
-        // In a real API, this would update the document in a database
-        // For now, we just return a mock updated document
-        resolve({
-          id: documentId,
-          bankName: updates.bankName || "Bank Name",
-          documentType: updates.documentType || "Bank Statement",
-          documentDate: updates.documentDate || new Date().toISOString().split('T')[0],
-          fileName: updates.fileName,
-          fileUrl: updates.fileUrl,
-          uploadDate: updates.uploadDate || new Date().toISOString().split('T')[0],
-          status: updates.status || "Pending",
-          remarks: updates.remarks,
-          isVerified: updates.status === "Verified"
-        });
-      }, 800);
+        const entity = mockEntities.find(e => e.cinNumber === entityId);
+        if (!entity || !entity.bankDocuments) {
+          reject(new Error("Entity or bank documents not found"));
+          return;
+        }
+
+        const documentIndex = entity.bankDocuments.findIndex(d => d.id === documentId);
+        if (documentIndex === -1) {
+          reject(new Error("Bank document not found"));
+          return;
+        }
+
+        entity.bankDocuments[documentIndex] = { ...entity.bankDocuments[documentIndex], ...updates };
+        resolve(entity.bankDocuments[documentIndex]);
+      }, 500);
+    });
+  },
+
+  // Update entity VDR data (for VDR-specific entity data completion)
+  updateEntityVDRData(entity: EntityFormData): Promise<EntityFormData> {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        try {
+          const existingEntityIndex = mockEntities.findIndex(e => e.cinNumber === entity.cinNumber);
+          
+          if (existingEntityIndex === -1) {
+            reject(new Error("Entity not found"));
+            return;
+          }
+
+          // Update the existing entity with VDR-specific data
+          mockEntities[existingEntityIndex] = {
+            ...mockEntities[existingEntityIndex],
+            ...entity,
+            // Preserve the original ID
+            id: mockEntities[existingEntityIndex].id || entity.id
+          };
+
+          resolve(mockEntities[existingEntityIndex]);
+        } catch (error) {
+          reject(new Error("Failed to update entity VDR data"));
+        }
+      }, 1000); // Simulate API delay
     });
   }
 };

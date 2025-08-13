@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Captcha } from '@/components/ui/captcha';
 import { 
   Loader2, 
   Shield, 
@@ -78,7 +79,8 @@ const Login = () => {
     otp: '',
     rememberMe: false,
     userRole: UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
-    twoFactorCode: ''
+    twoFactorCode: '',
+    captchaVerified: false
   });
   
   // UI state
@@ -535,6 +537,12 @@ const Login = () => {
                       </Label>
                     </div>
 
+                    {/* Captcha */}
+                    <Captcha
+                      onVerify={(isValid) => handleInputChange('captchaVerified', isValid.toString())}
+                      className=""
+                    />
+
                     {/* Error Message */}
                     {error && (
                       <Alert variant="destructive">
@@ -546,7 +554,7 @@ const Login = () => {
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={isSubmitting || isLocked}
+                      disabled={isSubmitting || isLocked || !formData.captchaVerified}
                     >
                       {isSubmitting ? (
                         <>

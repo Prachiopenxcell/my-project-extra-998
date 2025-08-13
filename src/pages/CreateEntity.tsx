@@ -7,9 +7,6 @@ import {
   AddressContactStep, 
   KeyPersonnelStep, 
   IndustryDetailsStep, 
-  RecordsFinancialStep,
-  CreditorsClassStep,
-  BankDocumentsStep,
   ReviewSubmitStep, 
   EntityFormData 
 } from "@/components/entity";
@@ -24,10 +21,7 @@ const STEPS = [
   { id: 2, name: "Address & Contact Information" },
   { id: 3, name: "Key Personnel Details" },
   { id: 4, name: "Industry & Operational Details" },
-  { id: 5, name: "Records & Financial Details" },
-  { id: 6, name: "Creditors in Class" },
-  { id: 7, name: "Bank & Investment Documents" },
-  { id: 8, name: "Review & Submit" }
+  { id: 5, name: "Review & Submit" }
 ];
 
 const CreateEntity = () => {
@@ -48,6 +42,7 @@ const CreateEntity = () => {
     lastAgmDate: "",
     balanceSheetDate: "",
     companyStatus: "Active",
+    entityStatus: "pending",
     indexOfCharges: "No",
     directors: [],
     pan: "",
@@ -186,7 +181,7 @@ const CreateEntity = () => {
     }
   };
 
-  // Render the current step
+  // Render the current step component
   const renderStep = () => {
     switch (currentStep) {
       case 1:
@@ -198,12 +193,6 @@ const CreateEntity = () => {
       case 4:
         return <IndustryDetailsStep formData={formData} updateFormData={updateFormData} />;
       case 5:
-        return <RecordsFinancialStep formData={formData} updateFormData={updateFormData} />;
-      case 6:
-        return <CreditorsClassStep formData={formData} updateFormData={updateFormData} />;
-      case 7:
-        return <BankDocumentsStep formData={formData} updateFormData={updateFormData} />;
-      case 8:
         return <ReviewSubmitStep formData={formData} updateFormData={updateFormData} />;
       default:
         return <div>Unknown step</div>;

@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, RefreshCw, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
 import { StepComponentProps, Personnel } from "./types";
 
 export const KeyPersonnelStep = ({ formData, updateFormData }: StepComponentProps): JSX.Element => {
@@ -53,6 +54,8 @@ export const KeyPersonnelStep = ({ formData, updateFormData }: StepComponentProp
   // State for the personnel being edited
   const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const { toast } = useToast();
 
   // Handle adding a new personnel
   const handleAddPersonnel = () => {
@@ -97,6 +100,70 @@ export const KeyPersonnelStep = ({ formData, updateFormData }: StepComponentProp
     setEditingPersonnel(null);
   };
 
+  // Handle MCA autofill for KMP details
+  const handleMCAAutofill = async () => {
+    if (!formData.cinNumber) {
+      toast({
+        title: "CIN Number Required",
+        description: "Please enter a valid CIN number in Basic Details step to autofill KMP details.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsAutofilling(true);
+    try {
+      // Import the entityService
+      const { entityService } = await import("@/services/entityServiceFactory");
+      
+      // Call the MCA API to get KMP details
+      const mcaData = await entityService.verifyEntityWithMCA(formData.cinNumber);
+      
+      if (mcaData.directors && mcaData.directors.length > 0) {
+        // Convert directors data to personnel format
+        const autofillPersonnel: Personnel[] = mcaData.directors.map((director, index) => ({
+          id: Date.now() + index,
+          name: director.name,
+          designation: director.designation,
+          identityNo: "", // Will be filled manually
+          din: director.din,
+          email: director.email || "",
+          contact: director.contact || ""
+        }));
+        
+        // Merge with existing personnel (avoid duplicates)
+        const existingNames = personnel.map(p => p.name.toLowerCase());
+        const newPersonnel = autofillPersonnel.filter(p => 
+          !existingNames.includes(p.name.toLowerCase())
+        );
+        
+        const updatedPersonnel = [...personnel, ...newPersonnel];
+        setPersonnel(updatedPersonnel);
+        updateFormData({ keyPersonnel: updatedPersonnel });
+        
+        toast({
+          title: "KMP Details Autofilled",
+          description: `Successfully imported ${newPersonnel.length} KMP details from MCA portal.`
+        });
+      } else {
+        toast({
+          title: "No KMP Data Found",
+          description: "No Key Management Personnel data found for this CIN.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("MCA autofill error:", error);
+      toast({
+        title: "Autofill Failed",
+        description: "Failed to fetch KMP details from MCA portal. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAutofilling(false);
+    }
+  };
+
   // Handle removing a personnel
   const handleRemovePersonnel = (id: number) => {
     const updatedPersonnel = personnel.filter(p => p.id !== id);
@@ -117,12 +184,27 @@ export const KeyPersonnelStep = ({ formData, updateFormData }: StepComponentProp
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium">Key Personnel Details</h3>
-        <Button 
-          onClick={handleAddPersonnel}
-          size="sm"
-        >
-          <Plus className="h-4 w-4 mr-2" /> Add More Key Personnel
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleMCAAutofill}
+            variant="outline"
+            size="sm"
+            disabled={isAutofilling}
+          >
+            {isAutofilling ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {isAutofilling ? "Autofilling..." : "Autofill from MCA"}
+          </Button>
+          <Button 
+            onClick={handleAddPersonnel}
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-2" /> Add More Key Personnel
+          </Button>
+        </div>
       </div>
 
       <div className="border rounded-md overflow-hidden">

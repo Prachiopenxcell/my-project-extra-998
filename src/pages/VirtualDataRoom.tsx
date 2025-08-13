@@ -22,7 +22,11 @@ import {
   Link as LinkIcon,
   CheckCircle,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  FileBarChart,
+  CreditCard,
+  Banknote,
+  TrendingUp
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -168,6 +172,154 @@ const VirtualDataRoom = () => {
           </Card>
         )}
 
+        {/* Entity Data Completion Section */}
+        {hasMinimumEntities && (
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileBarChart className="h-5 w-5 text-primary" />
+                    Entity Data Completion
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Complete your entity's financial and legal documentation for VDR readiness
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/data-room/entity-data-completion')}
+                  className="flex items-center gap-2"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Complete Data
+                  <ArrowUpRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Progress Overview */}
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-lg font-semibold text-primary">67%</span>
+                    </div>
+                    <div>
+                      <p className="font-medium">Overall Completion</p>
+                      <p className="text-sm text-muted-foreground">2 of 3 sections completed</p>
+                    </div>
+                  </div>
+                  <div className="w-32">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-primary h-2 rounded-full" style={{ width: '67%' }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Steps Progress */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Records & Financial Details */}
+                  <div className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <FileText className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Records & Financial</p>
+                          <p className="text-xs text-muted-foreground">Step 1 of 3</p>
+                        </div>
+                      </div>
+                      <Badge variant="default" className="bg-green-100 text-green-700 border-green-200">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Complete
+                      </Badge>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '100%' }}></div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Financial records, audit status, tax filing details
+                    </p>
+                  </div>
+
+                  {/* Creditors in Class */}
+                  <div className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <CreditCard className="h-4 w-4 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Creditors in Class</p>
+                          <p className="text-xs text-muted-foreground">Step 2 of 3</p>
+                        </div>
+                      </div>
+                      <Badge variant="default" className="bg-green-100 text-green-700 border-green-200">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Complete
+                      </Badge>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '100%' }}></div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Creditor classification, claim amounts, documentation
+                    </p>
+                  </div>
+
+                  {/* Bank & Investment Documents */}
+                  <div className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                          <Banknote className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Bank & Investment</p>
+                          <p className="text-xs text-muted-foreground">Step 3 of 3</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Pending
+                      </Badge>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: '0%' }}></div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Bank documents, investment summaries, verification
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>2 Completed</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-amber-600" />
+                      <span>1 Pending</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      View Details
+                    </Button>
+                    <Button size="sm" onClick={() => navigate('/data-room/entity-data-completion')}>
+                      Continue Setup
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* VDR Modules */}
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           {/* Document Storage & Management */}
@@ -306,7 +458,7 @@ const VirtualDataRoom = () => {
 
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-4">
-          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/create-document-storage-room')}>
+          <Button variant="outline" className="h-auto p-4 flex flex-col items-start gap-2" onClick={() => navigate('/data-room/create-room')}>
             <Plus className="h-5 w-5" />
             <div className="text-left">
               <div className="font-semibold">Create Room</div>

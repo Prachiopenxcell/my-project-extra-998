@@ -44,7 +44,18 @@ import {
   Landmark,
   Clock,
   Book,
+  HelpCircle,
+  Phone,
+  Package,
+  Newspaper,
+  Info,
+  Play,
+  Shield,
+  Lock,
+  Cookie,
+  Gavel,
 } from "lucide-react";
+import { SubscriptionStatusIndicator } from "@/components/subscription/SubscriptionStatusIndicator";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole, UserType } from "@/types/auth";
@@ -94,6 +105,21 @@ const navigationItems = {
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ], */
 };
+
+// Static Pages
+const staticPages = [
+  { name: "FAQ", href: "/faq", icon: HelpCircle },
+  { name: "User FAQ", href: "/user-faq", icon: HelpCircle },
+  { name: "Contact Us", href: "/contact", icon: Phone },
+  { name: "Modules & Subscription", href: "/modules-subscription", icon: Package },
+  { name: "Articles", href: "/articles", icon: Newspaper },
+  { name: "About Us", href: "/about", icon: Info },
+  { name: "How It Works", href: "/how-it-works", icon: Play },
+  { name: "Terms & Conditions", href: "/terms", icon: FileText },
+  { name: "Privacy Policy", href: "/privacy", icon: Shield },
+  { name: "Cookies Policy", href: "/cookies", icon: Cookie },
+  { name: "Legal Compliance", href: "/legal-compliance", icon: Gavel },
+];
 
 // All available professional modules
 const allProfessionalModules = [
@@ -201,6 +227,32 @@ export function DashboardLayout({
             </nav>
           </div>
         )}
+
+        {/* Static Pages */}
+        <div className="p-4 border-t border-sidebar-border">
+          <h3 className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider mb-3">
+            Static Pages
+          </h3>
+          <nav className="space-y-1">
+            {staticPages.map((item) => {
+              const Icon = item.icon;
+              const isActive = isActiveLink(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-primary/10 hover:text-sidebar-foreground"
+                  }`}>
+                  <Icon className="h-4 w-4" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
       </div>
 
       {/* User Profile */}
@@ -302,6 +354,10 @@ export function DashboardLayout({
                 className="pl-10 bg-background"
               />
             </div>
+            
+            {/* Subscription Status */}
+            <SubscriptionStatusIndicator moduleId="entity-management" compact={true} />
+            
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-5 w-5" />

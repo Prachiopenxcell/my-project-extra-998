@@ -31,6 +31,9 @@ export interface IEntityService {
   getBankDocuments(entityId: string): Promise<BankDocument[]>;
   addBankDocument(entityId: string, document: BankDocument): Promise<BankDocument>;
   updateBankDocument(entityId: string, documentId: string, updates: Partial<BankDocument>): Promise<BankDocument>;
+  
+  // VDR specific operations
+  updateEntityVDRData(entity: EntityFormData): Promise<EntityFormData>;
 }
 
 // Export the mock service directly
