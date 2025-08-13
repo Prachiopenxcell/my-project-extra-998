@@ -56,6 +56,7 @@ import {
   Gavel,
 } from "lucide-react";
 import { SubscriptionStatusIndicator } from "@/components/subscription/SubscriptionStatusIndicator";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole, UserType } from "@/types/auth";
@@ -71,6 +72,7 @@ const navigationItems = {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "My Service Requests", href: "/service-requests", icon: FileText },
     { name: "My Work Orders", href: "/work-orders", icon: Users },
+    { name: "Notifications", href: "/notifications", icon: Bell },
     { name:'Subscriptions', href: "/subscription", icon: CreditCard},
     { name: "My Workspace", href: "/workspace", icon: Building },
     { name: "System Settings", href: "/settings", icon: Settings },
@@ -79,6 +81,7 @@ const navigationItems = {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Opportunities", href: "/service-requests", icon: FileText }, //change name to opportunities after module is ready
     { name: "My Work Orders", href: "/work-orders", icon: Users },
+    { name: "Notifications", href: "/notifications", icon: Bell },
     { name:'Feedback', href: "/feedback", icon:Users},
     { name:'Guidance and Reference', href: "/guidance-reference", icon: Book},
     {
@@ -90,7 +93,7 @@ const navigationItems = {
     { name: "My Workspace", href: "/workspace", icon: Building },
    
 
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "System Settings", href: "/settings", icon: Settings },
   ],
   /* admin: [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -359,12 +362,7 @@ export function DashboardLayout({
             <SubscriptionStatusIndicator moduleId="entity-management" compact={true} />
             
             {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-destructive text-destructive-foreground text-xs">
-                3
-              </Badge>
-            </Button>
+            <NotificationBell />
 
             {/* User Menu */}
             <DropdownMenu>

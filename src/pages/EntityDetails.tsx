@@ -33,12 +33,19 @@ const EntityDetails = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
+    console.log('EntityDetails component mounted with ID:', id);
+    
     const fetchEntity = async () => {
-      if (!id) return;
+      if (!id) {
+        console.log('No ID provided to EntityDetails component');
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('Fetching entity with ID:', id);
         const data = await entityService.getEntityById(id);
+        console.log('Entity data fetched:', data);
         setEntity(data);
       } catch (error) {
         console.error('Error fetching entity:', error);

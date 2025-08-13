@@ -8,6 +8,8 @@ export enum ServiceRequestStatus {
   BID_ACCEPTED = 'bid_accepted',
   PAYMENT_PENDING = 'payment_pending',
   WORK_ORDER_ISSUED = 'work_order_issued',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
   CLOSED = 'closed',
   EXPIRED = 'expired',
   CANCELLED = 'cancelled'
@@ -43,6 +45,9 @@ export enum ServiceType {
   PUBLICATION_IBC = 'publication_ibc',
   PUBLICATION_SEBI = 'publication_sebi',
   PUBLICATION_OTHER_LAWS = 'publication_other_laws',
+  GST_COMPLIANCE = 'gst_compliance',
+  LEGAL_NOTICE = 'legal_notice',
+  ANNUAL_COMPLIANCE = 'annual_compliance',
   OTHERS = 'others'
 }
 

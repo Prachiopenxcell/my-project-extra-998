@@ -6,9 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Authentication
 import { AuthProvider } from "@/contexts/AuthContext";
-import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { UserRole, AccessLevel } from "@/types/auth";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -56,6 +56,7 @@ import CreateActiveLitigation from "./pages/CreateActiveLitigation";
 /* VDR */
 import VirtualDataRoom from "./pages/VirtualDataRoom";
 import EntityDataCompletion from "./pages/EntityDataCompletion";
+
 import DocumentStorageEnhanced from "./pages/DocumentStorageEnhanced";
 import CreateDocumentRoom from "./pages/CreateDocumentRoom";
 import CreateVDRRoomComplete from "./pages/CreateVDRRoomComplete";
@@ -88,15 +89,21 @@ import AllClaimsList from "./pages/AllClaimsList";
 
 // Service Request and Bid Submission Module
 import ServiceRequests from "./pages/ServiceRequests";
-import ServiceRequestDetails from "./pages/ServiceRequestDetails";
-import EditServiceRequest from "./pages/EditServiceRequest";
+import ServiceRequestDetails from "@/pages/ServiceRequestDetails";
+import ServiceRequestBidDetails from "@/pages/ServiceRequestBidDetails";
+import EditServiceRequest from "@/pages/EditServiceRequest";
 import BidDetails from "./pages/BidDetails";
 import EditBid from "./pages/EditBid";
+import ProfessionalInvitation from "./pages/ProfessionalInvitation";
 
 // Work Order Module
 import WorkOrders from "./pages/WorkOrders";
 import WorkOrderDetails from "./pages/WorkOrderDetails";
 import CreateWorkOrder from "./pages/CreateWorkOrder";
+
+// Feedback Module
+import Feedback from "./pages/Feedback";
+import FeedbackDetails from "./pages/FeedbackDetails";
 import ClaimDetails from "./pages/ClaimDetails";
 import ClaimVerification from "./pages/ClaimVerification";
 import ClaimsReports from "./pages/ClaimsReports";
@@ -106,7 +113,7 @@ import ClaimsAllocationSettings from "./pages/ClaimsAllocationSettings";
 
 // Subscription Management Module
 import SubscriptionManagement from "./pages/SubscriptionManagement";
-import SubscriptionPackages from "./pages/SubscriptionPackages";
+import SubscriptionPackages from "./pages/SubscriptionPackagesNew";
 import SubscriptionBilling from "./pages/SubscriptionBilling";
 import SubscriptionDetails from "./pages/SubscriptionDetails";
 import SubscriptionPaymentMethods from "./pages/SubscriptionPaymentMethods";
@@ -130,6 +137,15 @@ import LegalCompliance from "./pages/LegalCompliance";
 // Guidance and Resource Modules
 import GuidanceAndReference from './pages/GuidanceAndReferenceNew';
 import ResourceSharingPooling from "./pages/ResourceSharingPooling";
+
+// Workspace Module
+import Workspace from "./pages/Workspace";
+
+// Notification Module
+import Notifications from "./pages/Notifications";
+
+// System Settings Module
+import SystemSettings from "./pages/SystemSettings";
 const queryClient = new QueryClient();
 
 function App() {
@@ -137,9 +153,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <SubscriptionProvider>
-            <Toaster />
-            <Sonner />
+        <SubscriptionProvider>
+          <Toaster />
+          <Sonner />
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
@@ -190,6 +206,17 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
+              {/* Notifications Module Route */}
+              <Route 
+                path="/notifications" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <Notifications />
+                  </ProtectedRoute>
+                } 
+              />
+              
                {/* Guidance and Reference Module Routes */}
                <Route 
                 path="/guidance-reference" 
@@ -266,7 +293,7 @@ function App() {
               {/* Virtual Data Room Module Routes */}
               <Route path="/data-room" element={<VirtualDataRoom />} />
               <Route path="/data-room/entity-data-completion" element={<EntityDataCompletion />} />
-              
+
               {/* Document Storage & Management Routes */}
               <Route path="/data-room/document-storage" element={<DocumentStorageEnhanced />} />
               <Route path="/data-room/create-room" element={<CreateVDRRoomComplete />} />
@@ -296,11 +323,35 @@ function App() {
               <Route path="/compliance/reports" element={<ComplianceReportsAnalytics />} />
               
                 
+              {/* Workspace Module Routes */}
+              <Route 
+                path="/workspace" 
+                element={
+                  <ProtectedRoute requiredRole={[
+                    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                    UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                    UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                    UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                  ]}>
+                    <Workspace />
+                  </ProtectedRoute>
+                } 
+              />
+
               {/* Subscription Management Module Routes */}
               <Route 
                 path="/subscription" 
                 element={
-                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                  <ProtectedRoute requiredRole={[
+                    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                    UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                    UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                    UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                  ]}>
                     <SubscriptionManagement />
                   </ProtectedRoute>
                 } 
@@ -308,7 +359,14 @@ function App() {
               <Route 
                 path="/subscription/browse" 
                 element={
-                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                  <ProtectedRoute requiredRole={[
+                    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                    UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                    UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                    UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                  ]}>
                     <SubscriptionPackages />
                   </ProtectedRoute>
                 } 
@@ -316,7 +374,14 @@ function App() {
               <Route 
                 path="/subscription/billing" 
                 element={
-                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                  <ProtectedRoute requiredRole={[
+                    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                    UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                    UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                    UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                    UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                  ]}>
                     <SubscriptionBilling />
                   </ProtectedRoute>
                 } 
@@ -487,6 +552,34 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route 
+                path="/service-requests/:id/bids" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                  >
+                    <ServiceRequestBidDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/service-requests/:serviceRequestId/invite-professionals" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                  >
+                    <ProfessionalInvitation />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Work Order Module Routes */}
               {/* Main Work Orders List - Both Service Seekers and Service Providers */}
@@ -563,25 +656,57 @@ function App() {
                 }
               />
               
-              {/* Work Order Feedback - Both roles can provide feedback */}
-              <Route 
-                path="/work-orders/:id/feedback" 
-                element={
-                  <ProtectedRoute 
-                    requiredRole={[
-                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
-                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
-                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
-                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
-                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
-                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
-                    ]}
-                    fallbackPath="/login"
-                  >
-                    <WorkOrderDetails />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Feedback Module Routes - Service Providers Only */}
+               <Route 
+                 path="/feedback" 
+                 element={
+                   <ProtectedRoute 
+                     requiredRole={[
+                       UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                       UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                       UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                     ]}
+                     fallbackPath="/login?redirect=/feedback"
+                   >
+                     <Feedback />
+                   </ProtectedRoute>
+                 }
+               />
+               <Route 
+                 path="/feedback/:id" 
+                 element={
+                   <ProtectedRoute 
+                     requiredRole={[
+                       UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                       UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                       UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                     ]}
+                     fallbackPath="/login?redirect=/feedback"
+                   >
+                     <FeedbackDetails />
+                   </ProtectedRoute>
+                 }
+               />
+
+               {/* Work Order Feedback - Both roles can provide feedback */}
+               <Route 
+                 path="/work-orders/:id/feedback" 
+                 element={
+                   <ProtectedRoute 
+                     requiredRole={[
+                       UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                       UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                       UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                       UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                       UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                       UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                     ]}
+                     fallbackPath="/login"
+                   >
+                     <WorkOrderDetails />
+                   </ProtectedRoute>
+                 }
+               />
 
               {/* Claims Management Module Routes */}
               <Route path="/claims" element={<ClaimsManagement />} />
@@ -597,13 +722,33 @@ function App() {
               <Route path="/claims/audit-log" element={<ClaimsAuditLog />} />
               <Route path="/claims/audit-log/:claimId" element={<ClaimsAuditLog />} />
               <Route path="/claims/allocation-settings" element={<ClaimsAllocationSettings />} />
-          
+
+              {/* System Settings Module Routes */}
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER,
+                      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+                      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login?redirect=/settings"
+                  >
+                    <SystemSettings />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Fallback Routes */}
               <Route path="/coming-soon" element={<ComingSoon />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-          </SubscriptionProvider>
+        </SubscriptionProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

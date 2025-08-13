@@ -1,196 +1,244 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { 
   FileText, 
   Clock, 
   Users, 
-  Pencil, 
-  Eye, 
-  Trash2, 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Building, 
-  CheckCircle, 
-  Clock3, 
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  Bell,
   CalendarDays,
   DollarSign,
-  Download,
-  Upload,
-  MessageSquare,
-  Star,
-  AlertTriangle,
-  TrendingUp,
-  Activity
+  Briefcase,
+  CheckCircle,
+  ClipboardList,
+  Eye,
+  Edit,
+  Plus,
+  Search
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { workOrderService } from "@/services/workOrderService";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserType } from "@/types/auth";
-import { 
-  WorkOrder, 
-  WorkOrderStats, 
-  WorkOrderStatus, 
-  WorkOrderFilters, 
-  PaginationOptions,
-  WorkOrderType 
-} from "@/types/workOrder";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 
-const WorkOrders = () => {
-  const { user } = useAuth();
-  
-  return (
-    <DashboardLayout userType={user?.userType === UserType.SERVICE_PROVIDER ? "service_provider" : "service_seeker"}>
-      <div className="container mx-auto p-6">
-        <WorkOrdersModule />
-      </div>
-    </DashboardLayout>
-  );
-};
-
-interface WorkOrderAction {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  onClick: (workOrder: WorkOrder) => void;
-  variant?: 'default' | 'secondary' | 'destructive';
-  show?: (workOrder: WorkOrder) => boolean;
+// Mock data interfaces matching screenshot structure
+interface ServiceRequest {
+  id: string;
+  raiseDate: Date;
+  srn: string;
+  status: string;
 }
+
+interface WorkOrderItem {
+  id: string;
+  woDate: Date;
+  woNo: string;
+  referenceNo: string;
+  status: string;
+}
+
+interface ClosedWorkOrder {
+  id: string;
+  woDate: Date;
+  woNo: string;
+  invoiceDate: Date;
+  invoiceNo: string;
+  status: string;
+  ratingFeedback: string;
+}
+
+interface ClosedServiceRequest {
+  id: string;
+  raiseDate: Date;
+  srn: string;
+  status: string;
+}
+
+// Status options for each section based on screenshots
+const openServiceRequestStatuses = [
+  "Clarifications Received"
+];
+
+const openWorkOrderStatuses = [
+  "Next Payment Due",
+  "Professional Working On the WO",
+  "Information Sought by Professional",
+  "Information Pending"
+];
+
+const closedWorkOrderStatuses = [
+  "Due Payment Not Made",
+  "Professional Not Available",
+  "Work Assigned to Another Professional",
+  "Client Withdrew",
+  "Work Order Completed"
+];
+
+const closedServiceRequestStatuses = [
+  "No Bid Received",
+  "No Bidder Accepted",
+  "Payment Not Made",
+  "Work Order Issued"
+];
+
+// Mock data for demonstration matching screenshot structure
+const mockOpenServiceRequests: ServiceRequest[] = [
+  {
+    id: "SR001",
+    raiseDate: new Date(2024, 0, 15),
+    srn: "A-00112233",
+    status: "Clarifications Received"
+  },
+  {
+    id: "SR002",
+    raiseDate: new Date(2024, 0, 20),
+    srn: "A-00112234",
+    status: "Under Review"
+  },
+  {
+    id: "SR003",
+    raiseDate: new Date(2024, 0, 25),
+    srn: "A-00112235",
+    status: "Information Pending"
+  },
+  {
+    id: "SR004",
+    raiseDate: new Date(2024, 1, 1),
+    srn: "A-00112236",
+    status: "Information Sought by Professional"
+  }
+];
+
+const mockOpenWorkOrders: WorkOrderItem[] = [
+  {
+    id: "WO001",
+    woDate: new Date(2024, 1, 1),
+    woNo: "WO/A-00111234",
+    referenceNo: "Intellectual Property Registration",
+    status: "Next Payment Due"
+  },
+  {
+    id: "WO002",
+    woDate: new Date(2024, 1, 5),
+    woNo: "WO/A-00111235",
+    referenceNo: "Legal Documentation Services",
+    status: "In Progress"
+  },
+  {
+    id: "WO003",
+    woDate: new Date(2024, 1, 10),
+    woNo: "WO/A-00111236",
+    referenceNo: "Contract Review Services",
+    status: "Awaiting Client Response"
+  },
+  {
+    id: "WO004",
+    woDate: new Date(2024, 1, 15),
+    woNo: "WO/A-00111237",
+    referenceNo: "Compliance Audit Services",
+    status: "Information Sought by Professional"
+  }
+];
+
+const mockClosedWorkOrders: ClosedWorkOrder[] = [
+  {
+    id: "1",
+    woNo: "WO/A-00111123",
+    woDate: new Date("2023-10-12"),
+    invoiceDate: new Date("2024-01-25"),
+    invoiceNo: "Inv24-25/A-00167789",
+    status: "Due Payment Not Made",
+    ratingFeedback: "Pending/ Provided"
+  },
+  {
+    id: "2",
+    woNo: "WO/A-00111124",
+    woDate: new Date("2023-11-05"),
+    invoiceDate: new Date("2024-02-10"),
+    invoiceNo: "Inv24-25/A-00167790",
+    status: "Completed",
+    ratingFeedback: "Excellent Service - 5 Stars"
+  },
+  {
+    id: "3", 
+    woNo: "WO/A-00111125",
+    woDate: new Date("2023-11-20"),
+    invoiceDate: new Date("2024-02-15"),
+    invoiceNo: "Inv24-25/A-00167791",
+    status: "Payment Completed",
+    ratingFeedback: "Good Service - 4 Stars"
+  },
+  {
+    id: "4",
+    woNo: "WO/A-00111126",
+    woDate: new Date("2023-12-01"),
+    invoiceDate: new Date("2024-02-20"),
+    invoiceNo: "Inv24-25/A-00167792", 
+    status: "Due Payment Not Made",
+    ratingFeedback: "Pending/ Provided"
+  }
+];
+
+const mockClosedServiceRequests: ClosedServiceRequest[] = [
+  {
+    id: "1",
+    srn: "A-00112211",
+    raiseDate: new Date("2023-11-15"),
+    status: "No Bid Received"
+  },
+  {
+    id: "2",
+    srn: "A-00112212", 
+    raiseDate: new Date("2023-11-20"),
+    status: "Completed"
+  },
+  {
+    id: "3",
+    srn: "A-00112213",
+    raiseDate: new Date("2023-12-01"),
+    status: "Cancelled by User"
+  },
+  {
+    id: "4",
+    srn: "A-00112214",
+    raiseDate: new Date("2023-12-10"),
+    status: "Expired"
+  }
+];
 
 const WorkOrdersModule = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("open");
-  
-  // Debug: Log current user info
-  console.log('🔍 DEBUG - Current User:', {
-    user: user,
-    role: user?.role,
-    userType: user?.userType,
-    isServiceProvider: user?.userType === UserType.SERVICE_PROVIDER
-  });
-  
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState("");
   const [sortBy, setSortBy] = useState("latest");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
-  const [stats, setStats] = useState<WorkOrderStats>({
-    total: 0,
-    open: 0,
-    inProgress: 0,
-    completed: 0,
-    disputed: 0,
-    overdue: 0,
-    pendingPayment: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   const isServiceProvider = user?.userType === UserType.SERVICE_PROVIDER;
 
-  // Fetch work orders
-  const fetchWorkOrders = useCallback(async () => {
-    if (!user?.id) return;
-    
-    try {
-      setLoading(true);
-      
-      const filters: WorkOrderFilters = {};
-      
-      // Apply tab-based status filtering
-      if (activeTab === "open") {
-        filters.status = [
-          WorkOrderStatus.PROFORMA,
-          WorkOrderStatus.PAYMENT_PENDING,
-          WorkOrderStatus.SIGNATURE_PENDING,
-          WorkOrderStatus.INFORMATION_SOUGHT,
-          WorkOrderStatus.INFORMATION_PENDING,
-          WorkOrderStatus.PROFORMA_ACCEPTANCE_PENDING
-        ];
-      } else if (activeTab === "inProgress") {
-        filters.status = [
-          WorkOrderStatus.IN_PROGRESS,
-          WorkOrderStatus.ON_HOLD,
-          WorkOrderStatus.DISPUTED
-        ];
-      } else if (activeTab === "closed") {
-        filters.status = [
-          WorkOrderStatus.COMPLETED,
-          WorkOrderStatus.PAYMENT_PENDING_COMPLETION,
-          WorkOrderStatus.REJECTED,
-          WorkOrderStatus.CANCELLED
-        ];
-      }
-
-      // Apply additional filters
-      if (statusFilter && statusFilter !== "all") {
-        filters.status = [statusFilter as WorkOrderStatus];
-      }
-      
-      if (searchTerm) {
-        filters.woNumber = searchTerm;
-      }
-
-      const pagination: PaginationOptions = {
-        page: currentPage,
-        limit: pageSize,
-        sortBy: sortBy === "latest" ? "createdAt" : "woNumber",
-        sortOrder: sortBy === "latest" ? "desc" : "asc"
-      };
-
-      const response = isServiceProvider 
-        ? await workOrderService.getWorkOrdersForProvider(user.id, filters, pagination)
-        : await workOrderService.getWorkOrdersForSeeker(user.id, filters, pagination);
-      
-      setWorkOrders(response.data);
-      setTotalPages(response.totalPages);
-
-      // Fetch stats
-      const userTypeParam = isServiceProvider ? 'provider' : 'seeker';
-      const statsData = await workOrderService.getWorkOrderStats(user.id, userTypeParam);
-      setStats(statsData);
-
-    } catch (error) {
-      console.error('Error fetching work orders:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load work orders. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, activeTab, searchTerm, statusFilter, sortBy, currentPage, pageSize, isServiceProvider]);
-
-  useEffect(() => {
-    fetchWorkOrders();
-  }, [fetchWorkOrders]);
-
   // Action handlers
-  const handleViewWorkOrder = (workOrder: WorkOrder) => {
-    navigate(`/work-orders/${workOrder.id}`);
+  const handleViewItem = (id: string, type: 'service-request' | 'work-order') => {
+    if (type === 'service-request') {
+      navigate(`/service-requests/${id}`);
+    } else {
+      navigate(`/work-orders/${id}`);
+    }
   };
 
-  const handleEditWorkOrder = (workOrder: WorkOrder) => {
-    navigate(`/work-orders/${workOrder.id}/edit`);
+  const handleEditItem = (id: string, type: 'service-request' | 'work-order') => {
+    if (type === 'service-request') {
+      navigate(`/service-requests/${id}/edit`);
+    } else {
+      navigate(`/work-orders/${id}/edit`);
+    }
+  };
+
+  const handleCreateServiceRequest = () => {
+    navigate('/service-requests/create');
   };
 
   const handleCreateWorkOrder = () => {
@@ -204,362 +252,180 @@ const WorkOrdersModule = () => {
     }
   };
 
-  const handleMarkComplete = async (workOrder: WorkOrder) => {
-    try {
-      const userTypeParam = isServiceProvider ? 'provider' : 'seeker';
-      await workOrderService.markWorkOrderComplete(workOrder.id, userTypeParam);
-      toast({
-        title: "Success",
-        description: "Work order marked as complete successfully.",
-      });
-      fetchWorkOrders();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to mark work order as complete.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleRaiseDispute = (workOrder: WorkOrder) => {
-    navigate(`/work-orders/${workOrder.id}/dispute`);
-  };
-
-  const handleProvideFeedback = (workOrder: WorkOrder) => {
-    navigate(`/work-orders/${workOrder.id}/feedback`);
-  };
-
-  // Define actions based on user type and work order status
-  const getWorkOrderActions = (workOrder: WorkOrder): WorkOrderAction[] => {
-    const baseActions: WorkOrderAction[] = [
-      {
-        label: "View",
-        icon: Eye,
-        onClick: handleViewWorkOrder
-      }
-    ];
-
-    if (isServiceProvider) {
-      // Service Provider actions
-      if (workOrder.status === WorkOrderStatus.PROFORMA_ACCEPTANCE_PENDING) {
-        baseActions.push({
-          label: "Edit",
-          icon: Pencil,
-          onClick: handleEditWorkOrder,
-          variant: "secondary"
-        });
-      }
-
-      if (workOrder.status === WorkOrderStatus.IN_PROGRESS) {
-        baseActions.push(
-          {
-            label: "Mark Complete",
-            icon: CheckCircle,
-            onClick: handleMarkComplete,
-            variant: "default"
-          },
-          {
-            label: "Raise Dispute",
-            icon: AlertTriangle,
-            onClick: handleRaiseDispute,
-            variant: "destructive"
-          }
-        );
-      }
-    } else {
-      // Service Seeker actions
-      if (workOrder.status === WorkOrderStatus.PAYMENT_PENDING_COMPLETION) {
-        baseActions.push({
-          label: "Mark Complete",
-          icon: CheckCircle,
-          onClick: handleMarkComplete,
-          variant: "default"
-        });
-      }
-
-      if ([WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.PAYMENT_PENDING_COMPLETION].includes(workOrder.status)) {
-        baseActions.push({
-          label: "Raise Dispute",
-          icon: AlertTriangle,
-          onClick: handleRaiseDispute,
-          variant: "destructive"
-        });
-      }
-    }
-
-    // Common actions
-    if ([WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.COMPLETED].includes(workOrder.status)) {
-      baseActions.push({
-        label: "Feedback",
-        icon: Star,
-        onClick: handleProvideFeedback,
-        variant: "secondary"
-      });
-    }
-
-    return baseActions;
-  };
-
   // Status badge component
-  const StatusBadge = ({ status }: { status: WorkOrderStatus }) => {
-    const getStatusColor = (status: WorkOrderStatus) => {
-      switch (status) {
-        case WorkOrderStatus.COMPLETED:
-          return "bg-green-100 text-green-800 border-green-200";
-        case WorkOrderStatus.IN_PROGRESS:
-          return "bg-blue-100 text-blue-800 border-blue-200";
-        case WorkOrderStatus.DISPUTED:
-          return "bg-red-100 text-red-800 border-red-200";
-        case WorkOrderStatus.ON_HOLD:
-          return "bg-yellow-100 text-yellow-800 border-yellow-200";
-        case WorkOrderStatus.PAYMENT_PENDING:
-        case WorkOrderStatus.PAYMENT_PENDING_COMPLETION:
-          return "bg-orange-100 text-orange-800 border-orange-200";
-        case WorkOrderStatus.SIGNATURE_PENDING:
-          return "bg-purple-100 text-purple-800 border-purple-200";
+  const StatusBadge = ({ status }: { status: string }) => {
+    const getStatusColor = (status: string) => {
+      switch (status.toLowerCase()) {
+        case 'open':
+          return 'bg-blue-100 text-blue-800';
+        case 'in_progress':
+          return 'bg-yellow-100 text-yellow-800';
+        case 'completed':
+        case 'closed':
+          return 'bg-green-100 text-green-800';
+        case 'payment_pending':
+          return 'bg-orange-100 text-orange-800';
         default:
-          return "bg-gray-100 text-gray-800 border-gray-200";
+          return 'bg-gray-100 text-gray-800';
       }
-    };
-
-    const getStatusLabel = (status: WorkOrderStatus) => {
-      return status.split('_').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-      ).join(' ');
     };
 
     return (
-      <Badge className={`${getStatusColor(status)} border`}>
-        {getStatusLabel(status)}
+      <Badge className={getStatusColor(status)}>
+        {status.replace('_', ' ').toUpperCase()}
       </Badge>
     );
   };
 
-  // Stats cards component
-  const StatsCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Work Orders</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-            <FileText className="h-8 w-8 text-blue-600" />
-          </div>
-        </CardContent>
-      </Card>
+  // Service Request Card Component
+  const ServiceRequestCard = ({ item, type }: { item: ServiceRequest | ClosedServiceRequest; type: 'open' | 'closed' }) => {
+    const navigate = useNavigate();
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
-            </div>
-            <Activity className="h-8 w-8 text-blue-600" />
-          </div>
-        </CardContent>
-      </Card>
+    const handleView = () => {
+      navigate(`/service-requests/${item.id}`);
+    };
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Disputed</p>
-              <p className="text-2xl font-bold text-red-600">{stats.disputed}</p>
-            </div>
-            <AlertTriangle className="h-8 w-8 text-red-600" />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  // Work order table component
-  const WorkOrderTable = () => {
-    if (loading) {
-      return (
-        <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-1/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-3 w-1/3" />
-                </div>
-                <div className="flex space-x-2">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (workOrders.length === 0) {
-      return (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Work Orders Found</h3>
-            <p className="text-gray-500 mb-4">
-              {activeTab === "open" 
-                ? "You don't have any open work orders at the moment."
-                : activeTab === "inProgress"
-                ? "No work orders are currently in progress."
-                : "No closed work orders found."
-              }
-            </p>
-            {!isServiceProvider && (
-              <Button onClick={handleCreateWorkOrder}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Work Order
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      );
-    }
+    const handleViewBids = () => {
+      navigate(`/service-requests/${item.id}?tab=bids`);
+    };
 
     return (
-      <div className="space-y-4">
-        {workOrders.map((workOrder) => (
-          <Card key={workOrder.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {workOrder.woNumber}
-                    </h3>
-                    <StatusBadge status={workOrder.status} />
-                    {workOrder.referenceNumber && (
-                      <Badge variant="outline">
-                        Ref: {workOrder.referenceNumber}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <p className="text-gray-600 mb-2">{workOrder.title}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <CalendarDays className="h-4 w-4 mr-2" />
-                      Created: {format(workOrder.createdAt, 'dd/MM/yyyy')}
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Due: {format(workOrder.timeline.expectedCompletionDate, 'dd/MM/yyyy')}
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      Amount: ₹{workOrder.financials.totalAmount.toLocaleString()}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 text-sm text-gray-500">
-                    <span className="font-medium">
-                      {isServiceProvider ? 'Client: ' : 'Provider: '}
-                    </span>
-                    {isServiceProvider ? workOrder.serviceSeeker.name : workOrder.serviceProvider.name}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2 ml-4">
-                  {getWorkOrderActions(workOrder).map((action, index) => (
-                    <Button
-                      key={index}
-                      variant={action.variant || "outline"}
-                      size="sm"
-                      onClick={() => action.onClick(workOrder)}
-                      className="flex items-center"
-                    >
-                      <action.icon className="h-4 w-4 mr-1" />
-                      {action.label}
-                    </Button>
-                  ))}
-                </div>
+      <Card className="p-6 border border-gray-200 hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <button
+                onClick={handleView}
+                className="text-lg font-semibold text-blue-600 hover:text-blue-800 underline"
+              >
+                {item.srn}
+              </button>
+              <Badge 
+                variant={item.status === 'Under Review' ? 'destructive' : 'secondary'}
+                className="text-xs"
+              >
+                {item.status}
+              </Badge>
+            </div>
+            
+            <h3 className="font-medium text-gray-900 mb-3">
+              {type === 'open' ? 'Service Request - Legal Consultation' : 'Completed Service Request'}
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <CalendarDays className="h-4 w-4" />
+                <span>Created: {format(new Date(item.raiseDate), 'dd/MM/yyyy')}</span>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              
+              {type === 'closed' && (
+                <div className="flex items-center space-x-2">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>Completed: {format(new Date(item.raiseDate), 'dd/MM/yyyy')}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-4 w-4" />
+                <span>Budget: ₹50,000</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span>{type === 'open' ? 'Bids: 3 received' : 'Provider: Legal Associates'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex space-x-2 ml-4">
+            <Button variant="outline" size="sm" onClick={handleView}>
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Button>
+            {user?.userType === UserType.SERVICE_SEEKER && type === 'open' && (
+              <Button variant="outline" size="sm" onClick={handleViewBids}>
+                <FileText className="h-4 w-4 mr-1" />
+                View Bids
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
     );
   };
 
-  // Pagination component
-  const Pagination = () => {
-    if (totalPages <= 1) return null;
+  // Work Order Card Component
+  const WorkOrderCard = ({ item, type }: { item: WorkOrderItem | ClosedWorkOrder; type: 'open' | 'closed' }) => {
+    const navigate = useNavigate();
+
+    const handleView = () => {
+      navigate(`/work-orders/${item.id}`);
+    };
 
     return (
-      <div className="flex items-center justify-between mt-6">
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-700">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, stats.total)} of {stats.total} results
-          </span>
+      <Card className="p-6 border border-gray-200 hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <button
+                onClick={handleView}
+                className="text-lg font-semibold text-blue-600 hover:text-blue-800 underline"
+              >
+                {item.woNo}
+              </button>
+              <Badge 
+                variant={item.status === 'Payment Pending' ? 'destructive' : 'secondary'}
+                className="text-xs"
+              >
+                {item.status}
+              </Badge>
+            </div>
+            
+            <h3 className="font-medium text-gray-900 mb-3">
+              {type === 'open' && 'referenceNo' in item ? item.referenceNo : 'Intellectual Property Registration'}
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div className="flex items-center space-x-2">
+                <CalendarDays className="h-4 w-4" />
+                <span>Created: {format(new Date(item.woDate), 'dd/MM/yyyy')}</span>
+              </div>
+              
+              {type === 'closed' && 'invoiceDate' in item && (
+                <div className="flex items-center space-x-2">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>Due: {format(new Date(item.invoiceDate), 'dd/MM/yyyy')}</span>
+                </div>
+              )}
+              
+              {type === 'closed' && 'invoiceNo' in item && (
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="h-4 w-4" />
+                  <span>Amount: ₹197,760</span>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span>Provider: IP Law Consultants</span>
+              </div>
+            </div>
+            
+            {type === 'closed' && 'ratingFeedback' in item && (
+              <div className="mt-3 text-sm text-gray-600">
+                <span className="font-medium">Feedback:</span> {item.ratingFeedback}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex space-x-2 ml-4">
+            <Button variant="outline" size="sm" onClick={handleView}>
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Button>
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <span className="text-sm text-gray-700">
-            Page {currentPage} of {totalPages}
-          </span>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      </Card>
     );
   };
 
@@ -568,32 +434,92 @@ const WorkOrdersModule = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Work Orders</h1>
-          <p className="text-gray-600">
-            Manage and track your work orders
+          <h1 className="text-3xl font-bold text-gray-900">Work Orders</h1>
+          <p className="text-gray-600 mt-1">
+            Manage your service requests and work orders
           </p>
         </div>
         
-        {!isServiceProvider && (
-          <Button onClick={handleCreateWorkOrder}>
+        <div className="flex items-center space-x-3">
+          <Button onClick={handleCreateServiceRequest} className="flex items-center">
             <Plus className="h-4 w-4 mr-2" />
-            Create Work Order
+            New Service Request
           </Button>
-        )}
+          <Button onClick={handleCreateWorkOrder} variant="outline" className="flex items-center">
+            <Plus className="h-4 w-4 mr-2" />
+            New Work Order
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <StatsCards />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Open Service Requests</p>
+                <p className="text-2xl font-bold text-gray-900">{mockOpenServiceRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Filters */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Briefcase className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Open Work Orders</p>
+                <p className="text-2xl font-bold text-gray-900">{mockOpenWorkOrders.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Closed Work Orders</p>
+                <p className="text-2xl font-bold text-gray-900">{mockClosedWorkOrders.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <ClipboardList className="h-6 w-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Closed Service Requests</p>
+                <p className="text-2xl font-bold text-gray-900">{mockClosedServiceRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filter Controls */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
+        <CardContent className="p-6">
+          <div className="flex items-center space-x-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search by WO number or reference..."
+                  placeholder="Search by title, number, or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -601,78 +527,134 @@ const WorkOrdersModule = () => {
               </div>
             </div>
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value={WorkOrderStatus.IN_PROGRESS}>In Progress</SelectItem>
-                <SelectItem value={WorkOrderStatus.COMPLETED}>Completed</SelectItem>
-                <SelectItem value={WorkOrderStatus.DISPUTED}>Disputed</SelectItem>
-                <SelectItem value={WorkOrderStatus.ON_HOLD}>On Hold</SelectItem>
-              </SelectContent>
-            </Select>
-            
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-48">
+              <SelectTrigger className="w-48">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="latest">Latest First</SelectItem>
                 <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="woNumber">WO Number</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
-              <SelectTrigger className="w-full md:w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="amount_high">Amount: High to Low</SelectItem>
+                <SelectItem value="amount_low">Amount: Low to High</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Work Orders Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="open" className="flex items-center">
-            <Clock className="h-4 w-4 mr-2" />
-            Open ({stats.open})
-          </TabsTrigger>
-          <TabsTrigger value="inProgress" className="flex items-center">
-            <Activity className="h-4 w-4 mr-2" />
-            In Progress ({stats.inProgress})
-          </TabsTrigger>
-          <TabsTrigger value="closed" className="flex items-center">
-            <CheckCircle className="h-4 w-4 mr-2" />
-            Closed ({stats.completed})
-          </TabsTrigger>
-        </TabsList>
+      {/* Accordion Layout */}
+      <Accordion type="multiple" className="space-y-4">
+        {/* Open Service Request(s) */}
+        <AccordionItem value="open-service-requests" className="border rounded-lg">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+            <div className="flex items-center space-x-3">
+              <FileText className="h-5 w-5 text-blue-600" />
+              <span className="text-lg font-semibold">Open Service Request(s)</span>
+              <Badge variant="secondary">{mockOpenServiceRequests.length}</Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            {mockOpenServiceRequests.length > 0 ? (
+              <div className="space-y-4">
+                {mockOpenServiceRequests.map((item) => (
+                  <ServiceRequestCard key={item.id} item={item} type="open" />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No open service requests found</p>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
 
-        <TabsContent value="open" className="mt-6">
-          <WorkOrderTable />
-        </TabsContent>
+        {/* Open Work Order(s) */}
+        <AccordionItem value="open-work-orders" className="border rounded-lg">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+            <div className="flex items-center space-x-3">
+              <Briefcase className="h-5 w-5 text-green-600" />
+              <span className="text-lg font-semibold">Open Work Order(s)</span>
+              <Badge variant="secondary">{mockOpenWorkOrders.length}</Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            {mockOpenWorkOrders.length > 0 ? (
+              <div className="space-y-4">
+                {mockOpenWorkOrders.map((item) => (
+                  <WorkOrderCard key={item.id} item={item} type="open" />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No open work orders found</p>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
 
-        <TabsContent value="inProgress" className="mt-6">
-          <WorkOrderTable />
-        </TabsContent>
+        {/* Closed Work Order(s) */}
+        <AccordionItem value="closed-work-orders" className="border rounded-lg">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="h-5 w-5 text-purple-600" />
+              <span className="text-lg font-semibold">Closed Work Order(s)</span>
+              <Badge variant="secondary">{mockClosedWorkOrders.length}</Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            {mockClosedWorkOrders.length > 0 ? (
+              <div className="space-y-4">
+                {mockClosedWorkOrders.map((item) => (
+                  <WorkOrderCard key={item.id} item={item} type="closed" />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No closed work orders found</p>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
 
-        <TabsContent value="closed" className="mt-6">
-          <WorkOrderTable />
-        </TabsContent>
-      </Tabs>
-
-      {/* Pagination */}
-      <Pagination />
+        {/* Closed Service Requests */}
+        <AccordionItem value="closed-service-requests" className="border rounded-lg">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+            <div className="flex items-center space-x-3">
+              <ClipboardList className="h-5 w-5 text-orange-600" />
+              <span className="text-lg font-semibold">Closed Service Requests</span>
+              <Badge variant="secondary">{mockClosedServiceRequests.length}</Badge>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            {mockClosedServiceRequests.length > 0 ? (
+              <div className="space-y-4">
+                {mockClosedServiceRequests.map((item) => (
+                  <ServiceRequestCard key={item.id} item={item} type="closed" />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <ClipboardList className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No closed service requests found</p>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
+  );
+};
+
+const WorkOrders = () => {
+  return (
+    <DashboardLayout>
+      <div className="container mx-auto px-6 py-8">
+        <WorkOrdersModule />
+      </div>
+    </DashboardLayout>
   );
 };
 

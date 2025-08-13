@@ -23,6 +23,8 @@ import {
   RefreshCw
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/auth";
 
 interface SubscriptionStats {
   activeSubscriptions: number;
@@ -55,6 +57,22 @@ interface RecentActivity {
 
 const SubscriptionManagement = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Determine user type for proper role context
+  const isServiceSeeker = user?.role && [
+    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+    UserRole.SERVICE_SEEKER_TEAM_MEMBER
+  ].includes(user.role);
+
+  const isServiceProvider = user?.role && [
+    UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+    UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+    UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+  ].includes(user.role);
+
+  const userType = isServiceSeeker ? "service_seeker" : isServiceProvider ? "service_provider" : "admin";
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<SubscriptionStats>({
     activeSubscriptions: 3,
@@ -170,7 +188,7 @@ const SubscriptionManagement = () => {
   };
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout userType={userType}>
       <div className="container mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex justify-between items-center">

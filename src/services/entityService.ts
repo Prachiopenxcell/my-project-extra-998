@@ -3,9 +3,11 @@ import { EntityFormData, IndustryDetail, FinancialRecord, Creditor, BankDocument
 // Mock entity data
 const mockEntities: EntityFormData[] = [
   {
+    id: "1",
     entityType: "Company",
     cinNumber: "U12345MH2020PTC123456",
     entityName: "ABC Enterprises Pvt Ltd",
+    entityStatus: "active" as const,
     registrationNo: "REG123456",
     rocName: "Registrar of Companies - Mumbai",
     category: "Private",
@@ -235,9 +237,11 @@ const mockEntities: EntityFormData[] = [
     investmentSummary: "The company maintains diversified banking relationships with three major banks. Primary operations are through HDFC Bank, while term loans are with SBI and fixed deposits with ICICI Bank. Total banking facilities amount to approximately Rs. 8.5 crores."
   },
   {
+    id: "2",
     entityType: "LLP",
     cinNumber: "AAA-1234",
     entityName: "XYZ Solutions LLP",
+    entityStatus: "active" as const,
     registrationNo: "REG987654",
     rocName: "Registrar of Companies - Delhi",
     category: "LLP",
@@ -451,7 +455,10 @@ export const entityService = {
   getEntityById(id: string): Promise<EntityFormData | undefined> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const entity = mockEntities.find(e => e.cinNumber === id);
+        // Look for entity by id field first, then fall back to cinNumber
+        const entity = mockEntities.find(e => (e as EntityFormData & { id?: string }).id === id || e.cinNumber === id);
+        console.log('EntityService: Looking for entity with ID:', id);
+        console.log('EntityService: Found entity:', entity?.entityName || 'Not found');
         resolve(entity);
       }, 500);
     });

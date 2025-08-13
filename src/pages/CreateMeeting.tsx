@@ -529,7 +529,7 @@ const OfficeBearers = ({ formData, setFormData, prevStep, nextStep, saveAsDraft 
           <Save className="w-4 h-4 mr-2" />
           Save as Draft
         </Button>
-        <Button onClick={nextStep}>Next: Agenda →</Button>
+        <Button onClick={nextStep}>Next: Review →</Button>
       </div>
     </div>
   );
@@ -784,7 +784,7 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
           <Save className="w-4 h-4 mr-2" />
           Save as Draft
         </Button>
-        <Button onClick={nextStep}>Next: Documents →</Button>
+        <Button onClick={nextStep}>Next: office bearers →</Button>
       </div>
     </div>
   );
@@ -1139,7 +1139,7 @@ const Documents = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) =
           <Save className="w-4 h-4 mr-2" />
           Save as Draft
         </Button>
-        <Button onClick={nextStep}>Next: Review →</Button>
+        <Button onClick={nextStep}>Next: Agenda →</Button>
       </div>
     </div>
   );
@@ -1487,7 +1487,7 @@ Date: ${format(new Date(), 'PPP')}
                 <Label htmlFor="print-labels">Print delivery labels for participants</Label>
               </div>
               
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 <input 
                   type="checkbox" 
                   id="offline-published" 
@@ -1496,7 +1496,7 @@ Date: ${format(new Date(), 'PPP')}
                   className="rounded border-gray-300"
                 />
                 <Label htmlFor="offline-published">Offline Published (Newspaper)</Label>
-              </div>
+              </div> */}
             </div>
           </div>
         </CardContent>

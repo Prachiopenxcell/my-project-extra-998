@@ -47,6 +47,9 @@ const CreateServiceRequest = () => {
   });
   const [loading, setLoading] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [aiGeneratedScope, setAiGeneratedScope] = useState("");
+  const [isGeneratingScope, setIsGeneratingScope] = useState(false);
+  const [scopeSaved, setScopeSaved] = useState(false);
 
   const steps = [
     { id: 1, title: "Service Category", description: "Select professional type and services" },
@@ -78,6 +81,96 @@ const CreateServiceRequest = () => {
     { value: ServiceType.PUBLICATION_OTHER_LAWS, label: "Publication under other laws" },
     { value: ServiceType.OTHERS, label: "Others" }
   ];
+
+  // Generate AI scope of work based on selected services
+  const generateAIScope = async () => {
+    if (formData.serviceCategory.length === 0 || formData.serviceTypes.length === 0) {
+      toast({
+        title: "Selection Required",
+        description: "Please select professional type and service types to generate AI scope of work.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingScope(true);
+    try {
+      // Mock AI generation - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const selectedServices = formData.serviceTypes.map(type => 
+        serviceTypes.find(s => s.value === type)?.label
+      ).join(", ");
+      
+      const selectedProfessionals = formData.serviceCategory.map(cat => 
+        professionalTypes.find(p => p.value === cat)?.label
+      ).join(", ");
+
+      const aiScope = `Based on your selection of ${selectedProfessionals} services for ${selectedServices}, here is the recommended scope of work:
+
+1. Initial Consultation and Requirement Analysis
+   - Review client requirements and objectives
+   - Analyze applicable regulations and compliance requirements
+   - Identify key deliverables and timelines
+
+2. Documentation and Preparation
+   - Gather necessary documents and information
+   - Prepare preliminary assessments and reports
+   - Coordinate with relevant stakeholders
+
+3. Core Service Delivery
+   - Execute ${selectedServices.toLowerCase()} as per regulatory requirements
+   - Ensure compliance with applicable laws and standards
+   - Provide detailed analysis and recommendations
+
+4. Review and Finalization
+   - Quality review of all deliverables
+   - Client presentation and discussion
+   - Final report submission with recommendations
+
+5. Post-Delivery Support
+   - Address any queries or clarifications
+   - Provide implementation guidance if required
+   - Follow-up support as needed
+
+This scope can be customized based on your specific requirements and project complexity.`;
+
+      setAiGeneratedScope(aiScope);
+      setFormData(prev => ({ ...prev, scopeOfWork: aiScope }));
+      setScopeSaved(false);
+      
+      toast({
+        title: "AI Scope Generated",
+        description: "AI has generated a comprehensive scope of work. You can edit it as needed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate AI scope of work. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingScope(false);
+    }
+  };
+
+  // Save the scope description
+  const saveDescription = () => {
+    if (!formData.scopeOfWork.trim()) {
+      toast({
+        title: "No Content",
+        description: "Please enter scope of work content before saving.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setScopeSaved(true);
+    toast({
+      title: "Description Saved",
+      description: "Scope of work description has been saved successfully.",
+    });
+  };
 
   const handleAIAssistance = async () => {
     if (!formData.description.trim()) {
@@ -271,16 +364,63 @@ const CreateServiceRequest = () => {
         return (
           <div className="space-y-6">
             <div>
-              <Label className="text-base font-semibold">Scope of Work</Label>
-              <p className="text-sm text-gray-600 mb-3">
-                Define the detailed scope of work for this project
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <Label className="text-base font-semibold">Scope of Work</Label>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Define the detailed scope of work for this project
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateAIScope}
+                  disabled={isGeneratingScope || formData.serviceCategory.length === 0 || formData.serviceTypes.length === 0}
+                  className="flex items-center gap-2"
+                >
+                  <Wand2 className="h-4 w-4" />
+                  {isGeneratingScope ? "Generating..." : "Generate AI Scope"}
+                </Button>
+              </div>
+              
               <Textarea
-                placeholder="Enter detailed scope of work..."
+                placeholder="Enter detailed scope of work or use AI to generate..."
                 value={formData.scopeOfWork}
-                onChange={(e) => setFormData(prev => ({ ...prev, scopeOfWork: e.target.value }))}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, scopeOfWork: e.target.value }));
+                  setScopeSaved(false);
+                }}
                 className="min-h-40"
               />
+              
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2">
+                  {scopeSaved && (
+                    <div className="flex items-center gap-1 text-green-600 text-sm">
+                      <Save className="h-4 w-4" />
+                      <span>Description saved</span>
+                    </div>
+                  )}
+                  {aiGeneratedScope && (
+                    <div className="text-sm text-blue-600">
+                      AI-generated content (editable)
+                    </div>
+                  )}
+                </div>
+                
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={saveDescription}
+                  disabled={!formData.scopeOfWork.trim()}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Save the Description
+                </Button>
+              </div>
             </div>
 
             <div>

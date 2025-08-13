@@ -928,7 +928,11 @@ const EntityManagement = () => {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" onClick={() => navigate(`/entity/${entity.cinNumber}`)}>
+                                  <Button variant="ghost" size="icon" onClick={() => {
+                                    console.log('View button clicked for entity:', entity.id, entity.entityName);
+                                    console.log('Navigating to:', `/entity/${entity.id}`);
+                                    navigate(`/entity/${entity.id}`);
+                                  }}>
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
@@ -941,7 +945,7 @@ const EntityManagement = () => {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" onClick={() => navigate(`/edit-entity/${entity.cinNumber}`)}>
+                                  <Button variant="ghost" size="icon" onClick={() => navigate(`/edit-entity/${entity.id}`)}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>

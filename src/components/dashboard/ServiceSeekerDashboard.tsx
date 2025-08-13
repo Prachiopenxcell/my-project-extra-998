@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FileText, 
   Plus, 
@@ -66,11 +68,12 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
     { id: 3, title: "Profile Incomplete", message: "Complete your profile to get permanent registration", type: "alert", time: "1 day ago", urgent: false }
   ];
 
+  // Updated service request numbers to match mock data
   const mockServiceRequests = {
-    openServiceRequests: 5,
-    closedServiceRequests: 12,
-    openWorkOrders: 3,
-    closedWorkOrders: 8
+    openServiceRequests: 3,
+    closedServiceRequests: 2,
+    openWorkOrders: 1,
+    closedWorkOrders: 1
   };
 
   const mockSubscriptions = [
@@ -161,222 +164,240 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
 
   // Individual/Partner Dashboard
   const renderIndividualDashboard = () => (
-    <div className="space-y-6">
-      {/* Registration Number & Profile Completion */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              Registration Number
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {mockProfileCompletion.isCompleted ? (
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">REG-{user?.id || '561002'}</div>
-                <p className="text-sm text-muted-foreground">Permanent Registration</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="text-lg text-muted-foreground">Complete Profile</div>
-                <p className="text-sm text-muted-foreground">to get permanent registration</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Profile Completion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Progress</span>
-                <span>{mockProfileCompletion.percentage}%</span>
-              </div>
-              <Progress value={mockProfileCompletion.percentage} className="h-2" />
+    <div className="space-y-8">
+      {/* Top Section - Registration Number and Quick Actions */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Registration Number Card */}
+        <Card className="shadow-sm border min-h-[280px]">
+          <CardContent className="p-8 h-full flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <Shield className="h-12 w-12 text-gray-400 mx-auto" />
               {mockProfileCompletion.isCompleted ? (
-                <Button asChild className="w-full" variant="outline">
-                  <Link to="/profile/edit">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Profile
-                  </Link>
-                </Button>
+                <>
+                  <div className="text-xl font-semibold text-gray-900">REG-{user?.id || '561002'}</div>
+                  <p className="text-sm text-gray-500">Permanent Registration</p>
+                </>
               ) : (
-                <Button asChild className="w-full">
-                  <Link to="/profile/edit">
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Complete Profile
-                  </Link>
-                </Button>
+                <>
+                  <div className="text-lg font-medium text-gray-700">Complete Profile</div>
+                  <p className="text-sm text-gray-500">to get permanent registration</p>
+                </>
               )}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Alerts and Notifications */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            Alerts & Notifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {mockNotifications.map((notification) => (
-              <Alert key={notification.id} className={`cursor-pointer hover:bg-muted/50 transition-colors ${
-                notification.urgent ? 'border-destructive bg-destructive/5' : 'border-muted'
-              }`}>
-                <AlertCircle className={`h-4 w-4 ${
-                  notification.urgent ? 'text-destructive' : 'text-primary'
-                }`} />
-                <AlertDescription>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground">{notification.message}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{notification.time}</span>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Service Requests Card View */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Service Requests Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{mockServiceRequests.openServiceRequests}</div>
-              <p className="text-sm text-muted-foreground">Open Service Requests</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{mockServiceRequests.closedServiceRequests}</div>
-              <p className="text-sm text-muted-foreground">Closed Service Requests</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">{mockServiceRequests.openWorkOrders}</div>
-              <p className="text-sm text-muted-foreground">Open Work Orders</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">{mockServiceRequests.closedWorkOrders}</div>
-              <p className="text-sm text-muted-foreground">Closed Work Orders</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button asChild className="w-full">
-              <Link to="/service-requests/create">
-                <Plus className="h-4 w-4 mr-2" />
-                Raise a Service Request
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Subscriptions and Workspace */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Subscriptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mockSubscriptions.map((subscription) => (
-                <div key={subscription.id} className="flex justify-between items-center p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{subscription.moduleName}</p>
-                    <p className="text-sm text-muted-foreground">Ends: {subscription.endDate}</p>
-                  </div>
-                  <Badge variant={subscription.status === 'Active' ? 'default' : 'destructive'}>
-                    {subscription.status}
-                  </Badge>
-                </div>
-              ))}
-              <Button variant="outline" className="w-full">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Subscription Packages
+        {/* Profile Completion Card */}
+        <Card className="shadow-sm border min-h-[280px]">
+          <CardContent className="p-8 h-full flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <User className="h-12 w-12 text-gray-400 mx-auto" />
+              <div>
+                <div className="text-sm font-medium text-gray-600">Profile Completion</div>
+                <div className="text-3xl font-bold text-primary mt-1">{mockProfileCompletion.percentage}%</div>
+              </div>
+              <Progress value={mockProfileCompletion.percentage} className="h-2 bg-gray-200" />
+              <Button asChild size="sm" className="w-full bg-primary hover:bg-primary/90">
+                <Link to="/profile/edit">
+                  {mockProfileCompletion.isCompleted ? (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Complete Profile
+                    </>
+                  )}
+                </Link>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-primary" />
-              Workspace
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mockWorkspace.map((module) => (
-                <div key={module.id} className="flex justify-between items-center p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{module.moduleName}</p>
-                    <p className="text-sm text-muted-foreground">Last visited: {module.lastVisited}</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant={module.hasAccess ? "default" : "outline"}
-                    disabled={!module.hasAccess}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Open
-                  </Button>
-                </div>
-              ))}
+        {/* Raise A Service Request */}
+        <Card className="shadow-sm border">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="text-center">
+                <Plus className="h-12 w-12 text-primary mx-auto mb-3" />
+                <div className="font-semibold text-primary text-lg">Raise A Service Request</div>
+              </div>
+              
+              <div className="text-xs text-gray-600 leading-relaxed">
+                If you know, please choose the Professional and Service(s) from the dropdown list below. Else, please write the Service you are looking for in the text box, and confirm if the scope of work suggested below matches your requirements.
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">I am looking for</label>
+                <Textarea 
+                  placeholder="(text box for typing 'service')"
+                  className="min-h-[70px] resize-none text-sm border-gray-300 focus:border-primary"
+                  rows={3}
+                />
+              </div>
+              
+              <Button asChild className="w-full bg-primary hover:bg-primary/90">
+                <Link to="/create-service-request">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Raise Service Request
+                </Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search Section */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-primary" />
-            Global Search
+
+
+      {/* Service Requests Overview */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <FileText className="h-5 w-5 text-gray-600" />
+            Service Requests Overview
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Search across all modules..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1"
-            />
-            <Button>
-              <Search className="h-4 w-4" />
-            </Button>
-          </div>
-          {searchQuery && (
-            <div className="mt-3 p-3 border rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground">Search results for "{searchQuery}" will appear here</p>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="text-center p-6 bg-blue-50 border border-blue-100 rounded-lg">
+              <div className="text-4xl font-bold text-blue-600 mb-2">{mockServiceRequests.openServiceRequests}</div>
+              <p className="text-sm font-medium text-blue-700">Open Service Request(s)</p>
             </div>
-          )}
+            <div className="text-center p-6 bg-orange-50 border border-orange-100 rounded-lg">
+              <div className="text-4xl font-bold text-orange-600 mb-2">{mockServiceRequests.openWorkOrders}</div>
+              <p className="text-sm font-medium text-orange-700">Open Work Order(s)</p>
+            </div>
+            <div className="text-center p-6 bg-gray-50 border border-gray-100 rounded-lg">
+              <div className="text-4xl font-bold text-gray-600 mb-2">{mockServiceRequests.closedWorkOrders}</div>
+              <p className="text-sm font-medium text-gray-700">Closed Work Order(s)</p>
+            </div>
+            <div className="text-center p-6 bg-green-50 border border-green-100 rounded-lg">
+              <div className="text-4xl font-bold text-green-600 mb-2">{mockServiceRequests.closedServiceRequests}</div>
+              <p className="text-sm font-medium text-green-700">Closed Service Request(s)</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Quick Actions Grid */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="shadow-card hover:shadow-lg transition-shadow cursor-pointer">
+          <CardContent className="p-6">
+            <Link to="/subscriptions" className="block text-center space-y-3">
+              <Package className="h-8 w-8 text-blue-600 mx-auto" />
+              <div>
+                <div className="font-semibold text-gray-900">Module Subscription</div>
+                <p className="text-sm text-muted-foreground">Manage your subscriptions</p>
+              </div>
+              <Button variant="outline" size="sm">
+                View Subscriptions
+                <ExternalLink className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card hover:shadow-lg transition-shadow cursor-pointer">
+          <CardContent className="p-6">
+            <Link to="/payments" className="block text-center space-y-3">
+              <CreditCard className="h-8 w-8 text-green-600 mx-auto" />
+              <div>
+                <div className="font-semibold text-gray-900">Payment Link</div>
+                <p className="text-sm text-muted-foreground">Manage payments & billing</p>
+              </div>
+              <Button variant="outline" size="sm">
+                View Payments
+                <ExternalLink className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-card hover:shadow-lg transition-shadow cursor-pointer">
+          <CardContent className="p-6">
+            <Link to="/analytics" className="block text-center space-y-3">
+              <BarChart3 className="h-8 w-8 text-purple-600 mx-auto" />
+              <div>
+                <div className="font-semibold text-gray-900">Analytics & Reports</div>
+                <p className="text-sm text-muted-foreground">View detailed insights</p>
+              </div>
+              <Button variant="outline" size="sm">
+                View Analytics
+                <ExternalLink className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity and Notifications */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Recent Notifications */}
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Recent Notifications
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockNotifications.slice(0, 3).map((notification) => (
+                <div key={notification.id} className={`p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${
+                  notification.urgent ? 'border-red-200 bg-red-50' : 'border-gray-200'
+                }`}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{notification.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-2">{notification.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" className="w-full mt-4">
+              View All Notifications
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Workspace Modules */}
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              Recent Workspace
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockWorkspace.slice(0, 3).map((module) => (
+                <div key={module.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div>
+                    <p className="font-medium text-sm">{module.moduleName}</p>
+                    <p className="text-xs text-muted-foreground">Last visited: {module.lastVisited}</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant={module.hasAccess ? "default" : "secondary"}
+                    disabled={!module.hasAccess}
+                  >
+                    {module.hasAccess ? "Open" : "No Access"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" className="w-full mt-4">
+              View All Modules
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 

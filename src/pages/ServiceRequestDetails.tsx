@@ -19,7 +19,8 @@ import {
   Download,
   MessageSquare,
   Edit,
-  Eye
+  Eye,
+  UserPlus
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { serviceRequestService } from "@/services/serviceRequestService";
@@ -210,12 +211,26 @@ const ServiceRequestDetails = () => {
               {serviceRequest.status}
             </Badge>
             {isServiceSeeker && (
-              <Link to={`/service-requests/${id}/edit`}>
-                <Button variant="outline">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              </Link>
+              <>
+                <Link to={`/service-requests/${id}/bids`}>
+                  <Button variant="default">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Bids ({bids.length})
+                  </Button>
+                </Link>
+                <Link to={`/service-requests/${id}/invite-professionals`}>
+                  <Button variant="default">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite Professionals
+                  </Button>
+                </Link>
+                <Link to={`/service-requests/${id}/edit`}>
+                  <Button variant="outline">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -349,7 +364,7 @@ const ServiceRequestDetails = () => {
                             <div className="flex items-center justify-between">
                               <Badge variant="outline">{bid.status}</Badge>
                               <div className="flex items-center gap-2">
-                                <Link to={`/bids/${bid.id}`}>
+                                <Link to={isServiceSeeker ? `/service-requests/${id}/bids` : `/bids/${bid.id}`}>
                                   <Button variant="outline" size="sm">
                                     <Eye className="h-3 w-3 mr-1" />
                                     View
