@@ -89,7 +89,7 @@ const SubscriptionPackages = () => {
     try {
       setLoading(true);
       const [plansData, statsData] = await Promise.all([
-        subscriptionService.getAllPlans(),
+        subscriptionService.getPackagesByUserRole(user?.role || ''),
         subscriptionService.getSubscriptionStats()
       ]);
       
@@ -130,8 +130,11 @@ const SubscriptionPackages = () => {
       };
 
       if (Object.values(filters).some(v => v !== undefined)) {
-        plans = await subscriptionService.searchPlans(filters);
-        
+        const searched = await subscriptionService.searchPackages(filters);
+        // Maintain role-based scope by intersecting with role-filtered allPlans
+        const allowedIds = new Set(allPlans.map(p => p.id));
+        plans = searched.filter(p => allowedIds.has(p.id));
+
         // Re-apply tab filter after search
         if (activeTab === "individual") {
           plans = plans.filter(plan => plan.type === 'individual');

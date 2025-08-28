@@ -201,11 +201,13 @@ const SubscriptionDetails = () => {
   };
 
   const handleUpgrade = () => {
-    navigate('/subscription/upgrade');
+    if (!subscriptionId) return;
+    navigate(`/subscription/${subscriptionId}/upgrade-downgrade`);
   };
 
   const handleDowngrade = () => {
-    navigate('/subscription/downgrade');
+    if (!subscriptionId) return;
+    navigate(`/subscription/${subscriptionId}/upgrade-downgrade`);
   };
 
   const handleCancel = () => {

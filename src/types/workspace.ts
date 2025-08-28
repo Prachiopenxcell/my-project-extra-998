@@ -132,6 +132,8 @@ export interface WorkspaceStats {
   activeModules: number;
   expiredModules: number;
   trialModules: number;
+  pendingModules: number;
+  inactiveModules: number;
   totalEntities: number;
   activeEntities: number;
   totalTeamMembers: number;

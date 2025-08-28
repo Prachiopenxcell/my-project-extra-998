@@ -19,7 +19,7 @@ import { PROFESSIONAL_MODULES, getProfessionalModuleById } from '@/data/professi
 class WorkspaceService {
   // Generate mock modules from professional modules data
   private generateMockModules(): WorkspaceModule[] {
-    const mockStatuses = [ModuleStatus.ACTIVE, ModuleStatus.TRIAL, ModuleStatus.EXPIRED, ModuleStatus.PENDING_ACTIVATION];
+    const mockStatuses = [ModuleStatus.ACTIVE, ModuleStatus.TRIAL, ModuleStatus.EXPIRED, ModuleStatus.PENDING_ACTIVATION, ModuleStatus.INACTIVE];
     
     return PROFESSIONAL_MODULES.map((module, index) => {
       const status = mockStatuses[index % mockStatuses.length];
@@ -37,6 +37,9 @@ class WorkspaceService {
       } else if (status === ModuleStatus.EXPIRED) {
         subscriptionStartDate = new Date('2024-01-01');
         subscriptionEndDate = new Date('2024-07-31');
+      } else if (status === ModuleStatus.PENDING_ACTIVATION) {
+        subscriptionStartDate = new Date('2024-08-20');
+        subscriptionEndDate = new Date('2024-09-20');
       }
       
       return {
@@ -88,13 +91,15 @@ class WorkspaceService {
           email: 'john.doe@techsolutions.com',
           role: TeamMemberRole.ADMIN,
           permissions: [
-            { moduleId: '1', permissions: [Permission.VIEW, Permission.EDIT, Permission.MANAGE] },
-            { moduleId: '2', permissions: [Permission.VIEW, Permission.EDIT] }
+            { moduleId: '1', permissions: [Permission.VIEW, Permission.EDIT, Permission.MANAGE, Permission.ADMIN] },
+            { moduleId: '2', permissions: [Permission.VIEW, Permission.EDIT, Permission.MANAGE] },
+            { moduleId: '3', permissions: [Permission.VIEW, Permission.EDIT, Permission.MANAGE] }
           ],
           joinedAt: new Date('2024-01-15'),
           lastActive: new Date('2024-08-12'),
           status: TeamMemberStatus.ACTIVE,
-          assignedModules: ['1', '2', '3']
+          assignedModules: ['1', '2', '3'],
+          avatar: undefined
         },
         {
           id: '2',
@@ -102,13 +107,45 @@ class WorkspaceService {
           email: 'jane.smith@techsolutions.com',
           role: TeamMemberRole.MANAGER,
           permissions: [
-            { moduleId: '1', permissions: [Permission.VIEW, Permission.EDIT] },
-            { moduleId: '2', permissions: [Permission.VIEW] }
+            { moduleId: '1', permissions: [Permission.VIEW, Permission.EDIT, Permission.MANAGE] },
+            { moduleId: '2', permissions: [Permission.VIEW, Permission.EDIT] },
+            { moduleId: '3', permissions: [Permission.VIEW] }
           ],
           joinedAt: new Date('2024-02-01'),
           lastActive: new Date('2024-08-11'),
           status: TeamMemberStatus.ACTIVE,
-          assignedModules: ['1', '2']
+          assignedModules: ['1', '2', '3'],
+          avatar: undefined
+        },
+        {
+          id: '3',
+          name: 'Mike Johnson',
+          email: 'mike.johnson@techsolutions.com',
+          role: TeamMemberRole.MEMBER,
+          permissions: [
+            { moduleId: '1', permissions: [Permission.VIEW, Permission.EDIT] },
+            { moduleId: '2', permissions: [Permission.VIEW] }
+          ],
+          joinedAt: new Date('2024-03-10'),
+          lastActive: new Date('2024-08-10'),
+          status: TeamMemberStatus.ACTIVE,
+          assignedModules: ['1', '2'],
+          avatar: undefined
+        },
+        {
+          id: '4',
+          name: 'Sarah Wilson',
+          email: 'sarah.wilson@techsolutions.com',
+          role: TeamMemberRole.VIEWER,
+          permissions: [
+            { moduleId: '1', permissions: [Permission.VIEW] },
+            { moduleId: '3', permissions: [Permission.VIEW] }
+          ],
+          joinedAt: new Date('2024-04-05'),
+          lastActive: new Date('2024-08-09'),
+          status: TeamMemberStatus.ACTIVE,
+          assignedModules: ['1', '3'],
+          avatar: undefined
         }
       ],
       profileCompletion: 85,
@@ -139,18 +176,34 @@ class WorkspaceService {
       modules: this.mockModules.filter(m => ['1', '2'].includes(m.id)),
       teamMembers: [
         {
-          id: '3',
+          id: '5',
           name: 'Raj Kumar',
           email: 'raj.kumar@company.com',
-          role: TeamMemberRole.MEMBER,
+          role: TeamMemberRole.MANAGER,
           permissions: [
-            { moduleId: '1', permissions: [Permission.VIEW] },
+            { moduleId: '1', permissions: [Permission.VIEW, Permission.EDIT, Permission.MANAGE] },
             { moduleId: '2', permissions: [Permission.VIEW, Permission.EDIT] }
           ],
           joinedAt: new Date('2024-03-15'),
           lastActive: new Date('2024-08-10'),
           status: TeamMemberStatus.ACTIVE,
-          assignedModules: ['1', '2']
+          assignedModules: ['1', '2'],
+          avatar: undefined
+        },
+        {
+          id: '6',
+          name: 'Priya Sharma',
+          email: 'priya.sharma@company.com',
+          role: TeamMemberRole.MEMBER,
+          permissions: [
+            { moduleId: '1', permissions: [Permission.VIEW] },
+            { moduleId: '2', permissions: [Permission.VIEW, Permission.EDIT] }
+          ],
+          joinedAt: new Date('2024-04-20'),
+          lastActive: new Date('2024-08-08'),
+          status: TeamMemberStatus.ACTIVE,
+          assignedModules: ['1', '2'],
+          avatar: undefined
         }
       ],
       profileCompletion: 70,
@@ -300,6 +353,8 @@ class WorkspaceService {
       activeModules: modules.filter(m => m.status === ModuleStatus.ACTIVE).length,
       expiredModules: modules.filter(m => m.status === ModuleStatus.EXPIRED).length,
       trialModules: modules.filter(m => m.status === ModuleStatus.TRIAL).length,
+      pendingModules: modules.filter(m => m.status === ModuleStatus.PENDING_ACTIVATION).length,
+      inactiveModules: modules.filter(m => m.status === ModuleStatus.INACTIVE).length,
       totalEntities: entities.length,
       activeEntities: entities.filter(e => e.status === EntityStatus.ACTIVE).length,
       totalTeamMembers: allTeamMembers.length,

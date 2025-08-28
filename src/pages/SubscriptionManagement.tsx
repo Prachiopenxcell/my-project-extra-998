@@ -203,7 +203,7 @@ const SubscriptionManagement = () => {
               className="flex items-center gap-2"
             >
               <Package className="h-4 w-4" />
-              Browse Plans
+              Subscription Packages
             </Button>
             <Button 
               onClick={() => navigate('/subscription/billing')}

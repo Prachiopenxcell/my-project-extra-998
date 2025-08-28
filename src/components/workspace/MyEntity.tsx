@@ -551,28 +551,96 @@ const MyEntity = ({ isTeamMember, isAdmin, userRole }: MyEntityProps) => {
               {/* Team Members */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Team Members Assigned</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Team Members & Role Assignments</CardTitle>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedEntity.teamMembers.length} member{selectedEntity.teamMembers.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {selectedEntity.teamMembers.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {selectedEntity.teamMembers.map((member) => (
-                        <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={member.avatar} />
-                              <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{member.name}</p>
-                              <p className="text-sm text-gray-600">{member.email}</p>
+                        <div key={member.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={member.avatar} />
+                                <AvatarFallback className="bg-blue-100 text-blue-600">
+                                  {member.name.split(' ').map(n => n[0]).join('')}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium text-gray-900">{member.name}</p>
+                                <p className="text-sm text-gray-600">{member.email}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge 
+                                    variant={member.status === 'active' ? 'default' : 'secondary'} 
+                                    className="text-xs"
+                                  >
+                                    {member.status === 'active' ? 'Active' : 'Inactive'}
+                                  </Badge>
+                                  <span className="text-xs text-gray-500">
+                                    Joined {format(new Date(member.joinedAt), 'MMM yyyy')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Badge variant="outline" className="mb-1 capitalize">
+                                {member.role}
+                              </Badge>
+                              <p className="text-xs text-gray-600">
+                                Last active: {format(new Date(member.lastActive), 'MMM dd, yyyy')}
+                              </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <Badge variant="outline" className="mb-1">{member.role}</Badge>
-                            <p className="text-xs text-gray-600">
-                              Last active: {format(new Date(member.lastActive), 'MMM dd')}
-                            </p>
+                          
+                          {/* Role Details & Module Assignments */}
+                          <div className="space-y-3 pt-3 border-t">
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Module Assignments</h4>
+                              {member.assignedModules.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {member.assignedModules.map((moduleId) => {
+                                    const module = selectedEntity.modules.find(m => m.id === moduleId);
+                                    return module ? (
+                                      <Badge key={moduleId} variant="secondary" className="text-xs">
+                                        {module.title}
+                                      </Badge>
+                                    ) : null;
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-500">No modules assigned</p>
+                              )}
+                            </div>
+                            
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">Permissions</h4>
+                              {member.permissions.length > 0 ? (
+                                <div className="space-y-1">
+                                  {member.permissions.map((permission, index) => {
+                                    const module = selectedEntity.modules.find(m => m.id === permission.moduleId);
+                                    return module ? (
+                                      <div key={index} className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-600">{module.title}:</span>
+                                        <div className="flex gap-1">
+                                          {permission.permissions.map((perm) => (
+                                            <Badge key={perm} variant="outline" className="text-xs capitalize">
+                                              {perm}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-500">No specific permissions assigned</p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}

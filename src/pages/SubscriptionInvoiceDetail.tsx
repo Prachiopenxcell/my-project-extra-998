@@ -37,6 +37,10 @@ interface InvoiceDetail {
   currency: string;
   status: 'paid' | 'pending' | 'overdue' | 'failed' | 'cancelled';
   description: string;
+  // Purchase summary enhancements
+  moduleNames?: string[];
+  storagePurchasedGB?: number;
+  teamMembersAdded?: number;
   
   // Billing details
   billTo: {
@@ -107,6 +111,9 @@ const SubscriptionInvoiceDetail = () => {
         currency: "USD",
         status: "paid",
         description: "Monthly subscription - January 2024",
+        moduleNames: ["Professional Plan", "Compliance Plus Add-on", "AI Assistant Add-on"],
+        storagePurchasedGB: 0,
+        teamMembersAdded: 1,
         
         billTo: {
           name: "John Doe",
@@ -326,6 +333,27 @@ const SubscriptionInvoiceDetail = () => {
                 <p className="text-sm text-gray-600 mt-1">Total Amount</p>
               </div>
             </div>
+
+            {/* Purchase Summary */}
+            {(invoice.moduleNames || typeof invoice.storagePurchasedGB === 'number' || typeof invoice.teamMembersAdded === 'number') && (
+              <div className="mb-8 p-4 rounded-md border bg-gray-50">
+                <h3 className="font-semibold text-gray-900 mb-3">Purchase Summary</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600">Module(s)</p>
+                    <p className="font-medium">{invoice.moduleNames && invoice.moduleNames.length > 0 ? invoice.moduleNames.join(', ') : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Storage Purchased</p>
+                    <p className="font-medium">{typeof invoice.storagePurchasedGB === 'number' ? `${invoice.storagePurchasedGB} GB` : '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Team Members Added</p>
+                    <p className="font-medium">{typeof invoice.teamMembersAdded === 'number' ? invoice.teamMembersAdded : '-'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Bill To Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">

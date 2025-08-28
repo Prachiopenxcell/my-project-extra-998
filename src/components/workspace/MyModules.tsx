@@ -252,51 +252,75 @@ const MyModules = ({ isTeamMember, isAdmin, userRole }: MyModulesProps) => {
     <div className="space-y-6">
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Modules</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalModules}</p>
+                  <p className="text-xs font-medium text-gray-600">Total Modules</p>
+                  <p className="text-xl font-bold text-gray-900">{stats.totalModules}</p>
                 </div>
-                <Package className="h-8 w-8 text-blue-600" />
+                <Package className="h-6 w-6 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Modules</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.activeModules}</p>
+                  <p className="text-xs font-medium text-gray-600">Active</p>
+                  <p className="text-xl font-bold text-green-600">{stats.activeModules}</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Trial Modules</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.trialModules}</p>
+                  <p className="text-xs font-medium text-gray-600">Trial</p>
+                  <p className="text-xl font-bold text-blue-600">{stats.trialModules}</p>
                 </div>
-                <Clock className="h-8 w-8 text-blue-600" />
+                <Clock className="h-6 w-6 text-blue-600" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Expired Modules</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.expiredModules}</p>
+                  <p className="text-xs font-medium text-gray-600">Pending</p>
+                  <p className="text-xl font-bold text-yellow-600">{stats.pendingModules}</p>
                 </div>
-                <XCircle className="h-8 w-8 text-red-600" />
+                <AlertCircle className="h-6 w-6 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Expired</p>
+                  <p className="text-xl font-bold text-red-600">{stats.expiredModules}</p>
+                </div>
+                <XCircle className="h-6 w-6 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Inactive</p>
+                  <p className="text-xl font-bold text-gray-600">{stats.inactiveModules}</p>
+                </div>
+                <XCircle className="h-6 w-6 text-gray-600" />
               </div>
             </CardContent>
           </Card>
@@ -403,12 +427,28 @@ const MyModules = ({ isTeamMember, isAdmin, userRole }: MyModulesProps) => {
                         onClick={() => handleModuleAccess(module)}
                         disabled={!isAdmin && isTeamMember && !module.isActive}
                         className="flex-1"
-                        variant={module.status === ModuleStatus.ACTIVE ? "default" : "outline"}
+                        variant={module.status === ModuleStatus.ACTIVE ? "default" : 
+                                module.status === ModuleStatus.PENDING_ACTIVATION ? "secondary" : "outline"}
                       >
                         {module.status === ModuleStatus.ACTIVE ? (
                           <>
                             <Eye className="h-4 w-4 mr-2" />
                             Access
+                          </>
+                        ) : module.status === ModuleStatus.PENDING_ACTIVATION ? (
+                          <>
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Pending Activation
+                          </>
+                        ) : module.status === ModuleStatus.TRIAL ? (
+                          <>
+                            <Clock className="h-4 w-4 mr-2" />
+                            Trial Access
+                          </>
+                        ) : module.status === ModuleStatus.EXPIRED ? (
+                          <>
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Renew
                           </>
                         ) : (
                           <>

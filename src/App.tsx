@@ -122,6 +122,9 @@ import SubscriptionPaymentMethods from "./pages/SubscriptionPaymentMethods";
 import SubscriptionInvoiceDetail from "./pages/SubscriptionInvoiceDetail";
 import SubscriptionPurchase from "./pages/SubscriptionPurchase";
 import SubscriptionRenewal from "./pages/SubscriptionRenewal";
+import SubscriptionDueBills from "./pages/SubscriptionDueBills";
+import SubscriptionUpgradeDowngrade from "./pages/SubscriptionUpgradeDowngrade";
+import SubscriptionSettingsPage from "./pages/SubscriptionSettingsPage";
 import CreateServiceRequest from "./pages/CreateServiceRequest";
 
 // Static Pages
@@ -438,6 +441,30 @@ function App() {
                 element={
                   <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
                     <SubscriptionRenewal />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/due-bills" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionDueBills />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/:subscriptionId/upgrade-downgrade" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionUpgradeDowngrade />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/subscription/settings" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <SubscriptionSettingsPage />
                   </ProtectedRoute>
                 } 
               />

@@ -118,7 +118,7 @@ export const SubscriptionStatusIndicator: React.FC<SubscriptionStatusIndicatorPr
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/subscription/browse')}>
             <CreditCard className="h-4 w-4 mr-2" />
-            Browse Plans
+            Subscription Packages
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
