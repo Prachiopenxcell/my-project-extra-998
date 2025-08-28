@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,21 +33,11 @@ const ProfileCompletion: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Redirect directly to profile edit to bypass unnecessary dashboard
-  useEffect(() => {
-    if (user && !loading) {
-      navigate('/profile/edit');
-      return;
-    }
-    loadProfile();
-  }, [user, loading, navigate]);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     if (!user) return;
-    
     try {
       setLoading(true);
       const userProfile = await ProfileService.getProfile(user.id);
-      
       if (userProfile) {
         setProfile(userProfile);
         const status = ProfileService.calculateCompletionStatus(userProfile, user.role);
@@ -64,7 +54,17 @@ const ProfileCompletion: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user && !loading) {
+      navigate('/profile/edit');
+      return;
+    }
+    loadProfile();
+  }, [user, loading, navigate, loadProfile]);
+
+  // loadProfile moved into useCallback above
 
   const createEmptyProfile = (userId: string, role: UserRole): UserProfile => {
     const baseProfile = {
@@ -76,8 +76,7 @@ const ProfileCompletion: React.FC = () => {
 
     // Return appropriate profile type based on role
     switch (role) {
-      case UserRole.SERVICE_SEEKER_INDIVIDUAL:
-      case UserRole.SERVICE_SEEKER_PARTNER:
+      case UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER:
         return {
           ...baseProfile,
           name: '',
@@ -89,8 +88,7 @@ const ProfileCompletion: React.FC = () => {
           bankingDetails: []
         } as any;
       
-      case UserRole.SERVICE_PROVIDER_INDIVIDUAL:
-      case UserRole.SERVICE_PROVIDER_PARTNER:
+      case UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER:
         return {
           ...baseProfile,
           title: '',
@@ -231,7 +229,7 @@ const ProfileCompletion: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium text-primary">Permanent Registration Number</p>
+                    <p className="font-medium text-primary">Permanent Registration Number(PRN)</p>
                     <p className="text-sm text-muted-foreground">Your unique platform identifier</p>
                   </div>
                 </div>
@@ -324,7 +322,7 @@ const ProfileCompletion: React.FC = () => {
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Profile
               </Button>
-              <Button variant="outline" onClick={() => navigate('/settings/profile')}>
+              <Button variant="outline" onClick={() => navigate('/profile/edit')}>
                 <User className="h-4 w-4 mr-2" />
                 Profile Settings
               </Button>

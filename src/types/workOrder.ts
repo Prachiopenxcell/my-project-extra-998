@@ -242,7 +242,16 @@ export interface WorkOrderActivity {
   performedBy: string;
   performedByType: 'seeker' | 'provider' | 'system';
   timestamp: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+}
+
+// Questionnaire for WO Overview (distinct from service request types)
+export interface WorkOrderQuestionnaireItem {
+  id: string;
+  question: string;
+  answer?: string;
+  required?: boolean;
+  isSkipped?: boolean;
 }
 
 // Main Work Order interface
@@ -293,6 +302,7 @@ export interface WorkOrder {
   documents: WorkOrderDocument[];
   milestones: TaskMilestone[];
   informationRequests: InformationRequest[];
+  questionnaire?: WorkOrderQuestionnaireItem[];
   
   // Feedback and disputes
   feedbacks: WorkOrderFeedback[];

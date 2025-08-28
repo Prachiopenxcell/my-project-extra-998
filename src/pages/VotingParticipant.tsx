@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 
 const VotingParticipant = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <VotingParticipantModule />
     </DashboardLayout>
   );

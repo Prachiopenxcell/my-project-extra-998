@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, ArrowLeft, Edit, Download, FileText, Users, Building, Landmark, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, Download, Trash2 } from "lucide-react";
 import { entityService } from "@/services/entityServiceFactory";
 import { useToast } from "@/components/ui/use-toast";
 import { EntityFormData } from "@/components/entity";
@@ -64,7 +64,7 @@ const EntityDetails = () => {
 
   if (loading) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6 flex justify-center items-center min-h-[60vh]">
           <div className="flex flex-col items-center">
             <Loader2 className="h-12 w-12 animate-spin mb-4" />
@@ -77,7 +77,7 @@ const EntityDetails = () => {
 
   if (!entity) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           <div className="bg-card rounded-lg shadow p-8 text-center">
             <h2 className="text-2xl font-bold mb-4">Entity Not Found</h2>
@@ -92,7 +92,7 @@ const EntityDetails = () => {
   }
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6 space-y-8">
         {/* Header Section */}
         <div className="space-y-6">
@@ -187,14 +187,11 @@ const EntityDetails = () => {
         {/* Main Content */}
 
         <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-7 mb-6">
+          <TabsList className="grid grid-cols-4 mb-6">
             <TabsTrigger value="basic">Basic Details</TabsTrigger>
             <TabsTrigger value="address">Address & Contact</TabsTrigger>
             <TabsTrigger value="personnel">Key Personnel</TabsTrigger>
             <TabsTrigger value="industry">Industry Details</TabsTrigger>
-            <TabsTrigger value="financial">Financial Records</TabsTrigger>
-            <TabsTrigger value="creditors">Creditors</TabsTrigger>
-            <TabsTrigger value="bank">Bank Documents</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4">
@@ -539,167 +536,6 @@ const EntityDetails = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="financial" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Records & Financial Details</CardTitle>
-                <CardDescription>Financial documents and records</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {entity.financialRecords && entity.financialRecords.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4">Document Type</th>
-                          <th className="text-left py-3 px-4">Year</th>
-                          <th className="text-left py-3 px-4">File Name</th>
-                          <th className="text-left py-3 px-4">Status</th>
-                          <th className="text-left py-3 px-4">Remarks</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entity.financialRecords.map((record, index) => (
-                          <tr key={index} className="border-b hover:bg-muted/50">
-                            <td className="py-3 px-4">{record.documentType}</td>
-                            <td className="py-3 px-4">{record.financialYear}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center">
-                                <FileText className="h-4 w-4 mr-2" />
-                                <span className="text-blue-600 hover:underline cursor-pointer">
-                                  {record.fileName}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={record.status === 'Verified' ? "default" : "outline"}>
-                                {record.status}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">{record.remarks || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No financial records available</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="creditors" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Creditors in Class</CardTitle>
-                <CardDescription>Creditor details and claims</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {entity.creditors && entity.creditors.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4">Creditor Name</th>
-                          <th className="text-left py-3 px-4">Class</th>
-                          <th className="text-left py-3 px-4">Subclass</th>
-                          <th className="text-right py-3 px-4">Claim Amount</th>
-                          <th className="text-left py-3 px-4">Status</th>
-                          <th className="text-left py-3 px-4">Remarks</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entity.creditors.map((creditor, index) => (
-                          <tr key={index} className="border-b hover:bg-muted/50">
-                            <td className="py-3 px-4">{creditor.name}</td>
-                            <td className="py-3 px-4">{creditor.class}</td>
-                            <td className="py-3 px-4">{creditor.subClass || "—"}</td>
-                            <td className="py-3 px-4 text-right">₹{creditor.amount.toLocaleString()}</td>
-                            <td className="py-3 px-4">
-                              <Badge variant={creditor.status === 'Verified' ? "default" : "outline"}>
-                                {creditor.status}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">{creditor.remarks || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No creditor information available</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="bank" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Bank & Investment Documents</CardTitle>
-                <CardDescription>Bank accounts and investment information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {entity.bankDocuments && entity.bankDocuments.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4">Bank Name</th>
-                          <th className="text-left py-3 px-4">Document Type</th>
-                          <th className="text-left py-3 px-4">Date</th>
-                          <th className="text-left py-3 px-4">File</th>
-                          <th className="text-left py-3 px-4">Status</th>
-                          <th className="text-left py-3 px-4">Remarks</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {entity.bankDocuments.map((doc, index) => (
-                          <tr key={index} className="border-b hover:bg-muted/50">
-                            <td className="py-3 px-4">{doc.bankName}</td>
-                            <td className="py-3 px-4">{doc.documentType}</td>
-                            <td className="py-3 px-4">{doc.documentDate}</td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center">
-                                <FileText className="h-4 w-4 mr-2" />
-                                <span className="text-blue-600 hover:underline cursor-pointer">
-                                  {doc.fileName}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={doc.status === 'Verified' ? "default" : "outline"}>
-                                {doc.status}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4">{doc.remarks || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No bank documents available</p>
-                  </div>
-                )}
-                
-                {entity.investmentSummary && (
-                  <div className="mt-6">
-                    <h3 className="font-semibold mb-2">Investment Summary</h3>
-                    <div className="border rounded-lg p-4 bg-muted/30">
-                      <p>{entity.investmentSummary}</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Delete Confirmation Dialog */}

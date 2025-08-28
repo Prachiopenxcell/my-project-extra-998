@@ -139,7 +139,7 @@ const CreatePreFiling = () => {
   };
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6">
         <div className="space-y-6">
         {/* Header */}

@@ -31,6 +31,7 @@ import { UserType } from "@/types/auth";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
+import { getUserTypeFromRole } from "@/utils/userTypeUtils";
 
 // Mock data interfaces
 interface ServiceRequest {
@@ -181,8 +182,11 @@ const mockClosedWorkOrders: WorkOrderItem[] = [
 ];
 
 const WorkOrders = () => {
+  const { user } = useAuth();
+  const layoutUserType = getUserTypeFromRole(user?.role);
+  console.log(layoutUserType , 'layoutUserType');
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout userType={layoutUserType}>
       <div className="container mx-auto p-6">
         <WorkOrdersModule />
       </div>

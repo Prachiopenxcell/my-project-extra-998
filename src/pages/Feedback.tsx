@@ -252,8 +252,8 @@ const Feedback = () => {
         <div className="container mx-auto p-6">
           <div className="space-y-6">
             <Skeleton className="h-8 w-64" />
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-24" />
               ))}
             </div>

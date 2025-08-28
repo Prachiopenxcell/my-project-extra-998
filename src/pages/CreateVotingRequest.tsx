@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 
 const CreateVotingRequestPage = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <CreateVotingRequestForm />
     </DashboardLayout>
   );

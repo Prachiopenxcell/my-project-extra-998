@@ -9,7 +9,9 @@ import {
   ServiceSeekerEntityProfile,
   ServiceProviderIndividualProfile,
   ServiceProviderEntityProfile,
-  TeamMemberProfile
+  TeamMemberProfile,
+  MembershipVerification,
+  MembershipVerificationStatus
 } from '@/types/profile';
 
 // Mock data storage (replace with actual API calls)
@@ -21,6 +23,48 @@ export class ProfileService {
   static async getProfile(userId: string): Promise<UserProfile | null> {
     // Mock implementation - replace with actual API call
     return profileStorage.get(userId) || null;
+  }
+
+  // Membership verification (mock; replace with actual institute APIs)
+  static async verifyMembership(bodyInstitute: string, membershipNumber: string): Promise<MembershipVerification> {
+    // Simulate API latency
+    await new Promise((r) => setTimeout(r, 1200));
+
+    // Very naive mock logic: success if number looks non-trivial
+    const sanitized = (membershipNumber || '').trim();
+    const success = sanitized.length >= 4 && /[A-Za-z0-9]/.test(sanitized);
+
+    if (success) {
+      return {
+        status: MembershipVerificationStatus.VERIFIED,
+        message: 'Verified successfully',
+        verifiedAt: new Date().toISOString(),
+        source: `${bodyInstitute} API`
+      };
+    }
+
+    return {
+      status: MembershipVerificationStatus.FAILED,
+      message: 'Invalid membership number or not found',
+      verifiedAt: undefined,
+      source: `${bodyInstitute} API`
+    };
+  }
+
+  // Helper: Is membership verified for provider roles
+  static isEligibleForOpportunities(profile: UserProfile, userRole: UserRole): boolean {
+    // Gate only provider roles for now
+    const providerRoles = new Set<UserRole>([
+      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER,
+      UserRole.SERVICE_PROVIDER_ENTITY_ADMIN,
+      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+    ]);
+
+    if (!providerRoles.has(userRole)) return true;
+
+    const p = profile as ServiceProviderIndividualProfile | ServiceProviderEntityProfile;
+    const hasAnyVerified = (p.membershipDetails || []).some(m => m?.membershipNumber && m?.verification?.status === MembershipVerificationStatus.VERIFIED);
+    return hasAnyVerified;
   }
 
   // Save profile
@@ -56,9 +100,11 @@ export class ProfileService {
 
     const overallPercentage = totalWeight > 0 ? Math.round((completedWeight / totalWeight) * 100) : 0;
     
-    // Can get permanent number if all mandatory sections are completed
+    // Can get permanent number only if all required fields (including uploads) are present in mandatory sections
     const mandatorySections = sections.filter(s => s.name.includes('*'));
-    const canGetPermanentNumber = mandatorySections.every(s => s.isCompleted);
+    const canGetPermanentNumber = mandatorySections.every(s =>
+      s.requiredFields.every(req => s.completedFields.includes(req))
+    );
 
     return {
       overallPercentage,
@@ -71,15 +117,13 @@ export class ProfileService {
   // Get profile sections based on user role
   private static getProfileSections(profile: UserProfile, userRole: UserRole): ProfileSection[] {
     switch (userRole) {
-      case UserRole.SERVICE_SEEKER_INDIVIDUAL:
-      case UserRole.SERVICE_SEEKER_PARTNER:
+      case UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER:
         return this.getServiceSeekerIndividualSections(profile as ServiceSeekerIndividualProfile);
       
       case UserRole.SERVICE_SEEKER_ENTITY_ADMIN:
         return this.getServiceSeekerEntitySections(profile as ServiceSeekerEntityProfile);
       
-      case UserRole.SERVICE_PROVIDER_INDIVIDUAL:
-      case UserRole.SERVICE_PROVIDER_PARTNER:
+      case UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER:
         return this.getServiceProviderIndividualSections(profile as ServiceProviderIndividualProfile);
       
       case UserRole.SERVICE_PROVIDER_ENTITY_ADMIN:
@@ -128,9 +172,11 @@ export class ProfileService {
       {
         name: 'Banking Details',
         weight: 10,
-        isCompleted: !!(profile.bankingDetails && profile.bankingDetails.length > 0),
+        // Consider banking complete only when at least one entry has a non-empty account number
+        isCompleted: !!(profile.bankingDetails?.[0]?.accountNumber),
+        // Keep requiredFields simple since this is not a mandatory section
         requiredFields: ['bankingDetails'],
-        completedFields: profile.bankingDetails?.length > 0 ? ['bankingDetails'] : []
+        completedFields: profile.bankingDetails?.[0]?.accountNumber ? ['bankingDetails'] : []
       }
     ];
   }
@@ -151,7 +197,8 @@ export class ProfileService {
       {
         name: 'Resource Infrastructure',
         weight: 15,
-        isCompleted: !!(profile.resourceInfra?.numberOfProfessionalStaff !== undefined),
+        // Consider resources complete only when professional staff count is greater than 0
+        isCompleted: !!(profile.resourceInfra && profile.resourceInfra.numberOfProfessionalStaff > 0),
         requiredFields: ['resourceInfra.numberOfProfessionalStaff'],
         completedFields: this.getCompletedFields(profile, ['resourceInfra.numberOfProfessionalStaff', 'resourceInfra.numberOfOtherStaff'])
       }
@@ -185,30 +232,42 @@ export class ProfileService {
       {
         name: 'Membership Details*',
         weight: 15,
-        isCompleted: !!(profile.membershipDetails && profile.membershipDetails.length > 0),
-        requiredFields: ['membershipDetails'],
-        completedFields: profile.membershipDetails?.length > 0 ? ['membershipDetails'] : []
+        // Consider completed only if at least one entry has a membershipNumber
+        isCompleted: !!(profile.membershipDetails?.[0]?.membershipNumber),
+        requiredFields: ['membershipDetails[0].membershipNumber'],
+        completedFields: this.getCompletedFields(profile, ['membershipDetails.0.membershipNumber'])
       },
       {
         name: 'Services Offered*',
         weight: 15,
-        isCompleted: !!(profile.servicesOffered && profile.servicesOffered.length > 0),
-        requiredFields: ['servicesOffered'],
-        completedFields: profile.servicesOffered?.length > 0 ? ['servicesOffered'] : []
+        // Consider completed only if at least one service/category is provided in first entry
+        isCompleted: !!(profile.servicesOffered?.[0]?.category || (profile.servicesOffered?.[0]?.services?.length ?? 0) > 0),
+        requiredFields: ['servicesOffered[0]'],
+        completedFields: (profile.servicesOffered?.[0]?.category || (profile.servicesOffered?.[0]?.services?.length ?? 0) > 0) ? ['servicesOffered[0]'] : []
+      },
+      {
+        name: 'Languages',
+        weight: 5,
+        // Consider completed only if at least one language entry has a non-empty language
+        isCompleted: !!(profile.languageSkills?.[0]?.language),
+        requiredFields: ['languageSkills[0].language'],
+        completedFields: this.getCompletedFields(profile, ['languageSkills.0.language'])
       },
       {
         name: 'Work Locations',
-        weight: 10,
-        isCompleted: !!(profile.workLocations && profile.workLocations.length > 0),
-        requiredFields: ['workLocations'],
-        completedFields: profile.workLocations?.length > 0 ? ['workLocations'] : []
+        weight: 5,
+        // Consider completed only if first location has a non-empty pinCode
+        isCompleted: !!(profile.workLocations?.[0]?.pinCode),
+        requiredFields: ['workLocations[0].pinCode'],
+        completedFields: this.getCompletedFields(profile, ['workLocations.0.pinCode'])
       },
       {
         name: 'Banking Details',
         weight: 10,
-        isCompleted: !!(profile.bankingDetails && profile.bankingDetails.length > 0),
-        requiredFields: ['bankingDetails'],
-        completedFields: profile.bankingDetails?.length > 0 ? ['bankingDetails'] : []
+        // Consider completed only when at least one entry has a non-empty account number
+        isCompleted: !!(profile.bankingDetails?.[0]?.accountNumber),
+        requiredFields: ['bankingDetails[0].accountNumber'],
+        completedFields: this.getCompletedFields(profile, ['bankingDetails.0.accountNumber'])
       }
     ];
   }
@@ -232,6 +291,14 @@ export class ProfileService {
         isCompleted: !!(profile.authorizedRepresentative?.name && profile.authorizedRepresentative?.email),
         requiredFields: ['authorizedRepresentative.name', 'authorizedRepresentative.email'],
         completedFields: this.getCompletedFields(profile, ['authorizedRepresentative.name', 'authorizedRepresentative.email'])
+      },
+      {
+        name: 'Remote Work Preference',
+        weight: 7,
+        // Optional section to fine-tune low completion targets (e.g., ~5%)
+        isCompleted: !!profile.openToRemoteWork,
+        requiredFields: ['openToRemoteWork'],
+        completedFields: profile.openToRemoteWork ? ['openToRemoteWork'] : []
       }
     ];
   }
@@ -259,6 +326,14 @@ export class ProfileService {
         isCompleted: !!(profile.address?.street && profile.address?.city && profile.address?.pinCode),
         requiredFields: ['address.street', 'address.city', 'address.pinCode'],
         completedFields: this.getCompletedFields(profile, ['address.street', 'address.city', 'address.pinCode'])
+      },
+      {
+        name: 'Remote Work Preference',
+        weight: 5,
+        // Optional lightweight section for low-percentage seeding (~5%)
+        isCompleted: !!profile.openToRemoteWork,
+        requiredFields: ['openToRemoteWork'],
+        completedFields: profile.openToRemoteWork ? ['openToRemoteWork'] : []
       }
     ];
   }

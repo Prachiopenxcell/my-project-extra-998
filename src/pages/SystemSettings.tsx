@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,7 +36,16 @@ const SystemSettings = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<SystemSettingsStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("profile");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const loadStats = async () => {

@@ -231,7 +231,7 @@ const SubscriptionInvoiceDetail = () => {
 
   if (loading || !invoice) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-1/3"></div>
@@ -243,7 +243,7 @@ const SubscriptionInvoiceDetail = () => {
   }
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">

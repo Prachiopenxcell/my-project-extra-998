@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { SERVICE_CATEGORIES } from '@/data/serviceCategories';
 import { 
   User, 
   FileText, 
@@ -35,9 +36,10 @@ import {
   Languages,
   Settings
 } from 'lucide-react';
-import { IdentityDocumentType, AccountType, ServiceLevel, ServiceSector, ServiceIndustry, LanguageProficiency } from '@/types/profile';
+import { IdentityDocumentType, AccountType, ServiceLevel, ServiceSector, ServiceIndustry, LanguageProficiency, MembershipVerificationStatus } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/types/auth';
 
 interface ServiceProviderIndividualFormProps {
   onComplete: () => void;
@@ -84,6 +86,12 @@ interface FormData {
     practiceLicenseNumber: string;
     licenseValidity: string;
     licenseCopy: File | null;
+    verification?: {
+      status: MembershipVerificationStatus;
+      message?: string;
+      verifiedAt?: string;
+      source?: string;
+    };
   }>;
   
   // Language Known
@@ -101,6 +109,14 @@ interface FormData {
     numberOfOtherStaff: number;
     numberOfInternsArticledClerks: number;
   };
+  
+  // Team Members
+  teamMembers: Array<{
+    name: string;
+    designation: string;
+    qualification: string;
+    experience: string;
+  }>;
   
   // Work Location
   workLocations: Array<{
@@ -159,6 +175,17 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
   const { user } = useAuth();
   const [currentTab, setCurrentTab] = useState('personal');
   const [loading, setLoading] = useState(false);
+  const [verifyingIndex, setVerifyingIndex] = useState<number | null>(null);
+  const createBlankMembership = () => ({
+    bodyInstitute: '',
+    membershipNumber: '',
+    memberSince: '',
+    uploadedCopy: null,
+    practiceLicenseNumber: '',
+    licenseValidity: '',
+    licenseCopy: null,
+    verification: { status: MembershipVerificationStatus.UNVERIFIED, message: 'Not verified yet' as const }
+  });
   const [formData, setFormData] = useState<FormData>({
     // Personal Details
     title: 'Mr.',
@@ -187,7 +214,7 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
     // Qualifications
     qualifications: '',
     
-    // Membership Details
+    // Membership Details (start with one blank entry)
     membershipDetails: [{
       bodyInstitute: '',
       membershipNumber: '',
@@ -195,16 +222,12 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
       uploadedCopy: null,
       practiceLicenseNumber: '',
       licenseValidity: '',
-      licenseCopy: null
+      licenseCopy: null,
+      verification: { status: MembershipVerificationStatus.UNVERIFIED, message: 'Not verified yet' }
     }],
     
-    // Language Skills
-    languageSkills: [{
-      language: '',
-      speak: LanguageProficiency.LOW,
-      read: LanguageProficiency.LOW,
-      write: LanguageProficiency.LOW
-    }],
+    // Language Skills (start empty)
+    languageSkills: [],
     
     // Resources and Infrastructure
     resourceInfra: {
@@ -214,66 +237,51 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
       numberOfInternsArticledClerks: 0
     },
     
-    // Work Locations
-    workLocations: [{ city: '', location: '', pinCode: '' }],
+    // Team Members (start empty)
+    teamMembers: [],
+    
+    // Work Locations: seed a pinCode to intentionally yield 5% with updated weights
+    workLocations: [{ city: '', location: '', pinCode: '000000' }],
     
     // Open to remote work
     openToRemoteWork: false,
     
-    // Billing Details
-    billingDetails: [{
-      tradeName: '',
-      billingAddress: { street: '', city: '', state: '', pinCode: '' },
-      gstState: '',
-      gstRegistrationNumber: '',
-      gstCopy: null,
-      panNumber: '',
-      panCopy: null,
-      tanNumber: '',
-      tanCopy: null,
-      isDefault: true
-    }],
+    // Billing Details (start empty)
+    billingDetails: [],
     
-    // Banking Details
-    bankingDetails: [{
-      beneficiaryName: '',
-      accountType: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      ifscCode: '',
-      isDefault: true
-    }],
+    // Banking Details (start empty)
+    bankingDetails: [],
     
-    // Services Offered
-    servicesOffered: [{
-      category: '',
-      level: '',
-      sector: '',
-      industry: '',
-      services: [],
-      hashtags: []
-    }]
+    // Services Offered (start empty)
+    servicesOffered: []
   });
 
   const calculateCompletion = () => {
-    const mandatoryFields = [
-      formData.name,
-      formData.email,
-      formData.mobile,
-      formData.identityDocument.type,
-      formData.identityDocument.number,
-      formData.qualifications,
-      formData.membershipDetails[0]?.membershipNumber,
-      formData.billingDetails[0]?.panNumber,
-      formData.bankingDetails[0]?.beneficiaryName,
-      formData.bankingDetails[0]?.accountNumber,
-      formData.bankingDetails[0]?.ifscCode
-    ];
+    // Convert formData to profile format for ProfileService
+    const profileData = {
+      userId: "current-user",
+      name: formData.name,
+      email: formData.email,
+      mobile: formData.mobile,
+      title: formData.title,
+      contactNumber: formData.mobile,
+      identityDocument: formData.identityDocument,
+      qualifications: formData.qualifications,
+      membershipDetails: formData.membershipDetails,
+      servicesOffered: formData.servicesOffered,
+      workLocations: formData.workLocations,
+      bankingDetails: formData.bankingDetails,
+      billingDetails: formData.billingDetails,
+      languageSkills: formData.languageSkills
+    };
+
+    // Use ProfileService to calculate completion
+    const completionStatus = ProfileService.calculateCompletionStatus(
+      profileData as any, 
+      UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER
+    );
     
-    const completedMandatory = mandatoryFields.filter(field => field && field.toString().trim() !== '').length;
-    const totalMandatory = mandatoryFields.length;
-    
-    return Math.round((completedMandatory / totalMandatory) * 100);
+    return completionStatus.overallPercentage;
   };
 
   const handleInputChange = (field: string, value: string | number | boolean | File | null) => {
@@ -363,6 +371,19 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
     }
   };
 
+  const handleSkipCurrentTab = () => {
+    // Skip current tab and move to next one
+    const tabs = ['personal', 'identity', 'qualifications', 'membership', 'languages', 'resources', 'billing', 'services'];
+    const currentIndex = tabs.indexOf(currentTab);
+    if (currentIndex < tabs.length - 1) {
+      setCurrentTab(tabs[currentIndex + 1]);
+      toast.info('Section skipped');
+    } else {
+      // If on last tab, complete the profile
+      onSkip();
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
     setLoading(true);
@@ -389,7 +410,7 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
   const completion = calculateCompletion();
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -459,16 +480,16 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="companyName">Company Name</Label>
+                  <Label htmlFor="companyName">Trade Name</Label>
                   <Input
                     id="companyName"
                     value={formData.companyName}
                     onChange={(e) => handleInputChange('companyName', e.target.value)}
-                    placeholder="Enter company name"
+                    placeholder="Enter trade name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="companyLogo">Company Logo</Label>
+                  <Label htmlFor="companyLogo">Trade Logo</Label>
                   <Input
                     id="companyLogo"
                     type="file"
@@ -673,6 +694,20 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                 <div key={index} className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Membership {index + 1}</h4>
+                    <div className="flex items-center gap-2">
+                      {membership.verification?.status && (
+                        <Badge variant={
+                          membership.verification.status === MembershipVerificationStatus.VERIFIED ? 'default' :
+                          membership.verification.status === MembershipVerificationStatus.PENDING ? 'secondary' :
+                          'destructive'
+                        }>
+                          {membership.verification.status === MembershipVerificationStatus.VERIFIED && 'Verified'}
+                          {membership.verification.status === MembershipVerificationStatus.PENDING && 'Pending'}
+                          {membership.verification.status === MembershipVerificationStatus.FAILED && 'Failed'}
+                          {membership.verification.status === MembershipVerificationStatus.UNVERIFIED && 'Unverified'}
+                        </Badge>
+                      )}
+                    </div>
                     {formData.membershipDetails.length > 1 && (
                       <Button
                         variant="outline"
@@ -709,6 +744,58 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                         onChange={(e) => handleArrayItemChange('membershipDetails', index, 'membershipNumber', e.target.value)}
                         placeholder="Enter membership number"
                       />
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            if (!membership.bodyInstitute || !membership.membershipNumber) {
+                              toast.error('Select institute and enter membership number first');
+                              return;
+                            }
+                            try {
+                              setVerifyingIndex(index);
+                              // Set local status to pending for quick feedback
+                              setFormData(prev => ({
+                                ...prev,
+                                membershipDetails: prev.membershipDetails.map((m, i) => i === index ? {
+                                  ...m,
+                                  verification: { status: MembershipVerificationStatus.PENDING, message: 'Verifying…' }
+                                } : m)
+                              }));
+                              const result = await ProfileService.verifyMembership(membership.bodyInstitute, membership.membershipNumber);
+                              setFormData(prev => ({
+                                ...prev,
+                                membershipDetails: prev.membershipDetails.map((m, i) => i === index ? { ...m, verification: result } : m)
+                              }));
+                              if (result.status === MembershipVerificationStatus.VERIFIED) {
+                                toast.success('Membership verified');
+                              } else {
+                                toast.error(result.message || 'Verification failed');
+                              }
+                            } catch (err) {
+                              toast.error('Verification error. Please try again.');
+                            } finally {
+                              setVerifyingIndex(null);
+                            }
+                          }}
+                          disabled={verifyingIndex === index}
+                        >
+                          {verifyingIndex === index ? (
+                            <>
+                              <Clock className="h-4 w-4 mr-1" /> Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-1" /> Verify
+                            </>
+                          )}
+                        </Button>
+                        {membership.verification?.message && (
+                          <span className="text-xs text-muted-foreground">{membership.verification.message}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -958,6 +1045,78 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
               
               <Separator />
               
+              {/* Team Members Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Team Members</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addArrayItem('teamMembers', { name: '', designation: '', qualification: '', experience: '' })}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Team Member
+                  </Button>
+                </div>
+                {formData.teamMembers.map((member, index) => (
+                  <div key={index} className="border rounded-lg p-4 mb-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-medium">Team Member {index + 1}</h5>
+                      {formData.teamMembers.length > 1 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeArrayItem('teamMembers', index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Name</Label>
+                        <Input
+                          value={member.name}
+                          onChange={(e) => handleArrayItemChange('teamMembers', index, 'name', e.target.value)}
+                          placeholder="Enter team member name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Designation</Label>
+                        <Input
+                          value={member.designation}
+                          onChange={(e) => handleArrayItemChange('teamMembers', index, 'designation', e.target.value)}
+                          placeholder="Enter designation"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Qualification</Label>
+                        <Input
+                          value={member.qualification}
+                          onChange={(e) => handleArrayItemChange('teamMembers', index, 'qualification', e.target.value)}
+                          placeholder="Enter qualification"
+                        />
+                      </div>
+                      <div>
+                        <Label>Experience (Years)</Label>
+                        <Input
+                          value={member.experience}
+                          onChange={(e) => handleArrayItemChange('teamMembers', index, 'experience', e.target.value)}
+                          placeholder="Enter years of experience"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <Separator />
+              
               <div>
                 <h4 className="font-medium mb-4">Work Locations</h4>
                 {formData.workLocations.map((location, index) => (
@@ -1043,6 +1202,215 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Billing Details Section */}
+              <div>
+                <h4 className="font-medium mb-4">Billing Details</h4>
+                {formData.billingDetails.map((billing, index) => (
+                  <div key={index} className="border rounded-lg p-4 mb-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-medium">Billing Address {index + 1}</h5>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`billing-default-${index}`}
+                            checked={billing.isDefault}
+                            onCheckedChange={(checked) => {
+                              setFormData(prev => ({
+                                ...prev,
+                                billingDetails: prev.billingDetails.map((item, i) => 
+                                  i === index ? { ...item, isDefault: checked as boolean } : item
+                                )
+                              }));
+                            }}
+                          />
+                          <Label htmlFor={`billing-default-${index}`} className="text-sm">Default</Label>
+                        </div>
+                        {formData.billingDetails.length > 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeArrayItem('billingDetails', index)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label>Trade Name</Label>
+                      <Input
+                        value={billing.tradeName}
+                        onChange={(e) => handleArrayItemChange('billingDetails', index, 'tradeName', e.target.value)}
+                        placeholder="Enter trade name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Billing Address</Label>
+                      <Textarea
+                        value={billing.billingAddress.street}
+                        onChange={(e) => {
+                          const updatedBilling = { ...billing };
+                          updatedBilling.billingAddress.street = e.target.value;
+                          setFormData(prev => ({
+                            ...prev,
+                            billingDetails: prev.billingDetails.map((item, i) => 
+                              i === index ? updatedBilling : item
+                            )
+                          }));
+                        }}
+                        placeholder="Enter complete billing address"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>City</Label>
+                        <Input
+                          value={billing.billingAddress.city}
+                          onChange={(e) => {
+                            const updatedBilling = { ...billing };
+                            updatedBilling.billingAddress.city = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              billingDetails: prev.billingDetails.map((item, i) => 
+                                i === index ? updatedBilling : item
+                              )
+                            }));
+                          }}
+                          placeholder="Enter city"
+                        />
+                      </div>
+                      <div>
+                        <Label>State</Label>
+                        <Input
+                          value={billing.billingAddress.state}
+                          onChange={(e) => {
+                            const updatedBilling = { ...billing };
+                            updatedBilling.billingAddress.state = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              billingDetails: prev.billingDetails.map((item, i) => 
+                                i === index ? updatedBilling : item
+                              )
+                            }));
+                          }}
+                          placeholder="Enter state"
+                        />
+                      </div>
+                      <div>
+                        <Label>PIN Code</Label>
+                        <Input
+                          value={billing.billingAddress.pinCode}
+                          onChange={(e) => {
+                            const updatedBilling = { ...billing };
+                            updatedBilling.billingAddress.pinCode = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              billingDetails: prev.billingDetails.map((item, i) => 
+                                i === index ? updatedBilling : item
+                              )
+                            }));
+                          }}
+                          placeholder="Enter PIN code"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>GST State</Label>
+                        <Input
+                          value={billing.gstState}
+                          onChange={(e) => handleArrayItemChange('billingDetails', index, 'gstState', e.target.value)}
+                          placeholder="Enter GST state"
+                        />
+                      </div>
+                      <div>
+                        <Label>GST Registration Number</Label>
+                        <Input
+                          value={billing.gstRegistrationNumber}
+                          onChange={(e) => handleArrayItemChange('billingDetails', index, 'gstRegistrationNumber', e.target.value)}
+                          placeholder="Enter GST registration number"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label>Upload GST Copy</Label>
+                      <Input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={(e) => handleArrayItemChange('billingDetails', index, 'gstCopy', e.target.files?.[0] || null)}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>PAN Number *</Label>
+                        <Input
+                          value={billing.panNumber}
+                          onChange={(e) => handleArrayItemChange('billingDetails', index, 'panNumber', e.target.value)}
+                          placeholder="Enter PAN number"
+                        />
+                      </div>
+                      <div>
+                        <Label>Upload PAN Copy *</Label>
+                        <Input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={(e) => handleArrayItemChange('billingDetails', index, 'panCopy', e.target.files?.[0] || null)}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>TAN Number</Label>
+                        <Input
+                          value={billing.tanNumber}
+                          onChange={(e) => handleArrayItemChange('billingDetails', index, 'tanNumber', e.target.value)}
+                          placeholder="Enter TAN number"
+                        />
+                      </div>
+                      <div>
+                        <Label>Upload TAN Copy</Label>
+                        <Input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={(e) => handleArrayItemChange('billingDetails', index, 'tanCopy', e.target.files?.[0] || null)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                <Button
+                  variant="outline"
+                  onClick={() => addArrayItem('billingDetails', {
+                    tradeName: '',
+                    billingAddress: { street: '', city: '', state: '', pinCode: '' },
+                    gstState: '',
+                    gstRegistrationNumber: '',
+                    gstCopy: null,
+                    panNumber: '',
+                    panCopy: null,
+                    tanNumber: '',
+                    tanCopy: null,
+                    isDefault: false
+                  })}
+                  className="w-full mb-6"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Billing Details
+                </Button>
+              </div>
+              
+              <Separator />
+              
+              {/* Banking Details Section */}
               <div>
                 <h4 className="font-medium mb-4">Banking Details</h4>
                 {formData.bankingDetails.map((banking, index) => (
@@ -1178,28 +1546,106 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label>Category *</Label>
-                      <Input
+                      <Select
                         value={service.category}
-                        onChange={(e) => handleArrayItemChange('servicesOffered', index, 'category', e.target.value)}
-                        placeholder="Enter service category"
-                      />
-                    </div>
-                    <div>
-                      <Label>Service Level *</Label>
-                      <Select 
-                        value={service.level} 
-                        onValueChange={(value) => handleArrayItemChange('servicesOffered', index, 'level', value as ServiceLevel)}
+                        onValueChange={(value) => {
+                          const updatedServices = [...formData.servicesOffered];
+                          updatedServices[index].category = value;
+                          // Reset subcategories when category changes
+                          updatedServices[index].subCategory = '';
+                          updatedServices[index].services = [];
+                          setFormData(prev => ({ ...prev, servicesOffered: updatedServices }));
+                        }}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select level" />
+                          <SelectValue placeholder="Select main category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ServiceLevel.ENTRANT}>Entrant</SelectItem>
-                          <SelectItem value={ServiceLevel.EXPERIENCED}>Experienced</SelectItem>
-                          <SelectItem value={ServiceLevel.EXPERT}>Expert</SelectItem>
+                          {SERVICE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
+                    <div>
+                      <Label>Sub-Category *</Label>
+                      <Select
+                        value={service.subCategory || ''}
+                        onValueChange={(value) => {
+                          const updatedServices = [...formData.servicesOffered];
+                          updatedServices[index].subCategory = value;
+                          // Reset services when sub-category changes
+                          updatedServices[index].services = [];
+                          setFormData(prev => ({ ...prev, servicesOffered: updatedServices }));
+                        }}
+                        disabled={!service.category}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={service.category ? 'Select sub-category' : 'Select category first'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from(new Set((SERVICE_CATEGORIES.find(c => c.name === service.category)?.subcategories || []).map(sc => sc.split(' > ')[0].trim()))).map((subCat) => (
+                            <SelectItem key={subCat} value={subCat}>{subCat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Services *</Label>
+                    {service.category && service.subCategory ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 p-4 border rounded-lg max-h-64 overflow-y-auto">
+                        {(SERVICE_CATEGORIES.find(c => c.name === service.category)?.subcategories || [])
+                          .filter((s) => s.split(' > ')[0].trim() === service.subCategory)
+                          .map((full) => {
+                            const parts = full.split(' > ');
+                            const label = parts.slice(1).join(' > ').trim() || parts[0].trim();
+                            return { key: full, label };
+                          })
+                          .map(({ key, label }) => (
+                            <div key={key} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`service-${index}-${key}`}
+                                checked={service.services.includes(label)}
+                                onCheckedChange={(checked) => {
+                                  const updatedServices = [...formData.servicesOffered];
+                                  if (checked) {
+                                    updatedServices[index].services = [...updatedServices[index].services, label];
+                                  } else {
+                                    updatedServices[index].services = updatedServices[index].services.filter(s => s !== label);
+                                  }
+                                  setFormData(prev => ({ ...prev, servicesOffered: updatedServices }));
+                                }}
+                              />
+                              <Label htmlFor={`service-${index}-${key}`} className="text-sm">
+                                {label}
+                              </Label>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground mt-2">Select category and sub-category to view services</div>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Select multiple services that you offer
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label>Service Level *</Label>
+                    <Select 
+                      value={service.level} 
+                      onValueChange={(value) => handleArrayItemChange('servicesOffered', index, 'level', value as ServiceLevel)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ServiceLevel.ENTRANT}>Entrant</SelectItem>
+                        <SelectItem value={ServiceLevel.EXPERIENCED}>Experienced</SelectItem>
+                        <SelectItem value={ServiceLevel.EXPERT}>Expert</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1213,11 +1659,14 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                           <SelectValue placeholder="Select sector" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ServiceSector.MANUFACTURING}>Manufacturing</SelectItem>
-                          <SelectItem value={ServiceSector.MSME}>MSME</SelectItem>
-                          <SelectItem value={ServiceSector.INDUSTRIAL}>Industrial</SelectItem>
-                          <SelectItem value={ServiceSector.SERVICES}>Services</SelectItem>
-                          <SelectItem value={ServiceSector.IT}>IT</SelectItem>
+                          <SelectItem value="MANUFACTURING">Manufacturing</SelectItem>
+                          <SelectItem value="MSME">MSME</SelectItem>
+                          <SelectItem value="INDUSTRIAL">Industrial</SelectItem>
+                          <SelectItem value="MINING">Mining</SelectItem>
+                          <SelectItem value="LOGISTICS">Logistics</SelectItem>
+                          <SelectItem value="SERVICES">Services</SelectItem>
+                          <SelectItem value="REALTY">Realty</SelectItem>
+                          <SelectItem value="IT">IT</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1231,28 +1680,26 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                           <SelectValue placeholder="Select industry" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={ServiceIndustry.CHEMICALS}>Chemicals</SelectItem>
-                          <SelectItem value={ServiceIndustry.ENGINEERING}>Engineering</SelectItem>
-                          <SelectItem value={ServiceIndustry.PHARMA}>Pharma</SelectItem>
+                          <SelectItem value="CHEMICALS">Chemicals</SelectItem>
+                          <SelectItem value="ENGINEERING">Engineering</SelectItem>
+                          <SelectItem value="PHARMA">Pharma</SelectItem>
+                          <SelectItem value="STEEL">Steel</SelectItem>
+                          <SelectItem value="CEMENT">Cement</SelectItem>
+                          <SelectItem value="TEXTILES">Textiles</SelectItem>
+                          <SelectItem value="AUTOMOTIVE">Automotive</SelectItem>
+                          <SelectItem value="BANKING">Banking</SelectItem>
+                          <SelectItem value="INSURANCE">Insurance</SelectItem>
+                          <SelectItem value="HEALTHCARE">Healthcare</SelectItem>
+                          <SelectItem value="EDUCATION">Education</SelectItem>
+                          <SelectItem value="RETAIL">Retail</SelectItem>
+                          <SelectItem value="HOSPITALITY">Hospitality</SelectItem>
+                          <SelectItem value="AGRICULTURE">Agriculture</SelectItem>
+                          <SelectItem value="ENERGY">Energy</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                  
-                  <div>
-                    <Label>Services (comma-separated)</Label>
-                    <Textarea
-                      value={service.services.join(', ')}
-                      onChange={(e) => {
-                        const updatedServices = [...formData.servicesOffered];
-                        updatedServices[index].services = e.target.value.split(',').map(s => s.trim());
-                        setFormData(prev => ({ ...prev, servicesOffered: updatedServices }));
-                      }}
-                      placeholder="Enter services separated by commas"
-                      rows={3}
-                    />
-                  </div>
-                  
+                
                   <div>
                     <Label>Hashtags (comma-separated)</Label>
                     <Input
@@ -1272,6 +1719,7 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                 variant="outline"
                 onClick={() => addArrayItem('servicesOffered', {
                   category: '',
+                  subCategory: '',
                   level: '',
                   sector: '',
                   industry: '',
@@ -1339,7 +1787,7 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
           )}
         </div>
         
-        <Button variant="outline" onClick={onSkip} disabled={loading}>
+        <Button variant="outline" onClick={handleSkipCurrentTab} disabled={loading}>
           <Clock className="h-4 w-4 mr-2" />
           Skip for Now
         </Button>

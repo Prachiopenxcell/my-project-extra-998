@@ -567,7 +567,7 @@ const ARDetails = () => {
           </div>
 
           <div className="mt-8 text-sm text-muted-foreground border-t pt-4">
-            John Doe - Service Provider - ID: REG-636169
+            John Doe - Service Provider - ID: TRN-636169
           </div>
         </SidebarInset>
       </div>

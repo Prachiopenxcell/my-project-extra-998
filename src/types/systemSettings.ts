@@ -10,6 +10,11 @@ export interface TeamMember {
   permissions: Permission[];
   avatar?: string;
   joinedAt: Date;
+  createdAt?: Date;
+  department?: string;
+  phone?: string;
+  location?: string;
+  archived?: boolean;
 }
 
 export enum TeamMemberRole {

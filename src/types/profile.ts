@@ -1,10 +1,16 @@
 // Profile Management Types
 
 export enum PersonType {
+  // Entity/Organization types
   PUBLIC_LIMITED = 'public_limited',
   PRIVATE_LIMITED = 'private_limited',
   LIMITED_LIABILITY_PARTNERSHIP = 'limited_liability_partnership',
-  REGISTERED_PARTNERSHIP = 'registered_partnership'
+  REGISTERED_PARTNERSHIP = 'registered_partnership',
+
+  // Individual/Partner seeker/provider types
+  INDIVIDUAL = 'individual',
+  SOLE_PROPRIETOR = 'sole_proprietor',
+  UNREGISTERED_PARTNERSHIP = 'unregistered_partnership'
 }
 
 export enum IdentityDocumentType {
@@ -49,7 +55,17 @@ export enum ServiceIndustry {
   ENGINEERING = 'engineering',
   PHARMA = 'pharma',
   STEEL = 'steel',
-  CEMENT = 'cement'
+  CEMENT = 'cement',
+  TEXTILES = 'textiles',
+  AUTOMOTIVE = 'automotive',
+  BANKING = 'banking',
+  INSURANCE = 'insurance',
+  HEALTHCARE = 'healthcare',
+  EDUCATION = 'education',
+  RETAIL = 'retail',
+  HOSPITALITY = 'hospitality',
+  AGRICULTURE = 'agriculture',
+  ENERGY = 'energy'
 }
 
 export interface IdentityDocument {
@@ -114,10 +130,30 @@ export interface MembershipDetails {
   practiceLicenseNumber?: string;
   licenseValidity?: string;
   licenseCopy?: File | string;
+  // Verification (optional; set after API check)
+  verification?: MembershipVerification;
 }
+
+// Membership Verification
+export enum MembershipVerificationStatus {
+  UNVERIFIED = 'unverified',
+  PENDING = 'pending',
+  VERIFIED = 'verified',
+  FAILED = 'failed'
+}
+
+export interface MembershipVerification {
+  status: MembershipVerificationStatus;
+  message?: string;
+  verifiedAt?: string; // ISO string
+  source?: string; // e.g., 'ICAI API', 'ICSI API'
+}
+
+// (The verification field is embedded in MembershipDetails; no module augmentation needed.)
 
 export interface ServiceOffering {
   category: string;
+  subCategory?: string;
   level: ServiceLevel;
   sector: ServiceSector;
   industry: ServiceIndustry;
@@ -240,6 +276,8 @@ export interface TeamMemberProfile extends BaseProfile {
   identityDocument: IdentityDocument;
   email: string;
   contactNumber: string;
+  // Optional preference used for lightweight progress seeding
+  openToRemoteWork?: boolean;
   address: Address;
 }
 

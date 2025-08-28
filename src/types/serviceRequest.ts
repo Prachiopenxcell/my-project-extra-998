@@ -12,7 +12,11 @@ export enum ServiceRequestStatus {
   COMPLETED = 'completed',
   CLOSED = 'closed',
   EXPIRED = 'expired',
-  CANCELLED = 'cancelled'
+  CANCELLED = 'cancelled',
+  AWARDED_TO_ANOTHER = 'awarded_to_another',
+  SUBMISSION_TIME_PASSED = 'submission_time_passed',
+  WON_BUT_NO_WORK_ORDER = 'won_but_no_work_order',
+  NOT_INTERESTED = 'not_interested'
 }
 
 export enum BidStatus {
@@ -35,20 +39,57 @@ export enum ProfessionalType {
   INSOLVENCY_PROFESSIONAL = 'insolvency_professional'
 }
 
+export enum MainServiceType {
+  INCORPORATION_BUSINESS_SETUP = 'incorporation_business_setup',
+  SECRETARIAL_COMPLIANCE_FILINGS = 'secretarial_compliance_filings',
+  BOARD_SHAREHOLDER_MEETING_COMPLIANCES = 'board_shareholder_meeting_compliances'
+}
+
 export enum ServiceType {
-  VALUATION_COMPANIES_ACT = 'valuation_companies_act',
-  VALUATION_INCOME_TAX_ACT = 'valuation_income_tax_act',
-  VALUATION_LB_IBC = 'valuation_lb_ibc',
-  VALUATION_PM_IBC = 'valuation_pm_ibc',
-  VALUATION_SFA_IBC = 'valuation_sfa_ibc',
-  PUBLICATION_COMPANIES_ACT = 'publication_companies_act',
-  PUBLICATION_IBC = 'publication_ibc',
-  PUBLICATION_SEBI = 'publication_sebi',
-  PUBLICATION_OTHER_LAWS = 'publication_other_laws',
-  GST_COMPLIANCE = 'gst_compliance',
-  LEGAL_NOTICE = 'legal_notice',
-  ANNUAL_COMPLIANCE = 'annual_compliance',
-  OTHERS = 'others'
+  // Incorporation & Business Set-Up
+  INCORPORATION_PRIVATE_LIMITED = 'incorporation_private_limited',
+  INCORPORATION_PUBLIC_LIMITED = 'incorporation_public_limited',
+  INCORPORATION_OPC = 'incorporation_opc',
+  INCORPORATION_LLP = 'incorporation_llp',
+  INCORPORATION_PRODUCER_COMPANY = 'incorporation_producer_company',
+  SECTION_8_COMPANY = 'section_8_company',
+  CONVERSION_PROPRIETORSHIP_PARTNERSHIP = 'conversion_proprietorship_partnership',
+  CONVERSION_COMPANY_TYPES = 'conversion_company_types',
+  DIN_OBTAINING = 'din_obtaining',
+  DSC_FACILITATION = 'dsc_facilitation',
+  NAME_RESERVATION_CHANGE = 'name_reservation_change',
+  DRAFTING_MOA_AOA = 'drafting_moa_aoa',
+  COMMENCEMENT_BUSINESS_FILINGS = 'commencement_business_filings',
+  
+  // Secretarial Compliance & Filings
+  ANNUAL_RETURN_FILING = 'annual_return_filing',
+  FINANCIAL_STATEMENT_FILING = 'financial_statement_filing',
+  DIRECTOR_APPOINTMENT_RESIGNATION = 'director_appointment_resignation',
+  AUDITOR_APPOINTMENT_RESIGNATION = 'auditor_appointment_resignation',
+  FILING_OF_CHARGES = 'filing_of_charges',
+  STATUTORY_REGISTERS_MAINTENANCE = 'statutory_registers_maintenance',
+  SHARE_ISSUE_ALLOTMENT_TRANSFER = 'share_issue_allotment_transfer',
+  BUYBACK_REDUCTION_SHARE_CAPITAL = 'buyback_reduction_share_capital',
+  INCREASE_AUTHORISED_SHARE_CAPITAL = 'increase_authorised_share_capital',
+  LISTED_COMPANIES_COMPLIANCE = 'listed_companies_compliance',
+  RESOLUTIONS_FILING_ROC = 'resolutions_filing_roc',
+  RETURN_OF_DEPOSITS_FILING = 'return_of_deposits_filing',
+  MSME_RETURN_FILING = 'msme_return_filing',
+  EVENT_BASED_COMPLIANCES = 'event_based_compliances',
+  LIQUIDATOR_DOCUMENTS_FILING = 'liquidator_documents_filing',
+  COMPOUNDING_OF_OFFENCES = 'compounding_of_offences',
+  
+  // Board & Shareholder Meeting Compliances
+  DRAFTING_CIRCULATION_NOTICE_AGENDA = 'drafting_circulation_notice_agenda',
+  CONDUCTING_MEETINGS = 'conducting_meetings',
+  DRAFTING_MINUTES = 'drafting_minutes',
+  ASSISTANCE_EVOTING_POSTAL_BALLOT = 'assistance_evoting_postal_ballot',
+  PREPARATION_FILING_RESOLUTIONS_ROC = 'preparation_filing_resolutions_roc',
+  DRAFTING_SHAREHOLDER_AGREEMENTS_POLICIES = 'drafting_shareholder_agreements_policies',
+  SECRETARIAL_STANDARDS_COMPLIANCE = 'secretarial_standards_compliance',
+  
+  // Compliance Management
+  COMPLIANCE_MANAGEMENT = 'compliance_management'
 }
 
 export enum PaymentStructure {
@@ -59,11 +100,14 @@ export enum PaymentStructure {
 }
 
 export enum NegotiationReason {
-  REVISED_TIMELINE = 'revised_timeline',
+  REVISE_TIMELINE = 'revise_timeline',
   REQUEST_INFO = 'request_info',
   REQUEST_DOCUMENTS = 'request_documents',
   ADJUST_FEE = 'adjust_fee',
-  CHANGE_PAYMENT_STRUCTURE = 'change_payment_structure'
+  CHANGE_PAYMENT_STRUCTURE = 'change_payment_structure',
+  PRICING = 'pricing',
+  TIMELINE = 'timeline',
+  SCOPE = 'scope'
 }
 
 export interface ServiceRequestDocument {
@@ -115,24 +159,59 @@ export interface ServiceRequest {
     scopeOfWork: string;
     documents: string[];
   };
+  // For missed opportunities
+  missedReason?: 'awarded_to_another' | 'submission_time_passed' | 'marked_not_interested' | 'won_but_no_work_order' | 'not_interested';
+  winningBidId?: string;
+  winningBidAmount?: number;
+  awardedDate?: Date;
+  currentAssignee?: {
+    id: string;
+    name: string;
+    role: string;
+    assignedAt?: Date;
+  };
+  lastEditedBy?: {
+    userId: string;
+    userName: string;
+    timestamp: Date;
+  };
+  // Client profile information for service providers
+  clientProfile?: {
+    organizationName?: string;
+    industry?: string;
+    location?: string;
+    companySize?: string;
+  };
+  // Additional information from client
+  additionalInformation?: string;
+  // Stage details for project breakdown
+  stageDetails?: {
+    stage: string;
+    stageNumber: number;
+    description: string;
+    isOptional: boolean;
+  }[];
 }
 
 export interface BidMilestone {
   id: string;
-  label: string;
-  amount: number;
+  stageLabel: string;
+  paymentAmount: number;
   dueDate?: Date;
   description?: string;
+}
+
+export interface BidReimbursements {
+  regulatoryStatutoryPayouts: number;
+  opeProfessionalTeam: number;
 }
 
 export interface BidFinancials {
   professionalFee: number;
   platformFee: number;
   gst: number;
-  reimbursements: number;
-  regulatoryPayouts: number;
-  ope: number;
-  totalAmount: number;
+  reimbursements: BidReimbursements;
+  totalBidAmount: number;
   paymentStructure: PaymentStructure;
   milestones?: BidMilestone[];
 }
@@ -145,6 +224,13 @@ export interface BidDocument {
   uploadedAt: Date;
   size: number;
   type: string;
+}
+
+export interface AdditionalClientInput {
+  id: string;
+  description: string;
+  documents: BidDocument[];
+  documentLabel: string;
 }
 
 export interface Bid {
@@ -162,12 +248,18 @@ export interface Bid {
   financials: BidFinancials;
   deliveryDate: Date;
   additionalInputs: string;
+  additionalClientInputs: AdditionalClientInput[];
   documents: BidDocument[];
   status: BidStatus;
   isInvited: boolean;
   submittedAt: Date;
   updatedAt: Date;
   lastEditDate: Date;
+  negotiationThread?: NegotiationThreadDetailed;
+  // For missed opportunities - winning bid information
+  isWinningBid?: boolean;
+  awardedAmount?: number;
+  awardedDate?: Date;
 }
 
 export interface NegotiationMessage {
@@ -191,6 +283,38 @@ export interface NegotiationThread {
   status: 'active' | 'completed' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface NegotiationThreadDetailed {
+  id: string;
+  bidId: string;
+  serviceRequestId: string;
+  status: 'active' | 'completed' | 'cancelled';
+  initiatedBy: 'seeker' | 'provider';
+  initiatedAt: Date;
+  lastActivity: Date;
+  inputs: NegotiationInputDetailed[];
+}
+
+export interface NegotiationInputDetailed {
+  id: string;
+  senderId: string;
+  senderType: 'seeker' | 'provider';
+  timestamp: Date;
+  reason: NegotiationReason;
+  message: string;
+  proposedChanges?: {
+    financials?: Partial<BidFinancials>;
+    milestones?: Partial<BidMilestone>[];
+    deliveryDate?: Date;
+    additionalInputs?: string;
+  };
+  attachments?: {
+    id: string;
+    name: string;
+    url: string;
+    uploadedAt: Date;
+  }[];
 }
 
 export interface NegotiationInput {
@@ -238,6 +362,8 @@ export interface ServiceRequestStats {
 export interface QueryClarification {
   id: string;
   serviceRequestId: string;
+  // Optional association to a specific bid for per-bid queries
+  bidId?: string;
   senderId: string;
   senderType: 'seeker' | 'provider';
   message: string;
@@ -296,13 +422,16 @@ export interface BidFilters {
   };
   paymentStructure?: PaymentStructure[];
   invitedOnly?: boolean;
+  eventType?: string;
 }
 
 export interface OpportunityFilters {
-  status?: string[];
+  status?: ServiceRequestStatus[];
+  search?: string;
+  srnNumber?: string;
   dateRange?: {
-    from: Date;
-    to: Date;
+    from?: string;
+    to?: string;
   };
   serviceType?: ServiceType[];
   location?: string[];
@@ -336,8 +465,10 @@ export interface BidResponse {
 
 export interface OpportunityResponse {
   data: ServiceRequest[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

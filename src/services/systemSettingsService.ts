@@ -271,6 +271,24 @@ class SystemSettingsService {
     });
   }
 
+  async archiveTeamMember(id: string): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log('Team member archived:', id);
+        resolve();
+      }, 1000);
+    });
+  }
+
+  async deactivateTeamMember(id: string): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log('Team member deactivated:', id);
+        resolve();
+      }, 1000);
+    });
+  }
+
   // Process Templates
   async getProcessTemplates(filters?: SystemSettingsFilters): Promise<SystemSettingsResponse<ProcessTemplate>> {
     return new Promise((resolve) => {

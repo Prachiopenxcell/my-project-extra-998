@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const ARFeeStructure = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <ARFeeStructureModule />
     </DashboardLayout>
   );
@@ -324,7 +324,7 @@ const ARFeeStructureModule = () => {
       </div>
 
       <div className="mt-8 text-sm text-muted-foreground border-t pt-4">
-        John Doe - Service Provider - ID: REG-636169
+        John Doe - Service Provider - ID: TRN-636169
       </div>
     </div>
   );

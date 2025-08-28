@@ -36,13 +36,15 @@ import {
   Activity,
   Briefcase
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { DashboardData, ServiceRequest } from "@/types/dashboard";
 import { dashboardService } from "@/services/dashboardService";
 import { UserRole } from "@/types/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { serviceRequestService } from "@/services/serviceRequestService";
+import { workOrderService } from "@/services/workOrderService";
 
 interface ServiceSeekerDashboardProps {
   userRole: UserRole;
@@ -51,48 +53,19 @@ interface ServiceSeekerDashboardProps {
 export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps) => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [srStats, setSrStats] = useState<{ total: number; open: number; closed: number; draft: number; bidsReceived: number } | null>(null);
+  const [woStats, setWoStats] = useState<{ total: number; open: number; inProgress: number; completed: number; disputed: number; overdue: number; pendingPayment: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showServiceRequestDetails, setShowServiceRequestDetails] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Mock data for demonstration - replace with actual API calls
   const mockProfileCompletion = {
-    percentage: 75,
-    isCompleted: false,
-    missingFields: ['Tax Information', 'Banking Details']
+    percentage: 100,
+    isCompleted: true
   };
-
-  const mockNotifications = [
-    { id: 1, title: "Service Request Update", message: "Your request #SR001 has been assigned", type: "info", time: "2 hours ago", urgent: false },
-    { id: 2, title: "Deadline Approaching", message: "Work Order #WO123 due tomorrow", type: "warning", time: "4 hours ago", urgent: true },
-    { id: 3, title: "Profile Incomplete", message: "Complete your profile to get permanent registration", type: "alert", time: "1 day ago", urgent: false }
-  ];
-
-  // Updated service request numbers to match mock data
-  const mockServiceRequests = {
-    openServiceRequests: 3,
-    closedServiceRequests: 2,
-    openWorkOrders: 1,
-    closedWorkOrders: 1
-  };
-
-  const mockSubscriptions = [
-    { id: 1, moduleName: "Claims Management", endDate: "2024-12-31", status: "Active" },
-    { id: 2, moduleName: "E-Voting", endDate: "2024-11-30", status: "Active" },
-    { id: 3, moduleName: "Virtual Data Room", endDate: "2024-10-15", status: "Expiring Soon" }
-  ];
-
-  const mockWorkspace = [
-    { id: 1, moduleName: "Claims Management", lastVisited: "2 hours ago", hasAccess: true },
-    { id: 2, moduleName: "Meetings", lastVisited: "1 day ago", hasAccess: true },
-    { id: 3, moduleName: "E-Voting", lastVisited: "3 days ago", hasAccess: false }
-  ];
-
-  const mockTeamMembers = [
-    { id: 1, name: "Alice Johnson", lastLogin: "2024-01-08 09:30 AM", status: "Active", role: "Associate" },
-    { id: 2, name: "Bob Smith", lastLogin: "2024-01-07 02:15 PM", status: "Active", role: "Senior Associate" },
-    { id: 3, name: "Carol Davis", lastLogin: "2024-01-05 11:45 AM", status: "Inactive", role: "Junior Associate" }
-  ];
 
   const mockAssignedEntities = [
     { id: 1, entityName: "ABC Legal Services", moduleActivated: "Claims Management", status: "Active" },
@@ -100,11 +73,17 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
   ];
 
   useEffect(() => {
-    const loadDashboardData = async () => {
+    const loadAll = async () => {
       try {
         setLoading(true);
-        const data = await dashboardService.getDashboardData(userRole);
+        const dataPromise = dashboardService.getDashboardData(userRole);
+        const userId = user?.id || 'current-user';
+        const srPromise = serviceRequestService.getServiceRequestStats(userId);
+        const woPromise = workOrderService.getWorkOrderStats(userId, 'seeker');
+        const [data, sr, wo] = await Promise.all([dataPromise, srPromise, woPromise]);
         setDashboardData(data);
+        setSrStats(sr);
+        setWoStats(wo);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
         toast({
@@ -117,8 +96,8 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
       }
     };
 
-    loadDashboardData();
-  }, [userRole, toast]);
+    loadAll();
+  }, [userRole, toast, user]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -162,31 +141,34 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
     }
   };
 
+  // Team Member Dashboard (reusing individual view for now)
+  const renderTeamMemberDashboard = () => renderIndividualDashboard();
+
   // Individual/Partner Dashboard
   const renderIndividualDashboard = () => (
     <div className="space-y-8">
       {/* Top Section - Registration Number and Quick Actions */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Registration Number Card */}
+        {mockProfileCompletion.isCompleted && (
         <Card className="shadow-sm border min-h-[280px]">
+        
           <CardContent className="p-8 h-full flex items-center justify-center">
             <div className="text-center space-y-3">
               <Shield className="h-12 w-12 text-gray-400 mx-auto" />
-              {mockProfileCompletion.isCompleted ? (
+              
                 <>
-                  <div className="text-xl font-semibold text-gray-900">REG-{user?.id || '561002'}</div>
-                  <p className="text-sm text-gray-500">Permanent Registration</p>
+                  <div className="text-xl font-semibold text-gray-900">
+                    PRN-315782
+                  </div>
+                  <p className="text-sm text-gray-500">Permanent Registration Number (PRN): 315782</p>
                 </>
-              ) : (
-                <>
-                  <div className="text-lg font-medium text-gray-700">Complete Profile</div>
-                  <p className="text-sm text-gray-500">to get permanent registration</p>
-                </>
-              )}
+              
             </div>
           </CardContent>
+          
         </Card>
-
+)}
         {/* Profile Completion Card */}
         <Card className="shadow-sm border min-h-[280px]">
           <CardContent className="p-8 h-full flex items-center justify-center">
@@ -225,25 +207,15 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
                 <div className="font-semibold text-primary text-lg">Raise A Service Request</div>
               </div>
               
-              <div className="text-xs text-gray-600 leading-relaxed">
-                If you know, please choose the Professional and Service(s) from the dropdown list below. Else, please write the Service you are looking for in the text box, and confirm if the scope of work suggested below matches your requirements.
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">I am looking for</label>
-                <Textarea 
-                  placeholder="(text box for typing 'service')"
-                  className="min-h-[70px] resize-none text-sm border-gray-300 focus:border-primary"
-                  rows={3}
-                />
-              </div>
-              
-              <Button asChild className="w-full bg-primary hover:bg-primary/90">
-                <Link to="/create-service-request">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Raise Service Request
-                </Link>
+              <Button 
+                onClick={() => navigate('/create-service-request')}
+                className="w-full bg-primary hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Raise Service Request
               </Button>
+
+              
             </div>
           </CardContent>
         </Card>
@@ -262,42 +234,114 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="text-center p-6 bg-blue-50 border border-blue-100 rounded-lg">
-              <div className="text-4xl font-bold text-blue-600 mb-2">{mockServiceRequests.openServiceRequests}</div>
+              <div className="text-4xl font-bold text-blue-600 mb-2">{srStats ? srStats.open : 0}</div>
               <p className="text-sm font-medium text-blue-700">Open Service Request(s)</p>
             </div>
             <div className="text-center p-6 bg-orange-50 border border-orange-100 rounded-lg">
-              <div className="text-4xl font-bold text-orange-600 mb-2">{mockServiceRequests.openWorkOrders}</div>
+              <div className="text-4xl font-bold text-orange-600 mb-2">{woStats ? (woStats.total - woStats.completed) : 0}</div>
               <p className="text-sm font-medium text-orange-700">Open Work Order(s)</p>
             </div>
             <div className="text-center p-6 bg-gray-50 border border-gray-100 rounded-lg">
-              <div className="text-4xl font-bold text-gray-600 mb-2">{mockServiceRequests.closedWorkOrders}</div>
+              <div className="text-4xl font-bold text-gray-600 mb-2">{woStats ? woStats.completed : 0}</div>
               <p className="text-sm font-medium text-gray-700">Closed Work Order(s)</p>
             </div>
             <div className="text-center p-6 bg-green-50 border border-green-100 rounded-lg">
-              <div className="text-4xl font-bold text-green-600 mb-2">{mockServiceRequests.closedServiceRequests}</div>
+              <div className="text-4xl font-bold text-green-600 mb-2">{srStats ? srStats.closed : 0}</div>
               <p className="text-sm font-medium text-green-700">Closed Service Request(s)</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Quick Actions Grid */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="shadow-card hover:shadow-lg transition-shadow cursor-pointer">
-          <CardContent className="p-6">
-            <Link to="/subscriptions" className="block text-center space-y-3">
-              <Package className="h-8 w-8 text-blue-600 mx-auto" />
-              <div>
-                <div className="font-semibold text-gray-900">Module Subscription</div>
-                <p className="text-sm text-muted-foreground">Manage your subscriptions</p>
+      {/* Subscriptions Card */}
+      <Card className="shadow-sm border">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <Package className="h-5 w-5 text-gray-600" />
+            Subscriptions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                ))}
               </div>
-              <Button variant="outline" size="sm">
-                View Subscriptions
-                <ExternalLink className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+            ) : (
+              <>
+                {dashboardData?.subscriptions && dashboardData.subscriptions.length > 0 ? (
+                  <div className="space-y-3">
+                    {dashboardData.subscriptions.map((subscription) => (
+                      <div key={subscription.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900">{subscription.moduleName}</div>
+                              <div className="text-sm text-gray-500">
+                                Ends: {new Date(subscription.endDate).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </div>
+                            </div>
+                            <Badge 
+                              variant={
+                                subscription.status === 'Active' ? 'default' :
+                                subscription.status === 'Trial' ? 'secondary' : 'destructive'
+                              }
+                              className={
+                                subscription.status === 'Active' ? 'bg-green-100 text-green-800 border-green-200' :
+                                subscription.status === 'Trial' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                'bg-red-100 text-red-800 border-red-200'
+                              }
+                            >
+                              {subscription.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button variant="outline" size="sm">
+                            Details
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium mb-2">No Active Subscriptions</p>
+                    <p className="text-sm">Subscribe to modules to get started</p>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-4 border-t">
+                  <div className="text-sm text-gray-600">
+                    {dashboardData?.subscriptions ? dashboardData.subscriptions.filter(s => s.status === 'Active').length : 0} active subscription(s)
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/subscription">
+                      View Packages
+                      <ExternalLink className="h-4 w-4 ml-2" />
+                    </Link>
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions Grid */}
+      <div className="grid gap-4 md:grid-cols-2">
 
         <Card className="shadow-card hover:shadow-lg transition-shadow cursor-pointer">
           <CardContent className="p-6">
@@ -344,16 +388,16 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockNotifications.slice(0, 3).map((notification) => (
-                <div key={notification.id} className={`p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${
-                  notification.urgent ? 'border-red-200 bg-red-50' : 'border-gray-200'
+              {(dashboardData?.notifications ?? []).slice(0, 3).map((n) => (
+                <div key={n.id} className={`p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors ${
+                  (n.priority === 'High' || n.type === 'warning') ? 'border-red-200 bg-red-50' : 'border-gray-200'
                 }`}>
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <p className="font-medium text-sm">{notification.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
+                      <p className="font-medium text-sm">{n.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{n.description}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground ml-2">{notification.time}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{n.time}</span>
                   </div>
                 </div>
               ))}
@@ -375,18 +419,18 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockWorkspace.slice(0, 3).map((module) => (
-                <div key={module.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+              {(dashboardData?.workspaceModules ?? []).slice(0, 3).map((m) => (
+                <div key={m.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                   <div>
-                    <p className="font-medium text-sm">{module.moduleName}</p>
-                    <p className="text-xs text-muted-foreground">Last visited: {module.lastVisited}</p>
+                    <p className="font-medium text-sm">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">Last visited: {m.lastVisited}</p>
                   </div>
                   <Button 
                     size="sm" 
-                    variant={module.hasAccess ? "default" : "secondary"}
-                    disabled={!module.hasAccess}
+                    variant={m.isSubscribed ? "default" : "secondary"}
+                    disabled={!m.isSubscribed}
                   >
-                    {module.hasAccess ? "Open" : "No Access"}
+                    {m.isSubscribed ? "Open" : "No Access"}
                   </Button>
                 </div>
               ))}
@@ -398,226 +442,103 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+
+      {/* Team Member Dashboard (Individual features - Subscriptions + Assigned Entities) */}
+      <div className="space-y-6">
+       
 
 
+     
+        {/* Assigned Entities (instead of Subscriptions) */}
+        {/* <div className="grid gap-4 md:grid-cols-2">
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5 text-primary" />
+                Assigned Entities
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(dashboardData?.entities ?? []).map((entity) => (
+                  <div key={entity.id} className="flex justify-between items-center p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{entity.name}</p>
+                      <p className="text-sm text-muted-foreground">Modules: {(entity.modulesActivated || []).join(', ')}</p>
+                    </div>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={`/entity/${entity.id}`}>
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        View Details
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-  // Team Member Dashboard (Individual features - Subscriptions + Assigned Entities)
-  const renderTeamMemberDashboard = () => (
-    <div className="space-y-6">
-      {/* Registration Number & Profile Completion */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-card">
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-primary" />
+                Workspace
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {(dashboardData?.workspaceModules ?? []).map((module) => (
+                  <div key={module.id} className="flex justify-between items-center p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{module.name}</p>
+                      <p className="text-sm text-muted-foreground">Last visited: {module.lastVisited}</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant={module.isSubscribed ? "default" : "outline"}
+                      disabled={!module.isSubscribed}
+                      asChild
+                    >
+                      <Link to="/workspace">
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Open
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div> */}
+
+        {/* Search Section */}
+        {/* <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              Registration Number
+              <Search className="h-5 w-5 text-primary" />
+              Global Search
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {mockProfileCompletion.isCompleted ? (
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">REG-{user?.id || '561002'}</div>
-                <p className="text-sm text-muted-foreground">Permanent Registration</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="text-lg text-muted-foreground">Complete Profile</div>
-                <p className="text-sm text-muted-foreground">to get permanent registration</p>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Search across all modules..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+            {searchQuery && (
+              <div className="mt-3 p-3 border rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground">Search results for "{searchQuery}" will appear here</p>
               </div>
             )}
           </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              Profile Completion
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>Progress</span>
-                <span>{mockProfileCompletion.percentage}%</span>
-              </div>
-              <Progress value={mockProfileCompletion.percentage} className="h-2" />
-              {mockProfileCompletion.isCompleted ? (
-                <Button asChild className="w-full" variant="outline">
-                  <Link to="/profile/edit">
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Profile
-                  </Link>
-                </Button>
-              ) : (
-                <Button asChild className="w-full">
-                  <Link to="/profile/edit">
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Complete Profile
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        </Card> */}
       </div>
-
-      {/* Alerts and Notifications */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            Alerts & Notifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {mockNotifications.map((notification) => (
-              <Alert key={notification.id} className={`cursor-pointer hover:bg-muted/50 transition-colors ${
-                notification.urgent ? 'border-destructive bg-destructive/5' : 'border-muted'
-              }`}>
-                <AlertCircle className={`h-4 w-4 ${
-                  notification.urgent ? 'text-destructive' : 'text-primary'
-                }`} />
-                <AlertDescription>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground">{notification.message}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{notification.time}</span>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Service Requests Card View */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Service Requests Overview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{mockServiceRequests.openServiceRequests}</div>
-              <p className="text-sm text-muted-foreground">Open Service Requests</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{mockServiceRequests.closedServiceRequests}</div>
-              <p className="text-sm text-muted-foreground">Closed Service Requests</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">{mockServiceRequests.openWorkOrders}</div>
-              <p className="text-sm text-muted-foreground">Open Work Orders</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">{mockServiceRequests.closedWorkOrders}</div>
-              <p className="text-sm text-muted-foreground">Closed Work Orders</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button asChild className="w-full">
-              <Link to="/service-requests/create">
-                <Plus className="h-4 w-4 mr-2" />
-                Raise a Service Request
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Assigned Entities (instead of Subscriptions) */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-primary" />
-              Assigned Entities
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mockAssignedEntities.map((entity) => (
-                <div key={entity.id} className="flex justify-between items-center p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{entity.entityName}</p>
-                    <p className="text-sm text-muted-foreground">Module: {entity.moduleActivated}</p>
-                  </div>
-                  <Button size="sm" variant="outline">
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    View Details
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-primary" />
-              Workspace
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mockWorkspace.map((module) => (
-                <div key={module.id} className="flex justify-between items-center p-3 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{module.moduleName}</p>
-                    <p className="text-sm text-muted-foreground">Last visited: {module.lastVisited}</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant={module.hasAccess ? "default" : "outline"}
-                    disabled={!module.hasAccess}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Open
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search Section */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-primary" />
-            Global Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Search across all modules..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1"
-            />
-            <Button>
-              <Search className="h-4 w-4" />
-            </Button>
-          </div>
-          {searchQuery && (
-            <div className="mt-3 p-3 border rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground">Search results for "{searchQuery}" will appear here</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 
@@ -625,7 +546,7 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
   const renderEntityAdminDashboard = () => (
     <div className="space-y-6">
       {/* Registration Number & Profile Completion */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -634,7 +555,7 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {mockProfileCompletion.isCompleted ? (
+            {dashboardData?.profileCompletion.isCompleted ? (
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">REG-{user?.id || '561002'}</div>
                 <p className="text-sm text-muted-foreground">Permanent Registration</p>
@@ -659,10 +580,10 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Progress</span>
-                <span>{mockProfileCompletion.percentage}%</span>
+                <span>{dashboardData?.profileCompletion.percentage}%</span>
               </div>
-              <Progress value={mockProfileCompletion.percentage} className="h-2" />
-              {mockProfileCompletion.isCompleted ? (
+              <Progress value={dashboardData?.profileCompletion.percentage} className="h-2" />
+              {dashboardData?.profileCompletion.isCompleted ? (
                 <Button asChild className="w-full" variant="outline">
                   <Link to="/profile/edit">
                     <Edit className="h-4 w-4 mr-2" />
@@ -692,20 +613,20 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockNotifications.map((notification) => (
-              <Alert key={notification.id} className={`cursor-pointer hover:bg-muted/50 transition-colors ${
-                notification.urgent ? 'border-destructive bg-destructive/5' : 'border-muted'
+            {(dashboardData?.notifications ?? []).map((n) => (
+              <Alert key={n.id} className={`cursor-pointer hover:bg-muted/50 transition-colors ${
+                (n.priority === 'High' || n.type === 'warning') ? 'border-destructive bg-destructive/5' : 'border-muted'
               }`}>
                 <AlertCircle className={`h-4 w-4 ${
-                  notification.urgent ? 'text-destructive' : 'text-primary'
+                  (n.priority === 'High' || n.type === 'warning') ? 'text-destructive' : 'text-primary'
                 }`} />
                 <AlertDescription>
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground">{notification.message}</p>
+                      <p className="font-medium">{n.title}</p>
+                      <p className="text-sm text-muted-foreground">{n.description}</p>
                     </div>
-                    <span className="text-xs text-muted-foreground">{notification.time}</span>
+                    <span className="text-xs text-muted-foreground">{n.time}</span>
                   </div>
                 </AlertDescription>
               </Alert>
@@ -725,19 +646,19 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{mockServiceRequests.openServiceRequests}</div>
+              <div className="text-2xl font-bold text-blue-600">{srStats ? srStats.open : 0}</div>
               <p className="text-sm text-muted-foreground">Open Service Requests</p>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{mockServiceRequests.closedServiceRequests}</div>
+              <div className="text-2xl font-bold text-green-600">{srStats ? srStats.closed : 0}</div>
               <p className="text-sm text-muted-foreground">Closed Service Requests</p>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">{mockServiceRequests.openWorkOrders}</div>
+              <div className="text-2xl font-bold text-orange-600">{woStats ? (woStats.total - woStats.completed) : 0}</div>
               <p className="text-sm text-muted-foreground">Open Work Orders</p>
             </div>
             <div className="text-center p-4 border rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">{mockServiceRequests.closedWorkOrders}</div>
+              <div className="text-2xl font-bold text-gray-600">{woStats ? woStats.completed : 0}</div>
               <p className="text-sm text-muted-foreground">Closed Work Orders</p>
             </div>
           </div>
@@ -763,7 +684,7 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockSubscriptions.map((subscription) => (
+              {(dashboardData?.subscriptions ?? []).map((subscription) => (
                 <div key={subscription.id} className="flex justify-between items-center p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">{subscription.moduleName}</p>
@@ -775,8 +696,10 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
                 </div>
               ))}
               <Button variant="outline" className="w-full">
+              <Link to="/subscription" className="flex items-center gap-2">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View Subscription Packages
+              </Link>
               </Button>
             </div>
           </CardContent>
@@ -791,7 +714,7 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockTeamMembers.map((member) => (
+              {(dashboardData?.teamMembers ?? []).map((member) => (
                 <div key={member.id} className="flex justify-between items-center p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">{member.name}</p>
@@ -808,10 +731,12 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full">
-                <Users className="h-4 w-4 mr-2" />
-                View Team Management
-              </Button>
+              <Link to="/settings?tab=team">
+                <Button variant="outline" className="w-full mt-3">
+                  <Users className="h-4 w-4 mr-2" />
+                  View Team Management
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -828,16 +753,16 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockWorkspace.map((module) => (
+              {(dashboardData?.workspaceModules ?? []).map((module) => (
                 <div key={module.id} className="flex justify-between items-center p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">{module.moduleName}</p>
+                    <p className="font-medium">{module.name}</p>
                     <p className="text-sm text-muted-foreground">Last visited: {module.lastVisited}</p>
                   </div>
                   <Button 
                     size="sm" 
-                    variant={module.hasAccess ? "default" : "outline"}
-                    disabled={!module.hasAccess}
+                    variant={module.isSubscribed ? "default" : "outline"}
+                    disabled={!module.isSubscribed}
                   >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Open
@@ -921,16 +846,7 @@ export const ServiceSeekerDashboard = ({ userRole }: ServiceSeekerDashboardProps
             {userRole === UserRole.SERVICE_SEEKER_TEAM_MEMBER && "Access assigned entities and manage your service requests"}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline">
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
-          </Button>
-          <Button variant="outline">
-            <User className="h-4 w-4 mr-2" />
-            My Profile
-          </Button>
-        </div>
+        
       </div>
 
       {/* Role-specific Dashboard Content */}

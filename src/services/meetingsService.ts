@@ -355,7 +355,7 @@ const generateMockMeetings = (): Meeting[] => {
       id: '3',
       title: 'Executive Committee Meeting',
       type: 'committee',
-      status: 'completed',
+      status: 'concluded',
       entity: {
         id: '1',
         name: 'ABC Corporation'
@@ -578,7 +578,7 @@ export const meetingsService = {
         const stats: MeetingStats = {
           upcoming: mockMeetings.filter(m => m.status === 'upcoming').length,
           inProgress: mockMeetings.filter(m => m.status === 'in-progress').length,
-          completed: mockMeetings.filter(m => m.status === 'completed').length,
+          concluded: mockMeetings.filter(m => m.status === 'concluded').length,
           draft: mockMeetings.filter(m => m.status === 'draft').length
         };
         resolve(stats);
@@ -773,8 +773,8 @@ export const meetingsService = {
             mockMeetings[meetingIndex].startDate = new Date();
           }
           
-          // If status is 'completed', set end date to now
-          if (status === 'completed') {
+          // If status is 'concluded', set end date to now
+          if (status === 'concluded') {
             mockMeetings[meetingIndex].endDate = new Date();
           }
           

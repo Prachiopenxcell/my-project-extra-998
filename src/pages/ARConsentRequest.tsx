@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 
 const ARConsentRequest = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <ARConsentRequestModule />
     </DashboardLayout>
   );
@@ -331,7 +331,7 @@ const ARConsentRequestModule = () => {
       </div>
 
       <div className="mt-8 text-sm text-muted-foreground border-t pt-4">
-        John Doe - Service Provider - ID: REG-636169
+        John Doe - Service Provider - ID: TRN-636169
       </div>
     </div>
   );

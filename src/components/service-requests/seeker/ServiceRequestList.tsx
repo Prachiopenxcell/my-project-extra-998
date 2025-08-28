@@ -23,7 +23,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Plus,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  RotateCcw
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { serviceRequestService } from "@/services/serviceRequestService";
@@ -31,6 +34,11 @@ import { ServiceRequest, ServiceRequestFilters, ServiceRequestStatus } from "@/t
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const ServiceRequestList = () => {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
@@ -44,6 +52,21 @@ const ServiceRequestList = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const { user } = useAuth();
+  
+  // Expired request handling states
+  const [showExpiredDialog, setShowExpiredDialog] = useState(false);
+  const [selectedExpiredRequest, setSelectedExpiredRequest] = useState<ServiceRequest | null>(null);
+  const [expiredAction, setExpiredAction] = useState<'close' | 'extend' | 'rebid' | null>(null);
+  const [extensionDays, setExtensionDays] = useState(7);
+  const [extensionReason, setExtensionReason] = useState('');
+
+  // Check if user can create service requests (only Service Seekers)
+  const canCreateServiceRequest = user?.role && [
+    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+    UserRole.SERVICE_SEEKER_TEAM_MEMBER
+  ].includes(user.role);
 
   useEffect(() => {
     fetchRequests();
@@ -62,7 +85,9 @@ const ServiceRequestList = () => {
 
       const response = await serviceRequestService.getServiceRequests(
         searchFilters,
-        { page: currentPage, limit: pageSize, sortBy, sortOrder }
+        { page: currentPage, limit: pageSize, sortBy, sortOrder },
+        user?.role,
+        user?.id
       );
 
       setRequests(response.data);
@@ -88,6 +113,8 @@ const ServiceRequestList = () => {
         return [ServiceRequestStatus.CLOSED, ServiceRequestStatus.WORK_ORDER_ISSUED, ServiceRequestStatus.CANCELLED];
       case 'draft':
         return [ServiceRequestStatus.DRAFT];
+      case 'expired':
+        return [ServiceRequestStatus.EXPIRED];
       default:
         return undefined;
     }
@@ -108,6 +135,8 @@ const ServiceRequestList = () => {
       case ServiceRequestStatus.WORK_ORDER_ISSUED:
         return 'bg-purple-100 text-purple-800';
       case ServiceRequestStatus.CANCELLED:
+        return 'bg-red-100 text-red-800';
+      case ServiceRequestStatus.EXPIRED:
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -130,9 +159,68 @@ const ServiceRequestList = () => {
         return 'Work Order Issued';
       case ServiceRequestStatus.CANCELLED:
         return 'Cancelled';
+      case ServiceRequestStatus.EXPIRED:
+        return 'Expired';
       default:
         return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
+  };
+
+  // Handle expired service request actions
+  const handleExpiredAction = async () => {
+    if (!selectedExpiredRequest || !expiredAction) return;
+
+    try {
+      switch (expiredAction) {
+        case 'close':
+          await serviceRequestService.acceptAndCloseExpiredRequest(selectedExpiredRequest.id);
+          toast({
+            title: "Request Closed",
+            description: "The expired service request has been closed successfully.",
+          });
+          break;
+        case 'extend':
+          if (!extensionReason.trim()) {
+            toast({
+              title: "Error",
+              description: "Please provide a reason for the extension.",
+              variant: "destructive"
+            });
+            return;
+          }
+          await serviceRequestService.requestExtension(selectedExpiredRequest.id, extensionDays, extensionReason);
+          toast({
+            title: "Extension Requested",
+            description: `Service request deadline extended by ${extensionDays} days.`,
+          });
+          break;
+        case 'rebid':
+          await serviceRequestService.initiateBiddingRound(selectedExpiredRequest.id);
+          toast({
+            title: "New Bidding Round Started",
+            description: "A new bidding round has been initiated for this service request.",
+          });
+          break;
+      }
+      
+      setShowExpiredDialog(false);
+      setSelectedExpiredRequest(null);
+      setExpiredAction(null);
+      setExtensionReason('');
+      fetchRequests(); // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process the request. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const openExpiredDialog = (request: ServiceRequest, action: 'close' | 'extend' | 'rebid') => {
+    setSelectedExpiredRequest(request);
+    setExpiredAction(action);
+    setShowExpiredDialog(true);
   };
 
   const handleExport = async () => {
@@ -219,7 +307,7 @@ const ServiceRequestList = () => {
                   : `No ${activeTab} service requests at the moment.`
                 }
               </p>
-              {activeTab === 'open' && (
+              {activeTab === 'open' && canCreateServiceRequest && (
                 <Link to="/create-service-request">
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />

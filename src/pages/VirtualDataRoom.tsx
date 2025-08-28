@@ -74,7 +74,7 @@ const VirtualDataRoom = () => {
   ];
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-4">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
@@ -151,10 +151,10 @@ const VirtualDataRoom = () => {
                     <Building className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="font-medium">{currentEntity.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Entity Type: {currentEntity.type} • Status: 
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span>Entity Type: {currentEntity.type} • Status:</span>
                         <Badge variant="secondary" className="ml-1">{currentEntity.status}</Badge>
-                      </p>
+                      </div>
                       <p className="text-xs text-muted-foreground mt-1">
                         CIN: {currentEntity.cin}
                       </p>

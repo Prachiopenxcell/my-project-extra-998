@@ -57,13 +57,16 @@ import {
 } from "lucide-react";
 import { SubscriptionStatusIndicator } from "@/components/subscription/SubscriptionStatusIndicator";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { UserRole, UserType } from "@/types/auth";
+import { getUserTypeFromRole, getUserTypeFromUserType } from "@/utils/userTypeUtils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   userType?: "service_seeker" | "service_provider" | "admin";
+  userRole?: UserRole;
   userName?: string;
 }
 
@@ -112,7 +115,6 @@ const navigationItems = {
 // Static Pages
 const staticPages = [
   { name: "FAQ", href: "/faq", icon: HelpCircle },
-  { name: "User FAQ", href: "/user-faq", icon: HelpCircle },
   { name: "Contact Us", href: "/contact", icon: Phone },
   { name: "Modules & Subscription", href: "/modules-subscription", icon: Package },
   { name: "Articles", href: "/articles", icon: Newspaper },
@@ -143,15 +145,25 @@ const allProfessionalModules = [
 export function DashboardLayout({
   children,
   userType,
+  userRole,
   userName,
 }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Get user data from auth context if not provided as props
-  const actualUserType = userType || (user?.userType === UserType.SERVICE_PROVIDER ? "service_provider" : "service_seeker");
+  // Priority: explicit userType prop > userRole prop > user.role > user.userType > default
+  const actualUserType = userType || 
+    (userRole ? getUserTypeFromRole(userRole) : 
+      (user?.role ? getUserTypeFromRole(user.role) : 
+        (user?.userType ? getUserTypeFromUserType(user.userType) : "service_seeker")));
   const actualUserName = userName || (user ? `${user.firstName || 'User'} ${user.lastName || ''}`.trim() : "User") || "User";
+
+  // Show PRN for all Service Seekers
+  const isServiceSeeker = actualUserType === 'service_seeker';
 
   const currentNavItems =
     navigationItems[actualUserType] || navigationItems.service_seeker;
@@ -280,14 +292,26 @@ export function DashboardLayout({
             </div>
             <div className="mt-0.5">
               <p className="text-xs text-sidebar-foreground/60 font-mono">
-                ID:{" "}
+                ID: {" "}
                 <span className="text-sidebar-foreground/80">
-                  REG-{Date.now().toString().slice(-6)}
+                  {isServiceSeeker ? 'PRN-315782' : `TRN-123456`}
                 </span>
               </p>
             </div>
           </div>
         </div>
+        {/* Logout Button */}
+        <button
+          onClick={() => {
+            logout();
+            toast({ title: "Signed out", description: "You have been logged out." });
+            navigate("/login");
+          }}
+          className="mt-3 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-sidebar-foreground/80 hover:bg-sidebar-primary/10 hover:text-sidebar-foreground"
+        >
+          <LogOut className="h-4 w-4" />
+          Log out
+        </button>
       </div>
     </div>
   );
@@ -329,7 +353,7 @@ export function DashboardLayout({
             {/* User Info */}
             <div className="flex items-center gap-3">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder-avatar.jpg" alt={userName} />
+                <AvatarImage src="/placeholder-avatar.jpg" alt={actualUserName} />
                 <AvatarFallback>
                   {actualUserName
                     ? actualUserName.split(" ").map((n) => n[0]).join("").toUpperCase()
@@ -338,10 +362,10 @@ export function DashboardLayout({
               </Avatar>
               <div className="hidden sm:block">
                 <p className="text-sm font-medium text-foreground">
-                  {userName}
+                  {actualUserName}
                 </p>
                 <p className="text-xs text-muted-foreground font-mono">
-                  REG-{Date.now().toString().slice(-6)}
+                  {isServiceSeeker ? 'PRN-315782' : `TRN-123456`}
                 </p>
               </div>
             </div>
@@ -394,7 +418,7 @@ export function DashboardLayout({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/settings/profile">
+                  <Link to="/profile/edit">
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </Link>
@@ -412,7 +436,14 @@ export function DashboardLayout({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    logout();
+                    toast({ title: "Signed out", description: "You have been logged out." });
+                    navigate("/login");
+                  }}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out
                 </DropdownMenuItem>

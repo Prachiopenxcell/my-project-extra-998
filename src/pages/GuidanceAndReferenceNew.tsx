@@ -334,7 +334,7 @@ const GuidanceAndReferenceModule = () => {
   const paginatedPosts = filteredPosts.slice(startIndex, startIndex + pageSize);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout userType="service_provider">
       <div className="container mx-auto max-w-7xl px-4 py-6">
         <div className="space-y-6">
           {/* Header */}

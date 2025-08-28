@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,28 +21,37 @@ import { serviceRequestService } from "@/services/serviceRequestService";
 import { ServiceRequestStats, ServiceRequest } from "@/types/serviceRequest";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserRole } from "@/types/auth";
 
 const ServiceRequestDashboard = () => {
   const [stats, setStats] = useState<ServiceRequestStats | null>(null);
   const [recentRequests, setRecentRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  // Check if user can create service requests (only Service Seekers)
+  const canCreateServiceRequest = user?.role && [
+    UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+    UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+    UserRole.SERVICE_SEEKER_TEAM_MEMBER
+  ].includes(user.role);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       
       // Fetch stats
-      const statsData = await serviceRequestService.getServiceRequestStats('current-user');
+      const statsData = await serviceRequestService.getServiceRequestStats(user?.id || '1');
       setStats(statsData);
 
       // Fetch recent requests
       const requestsResponse = await serviceRequestService.getServiceRequests(
         {},
-        { page: 1, limit: 5, sortBy: 'createdAt', sortOrder: 'desc' }
+        { page: 1, limit: 5, sortBy: 'createdAt', sortOrder: 'desc' },
+        user?.role,
+        user?.id
       );
       setRecentRequests(requestsResponse.data);
     } catch (error) {
@@ -55,7 +64,13 @@ const ServiceRequestDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, user?.role]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchDashboardData();
+    }
+  }, [user?.id, user?.role, fetchDashboardData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -141,12 +156,14 @@ const ServiceRequestDashboard = () => {
           <h2 className="text-2xl font-bold text-gray-900">Service Requests Overview</h2>
           <p className="text-gray-600">Track your service requests and manage bids</p>
         </div>
-        <Link to="/create-service-request">
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            Raise Service Request
-          </Button>
-        </Link>
+        {canCreateServiceRequest && (
+          <Link to="/create-service-request">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Raise Service Request
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -159,7 +176,7 @@ const ServiceRequestDashboard = () => {
             <FileText className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{stats?.total || 0}</div>
+            <div className="text-2xl font-bold text-gray-900">7</div>
             <p className="text-xs text-gray-600 mt-1">
               All service requests
             </p>
@@ -299,7 +316,7 @@ const ServiceRequestDashboard = () => {
         </Card>
 
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
-          <Link to="/service-requests?tab=requests&status=bid_received">
+          <Link to="/bids">
             <CardContent className="p-6 text-center">
               <MessageSquare className="h-8 w-8 text-green-600 mx-auto mb-3" />
               <h3 className="font-semibold text-gray-900 mb-2">Review Bids</h3>

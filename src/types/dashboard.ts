@@ -4,7 +4,7 @@ export interface DashboardStats {
   title: string;
   value: string | number;
   change?: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   color: string;
   trend?: 'up' | 'down' | 'neutral';
 }
@@ -76,7 +76,7 @@ export interface WorkspaceModule {
   id: string;
   name: string;
   lastVisited: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   isSubscribed: boolean;
   url: string;
 }
@@ -144,19 +144,159 @@ export interface PlatformMetrics {
   monthlyGrowth: number;
 }
 
+export interface OrganizationPerformance {
+  revenue: {
+    current: number;
+    previous: number;
+    trend: number;
+    currency: string;
+    period: string;
+  };
+  workOrderCompletion: {
+    onTime: number;
+    delayed: number;
+    total: number;
+    trend: number;
+  };
+  teamUtilization: {
+    utilized: number;
+    available: number;
+    trend: number;
+  };
+  clientSatisfaction: {
+    current: number;
+    previous: number;
+    trend: number;
+    total: number;
+  };
+  bidSuccessRate: {
+    won: number;
+    lost: number;
+    trend: number;
+  };
+}
+
+export interface TeamStats {
+  total: number;
+  active: number;
+  inactive: number;
+  utilization: number;
+  averageRating: number;
+  byDepartment: {
+    name: string;
+    count: number;
+    utilization: number;
+  }[];
+  recentHires: number;
+  pendingTrainings: number;
+  // Additional properties for team management statistics
+  totalMembers: number;
+  activeMembers: number;
+  capacityUtilization: number;
+  composition: {
+    managers: number;
+    specialists: number;
+    associates: number;
+  };
+  performance: {
+    workOrderCompletion: number;
+    clientSatisfaction: number;
+    responseTime: number;
+    improvement: number;
+  };
+  allocation: {
+    project: string;
+    percentage: number;
+  }[];
+}
+
+export interface FinancialMetrics {
+  monthlyRevenue: {
+    month: string;
+    amount: number;
+  }[];
+  outstandingInvoices: number;
+  totalOutstanding: number;
+  averageProjectValue: number;
+  profitMargin: number;
+}
+
+export interface EntityManagement {
+  totalEntities: number;
+  activeEntities: number;
+  inactiveEntities: number;
+  entitiesByType: {
+    type: string;
+    count: number;
+  }[];
+  moduleDistribution: {
+    module: string;
+    count: number;
+  }[];
+  recentActivity: {
+    entity: string;
+    action: string;
+    date: string;
+    module: string;
+  }[];
+}
+
 export interface DashboardData {
-  stats: DashboardStats[];
+  stats?: DashboardStats[];
   serviceRequests?: ServiceRequest[];
   workOrders?: WorkOrder[];
   opportunities?: Opportunity[];
   teamMembers?: TeamMember[];
-  notifications: Notification[];
-  subscriptions: Subscription[];
-  workspaceModules: WorkspaceModule[];
+  notifications?: Notification[];
+  subscriptions?: Subscription[];
+  workspaceModules?: WorkspaceModule[];
   entities?: Entity[];
-  recentActivity: RecentActivity[];
-  profileCompletion: ProfileCompletion;
+  recentActivity?: RecentActivity[];
+  profileCompletion?: ProfileCompletion;
   resourceSharingRequests?: ResourceSharingRequest[];
   disputeTickets?: DisputeTicket[];
   platformMetrics?: PlatformMetrics;
+  organizationPerformance?: OrganizationPerformance;
+  teamStats?: TeamStats;
+  financialMetrics?: FinancialMetrics;
+  entityManagement?: EntityManagement;
+  registrationNumber?: string;
+  alerts?: {
+    id: number;
+    message: string;
+    type: string;
+    deadline: string;
+  }[];
+  recentModules?: {
+    name: string;
+    lastVisited: string;
+    status: string;
+  }[];
+  recentEntities?: {
+    name: string;
+    moduleActivated: string;
+    status: string;
+  }[];
+  recentOpportunities?: {
+    srn: string;
+    raisedOn: string;
+    bidClosureDate: string;
+    status: string;
+    title: string;
+    location: string;
+  }[];
+  inProgressWorkOrders?: {
+    workOrderNo: string;
+    startDate: string;
+    lastDate: string;
+    status: string;
+    teamMembers: string[];
+    title: string;
+    client: string;
+    progress: number;
+  }[];
+  assignedEntities?: {
+    name: string;
+    moduleActivated: string;
+  }[];
 }

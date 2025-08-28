@@ -55,7 +55,7 @@ export const ServiceProviderDashboard = ({ userRole }: ServiceProviderDashboardP
 
   // Mock data for Service Provider dashboards
   const mockData = {
-    registrationNumber: "SP-2024-001234",
+    registrationNumber: "TRN-123456",
     profileCompletion: 85,
     alerts: [
       { id: 1, message: "Bid deadline approaching for SRN-2024-001", type: "urgent", deadline: "2024-08-10" },

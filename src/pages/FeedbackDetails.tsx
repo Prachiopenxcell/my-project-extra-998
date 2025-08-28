@@ -163,7 +163,7 @@ const FeedbackDetails = () => {
 
   if (loading) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           <div className="space-y-6">
             <Skeleton className="h-8 w-64" />
@@ -176,7 +176,7 @@ const FeedbackDetails = () => {
 
   if (!feedback) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           <Card>
             <CardContent className="p-8 text-center">
@@ -195,7 +195,7 @@ const FeedbackDetails = () => {
   }
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6">
         <div className="space-y-6">
           {/* Header */}

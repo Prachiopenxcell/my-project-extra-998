@@ -186,7 +186,7 @@ const EntityDataCompletion = () => {
   };
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">

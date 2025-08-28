@@ -21,10 +21,14 @@ import { Bid, PaymentStructure, BidStatus } from "@/types/serviceRequest";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserTypeFromRole } from "@/utils/userTypeUtils";
 
 const EditBid = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const layoutUserType = getUserTypeFromRole(user?.role);
   const [bid, setBid] = useState<Bid | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -153,15 +157,15 @@ const EditBid = () => {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout userType={layoutUserType}>
         <div className="container mx-auto px-4 py-6 space-y-6">
           <Skeleton className="h-8 w-64" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <Skeleton className="h-96 w-full" />
+              <Skeleton className="h-64" />
             </div>
             <div className="space-y-6">
-              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-48" />
             </div>
           </div>
         </div>
@@ -171,20 +175,18 @@ const EditBid = () => {
 
   if (!bid) {
     return (
-      <DashboardLayout>
+      <DashboardLayout userType={layoutUserType}>
         <div className="container mx-auto px-4 py-6">
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Bid Not Found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              The bid you're trying to edit doesn't exist or has been removed.
+            <h2 className="text-2xl font-bold mb-4">Bid Not Found</h2>
+            <p className="text-gray-600 mb-6">
+              The bid you're looking for doesn't exist or has been removed.
             </p>
             <Link to="/service-requests">
-              <Button variant="outline">
+              <Button>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Service Requests
+                Back to Opportunities
               </Button>
             </Link>
           </div>
@@ -194,7 +196,7 @@ const EditBid = () => {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout userType={layoutUserType}>
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

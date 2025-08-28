@@ -30,6 +30,135 @@ class WorkOrderService {
 
   // Mock data for development - Comprehensive test data for all scenarios
   private mockWorkOrders: WorkOrder[] = [
+    // @TEMP Work Orders for service seeker testing
+    {
+      id: 'wo-new-001',
+      woNumber: '@TEMP-WO2024003',
+      referenceNumber: 'DMS-2024-Q3',
+      type: WorkOrderType.SERVICE_PROVIDER_INITIATED,
+      status: WorkOrderStatus.SIGNATURE_PENDING,
+      serviceRequestId: 'sr-003',
+      bidId: 'bid-003',
+      serviceSeeker: {
+        id: 'seeker-001',
+        name: 'ABC Manufacturing Ltd',
+        email: 'admin@abcmfg.com',
+        address: '123 Industrial Area, Mumbai, Maharashtra 400001',
+        pan: 'ABCDE1234F',
+        gst: '27ABCDE1234F1Z5'
+      },
+      serviceProvider: {
+        id: 'provider-002',
+        name: 'IP Law Consultants',
+        email: 'contact@iplawconsultants.com',
+        address: '456 Legal District, Delhi, Delhi 110001',
+        pan: 'XYZAB5678C',
+        gst: '07XYZAB5678C1Z3'
+      },
+      title: 'Digital Marketing Strategy 2024',
+      scopeOfWork: 'Comprehensive digital marketing strategy development including market analysis, competitor research, and implementation roadmap.',
+      deliverables: [],
+      timeline: {
+        startDate: new Date(2024, 7, 25),
+        expectedCompletionDate: new Date(2024, 9, 25)
+      },
+      financials: {
+        professionalFee: 150000,
+        platformFee: 7500,
+        gst: 28350,
+        reimbursements: 0,
+        regulatoryPayouts: 0,
+        ope: 0,
+        totalAmount: 185850,
+        paymentTerms: [],
+        moneyReceipts: [],
+        feeAdvices: []
+      },
+      milestones: [
+        {
+          id: 'milestone-1',
+          title: 'Market Research & Analysis',
+          description: 'Complete market analysis and competitor research',
+          deliveryDate: new Date(2024, 8, 10),
+          status: 'pending' as const,
+          documents: [],
+          comments: []
+        }
+      ],
+      documents: [],
+      informationRequests: [],
+      teamMembers: [],
+      activities: [],
+      feeAdvices: [],
+      moneyReceipts: [],
+      disputes: [],
+      feedback: [],
+      createdAt: new Date(2024, 7, 25),
+      updatedAt: new Date(2024, 7, 25),
+      createdByType: 'provider'
+    },
+    {
+      id: 'wo-new-002',
+      woNumber: '@TEMP-WO2024004',
+      referenceNumber: 'IT-AUDIT-2024',
+      type: WorkOrderType.SERVICE_PROVIDER_INITIATED,
+      status: WorkOrderStatus.PAYMENT_PENDING,
+      serviceRequestId: 'sr-004',
+      bidId: 'bid-004',
+      serviceSeeker: {
+        id: 'seeker-001',
+        name: 'ABC Manufacturing Ltd',
+        email: 'admin@abcmfg.com',
+        address: '123 Industrial Area, Mumbai, Maharashtra 400001',
+        pan: 'ABCDE1234F',
+        gst: '27ABCDE1234F1Z5'
+      },
+      serviceProvider: {
+        id: 'provider-002',
+        name: 'IP Law Consultants',
+        email: 'contact@iplawconsultants.com',
+        address: '456 Legal District, Delhi, Delhi 110001',
+        pan: 'XYZAB5678C',
+        gst: '07XYZAB5678C1Z3'
+      },
+      title: 'IT Infrastructure Audit',
+      scopeOfWork: 'Comprehensive IT infrastructure audit including security assessment, compliance review, and recommendations.',
+      deliverables: [],
+      timeline: {
+        startDate: new Date(2024, 7, 24),
+        expectedCompletionDate: new Date(2024, 8, 24)
+      },
+      financials: {
+        professionalFee: 200000,
+        platformFee: 10000,
+        gst: 37800,
+        totalAmount: 247800,
+        escrowBalance: 0,
+        releasedAmount: 0
+      },
+      milestones: [
+        {
+          id: 'milestone-1',
+          title: 'Infrastructure Assessment',
+          description: 'Complete assessment of current IT infrastructure',
+          deliveryDate: new Date(2024, 8, 5),
+          status: 'pending' as const,
+          documents: [],
+          comments: []
+        }
+      ],
+      documents: [],
+      informationRequests: [],
+      teamMembers: [],
+      activities: [],
+      feeAdvices: [],
+      moneyReceipts: [],
+      disputes: [],
+      feedback: [],
+      createdAt: new Date(2024, 7, 24),
+      updatedAt: new Date(2024, 7, 24),
+      createdByType: 'provider'
+    },
     {
       id: 'wo-001',
       woNumber: 'WO2024001',
@@ -90,13 +219,105 @@ class WorkOrderService {
             paidDate: new Date('2024-03-12')
           }
         ],
-        moneyReceipts: [],
-        feeAdvices: []
+        moneyReceipts: [
+          {
+            id: 'mr-001',
+            receiptNumber: 'MR2024001',
+            date: new Date('2024-01-14'),
+            amount: 101350,
+            status: PaymentTermStatus.PAID
+          },
+          {
+            id: 'mr-002',
+            receiptNumber: 'MR2024002',
+            date: new Date('2024-03-12'),
+            amount: 101350,
+            status: PaymentTermStatus.PAID
+          }
+        ],
+        feeAdvices: [
+          {
+            id: 'fa-001',
+            requestNumber: 'FA-001',
+            workOrderId: 'wo-001',
+            date: new Date('2024-02-05'),
+            amount: 8000,
+            description: 'Expedited filing fees',
+            status: FeeAdviceStatus.PAID,
+            createdBy: 'provider-001'
+          },
+          {
+            id: 'fa-002',
+            requestNumber: 'FA-002',
+            workOrderId: 'wo-001',
+            date: new Date('2024-02-20'),
+            amount: 12000,
+            description: 'Additional site visit charges',
+            status: FeeAdviceStatus.ACCEPTED,
+            createdBy: 'provider-001'
+          },
+          {
+            id: 'fa-003',
+            requestNumber: 'FA-003',
+            workOrderId: 'wo-001',
+            date: new Date('2024-02-25'),
+            amount: 5000,
+            description: 'Extra analysis hours',
+            status: FeeAdviceStatus.PENDING,
+            createdBy: 'provider-001'
+          }
+        ]
       },
       documents: [
+        // Draft/Working Documents
         {
-          id: 'doc-001',
-          name: 'Audit Report Final.pdf',
+          id: 'doc-draft-001',
+          name: 'Audit_Working_Papers_Draft_v1.pdf',
+          label: 'Audit Working Papers - Draft v1',
+          url: '/documents/audit-working-papers-draft-v1.pdf',
+          uploadedAt: new Date('2024-02-15'),
+          uploadedBy: 'provider-001',
+          size: 1536000,
+          type: 'application/pdf',
+          category: 'draft'
+        },
+        {
+          id: 'doc-draft-002',
+          name: 'Financial_Analysis_Draft.xlsx',
+          label: 'Financial Analysis - Working Document',
+          url: '/documents/financial-analysis-draft.xlsx',
+          uploadedAt: new Date('2024-02-20'),
+          uploadedBy: 'provider-001',
+          size: 2048000,
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          category: 'working'
+        },
+        {
+          id: 'doc-draft-003',
+          name: 'Compliance_Review_Draft_v2.pdf',
+          label: 'Compliance Review - Draft v2',
+          url: '/documents/compliance-review-draft-v2.pdf',
+          uploadedAt: new Date('2024-02-25'),
+          uploadedBy: 'provider-001',
+          size: 1792000,
+          type: 'application/pdf',
+          category: 'draft'
+        },
+        {
+          id: 'doc-working-001',
+          name: 'Risk_Assessment_Working_Notes.docx',
+          label: 'Risk Assessment Working Notes',
+          url: '/documents/risk-assessment-working-notes.docx',
+          uploadedAt: new Date('2024-02-28'),
+          uploadedBy: 'provider-001',
+          size: 1024000,
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          category: 'working'
+        },
+        // Final Documents
+        {
+          id: 'doc-final-001',
+          name: 'Audit_Report_Final.pdf',
           label: 'Final Audit Report',
           url: '/documents/audit-report-final.pdf',
           uploadedAt: new Date('2024-03-10'),
@@ -106,13 +327,35 @@ class WorkOrderService {
           category: 'final'
         },
         {
-          id: 'doc-002',
-          name: 'Management Letter.pdf',
-          label: 'Management Letter',
-          url: '/documents/management-letter.pdf',
+          id: 'doc-final-002',
+          name: 'Management_Letter_Final.pdf',
+          label: 'Management Letter - Final',
+          url: '/documents/management-letter-final.pdf',
           uploadedAt: new Date('2024-03-08'),
           uploadedBy: 'provider-001',
           size: 1024000,
+          type: 'application/pdf',
+          category: 'final'
+        },
+        {
+          id: 'doc-final-003',
+          name: 'Tax_Audit_Report_Final.pdf',
+          label: 'Tax Audit Report - Final',
+          url: '/documents/tax-audit-report-final.pdf',
+          uploadedAt: new Date('2024-03-12'),
+          uploadedBy: 'provider-001',
+          size: 1536000,
+          type: 'application/pdf',
+          category: 'final'
+        },
+        {
+          id: 'doc-final-004',
+          name: 'Compliance_Certificate_Final.pdf',
+          label: 'Compliance Certificate',
+          url: '/documents/compliance-certificate-final.pdf',
+          uploadedAt: new Date('2024-03-14'),
+          uploadedBy: 'provider-001',
+          size: 512000,
           type: 'application/pdf',
           category: 'final'
         }
@@ -121,60 +364,205 @@ class WorkOrderService {
         {
           id: 'ms-001',
           title: 'Initial Documentation Review',
-          description: 'Review and verify all financial documents',
-          deliveryDate: new Date('2024-02-01'),
+          description: 'Review and verify all financial documents and accounting records',
+          deliveryDate: new Date('2024-01-25'),
           status: 'completed',
-          documents: [],
-          comments: []
+          documents: ['doc-draft-001'],
+          comments: [
+            {
+              id: 'comment-001',
+              comment: 'Initial review completed. Need additional documentation for compliance verification.',
+              createdAt: new Date('2024-01-25'),
+              createdBy: 'provider-001'
+            }
+          ]
         },
         {
           id: 'ms-002',
-          title: 'Field Work Completion',
-          description: 'Complete on-site audit procedures',
+          title: 'Detailed Financial Analysis',
+          description: 'Perform detailed analysis of financial statements and ratios',
+          deliveryDate: new Date('2024-02-15'),
+          status: 'completed',
+          documents: ['doc-draft-002'],
+          comments: [
+            {
+              id: 'comment-002',
+              text: 'Financial analysis completed. Working capital management needs attention.',
+              createdAt: new Date('2024-02-15'),
+              createdBy: 'provider-001'
+            }
+          ]
+        },
+        {
+          id: 'ms-003',
+          title: 'Compliance and Risk Assessment',
+          description: 'Assess compliance with statutory requirements and identify risks',
           deliveryDate: new Date('2024-02-28'),
           status: 'completed',
-          documents: [],
-          comments: []
-        }
-      ],
-      informationRequests: [],
-      feedbacks: [
+          documents: ['doc-draft-003', 'doc-working-001'],
+          comments: [
+            {
+              id: 'comment-003',
+              comment: 'Compliance issues identified and documented. Recommendations provided.',
+              createdAt: new Date('2024-02-28'),
+              createdBy: 'provider-001'
+            }
+          ]
+        },
         {
-          id: 'fb-001',
-          workOrderId: 'wo-001',
-          providedBy: 'seeker-001',
-          providedByType: 'seeker',
-          stage: 'on_completion',
-          rating: 5,
-          reviewSummary: 'Excellent work! Very thorough audit and timely delivery.',
-          timestamp: new Date('2024-03-12')
+          id: 'ms-004',
+          title: 'Final Report Preparation',
+          description: 'Prepare final audit report and management letter',
+          deliveryDate: new Date('2024-03-15'),
+          status: 'completed',
+          documents: ['doc-final-001', 'doc-final-002', 'doc-final-003', 'doc-final-004'],
+          comments: [
+            {
+              id: 'comment-004',
+              comment: 'Final reports completed and delivered. All issues addressed.',
+              createdAt: new Date('2024-03-12'),
+              createdBy: 'provider-001'
+            }
+          ]
         }
       ],
-      disputes: [],
+      informationRequests: [
+        {
+          id: 'ir-001',
+          type: 'document',
+          title: 'Bank Statements for Q4 2023',
+          description: 'Please provide bank statements for all company accounts for the period October-December 2023. Required for cash flow verification and reconciliation.',
+          requestedAt: new Date('2024-01-20'),
+          requestedBy: 'provider-001',
+          status: 'responded',
+          response: 'Bank statements for all 3 accounts have been uploaded to the secure document portal. Please find SBI, HDFC, and ICICI statements attached.',
+          respondedAt: new Date('2024-01-22')
+        },
+        {
+          id: 'ir-002',
+          type: 'document',
+          title: 'Fixed Asset Register and Depreciation Schedule',
+          description: 'Need complete fixed asset register with depreciation schedules for FY 2023-24. Include purchase invoices for assets acquired during the year.',
+          requestedAt: new Date('2024-02-01'),
+          requestedBy: 'provider-001',
+          status: 'responded',
+          response: 'Fixed asset register updated with all acquisitions and disposals. Depreciation schedule prepared as per Companies Act. Purchase invoices for new machinery worth ₹15L attached.',
+          respondedAt: new Date('2024-02-05')
+        },
+        {
+          id: 'ir-003',
+          type: 'document',
+          title: 'GST Returns and Input Tax Credit Details',
+          description: 'Require all GST returns filed during FY 2023-24 and detailed ITC reconciliation. Also need explanation for any ITC reversals.',
+          requestedAt: new Date('2024-02-10'),
+          requestedBy: 'provider-001',
+          status: 'pending',
+          response: null,
+          respondedAt: null
+        },
+        {
+          id: 'ir-004',
+          type: 'text',
+          title: 'Related Party Transaction Details',
+          description: 'Please provide complete details of all related party transactions including contracts, agreements, and pricing justification.',
+          requestedAt: new Date('2024-02-15'),
+          requestedBy: 'provider-001',
+          status: 'overdue',
+          response: null,
+          respondedAt: null
+        },
+        {
+          id: 'ir-005',
+          type: 'document',
+          title: 'Employee Provident Fund Compliance',
+          description: 'Need PF compliance certificates, contribution details, and any pending litigations or notices from PF authorities.',
+          requestedAt: new Date('2024-02-15'),
+          requestedBy: 'provider-001',
+          status: 'responded',
+          response: 'PF compliance is up to date. All monthly contributions made on time. No pending litigations. Compliance certificate from PF consultant attached.',
+          respondedAt: new Date('2024-02-25')
+        }
+      ],
       teamMembers: [],
       activities: [
         {
-          id: 'act-001',
+          id: 'activity-001',
           workOrderId: 'wo-001',
-          type: ActivityType.WORK_ORDER_CREATED,
-          description: 'Work Order created from accepted bid',
-          performedBy: 'seeker-001',
-          performedByType: 'seeker',
-          timestamp: new Date('2024-01-10')
-        },
-        {
-          id: 'act-002',
-          workOrderId: 'wo-001',
-          type: ActivityType.STATUS_CHANGED,
-          description: 'Status changed to In Progress',
+          type: ActivityType.DOCUMENT_UPLOADED,
+          description: 'Audit Working Papers - Draft v1 uploaded',
           performedBy: 'provider-001',
           performedByType: 'provider',
-          timestamp: new Date('2024-01-15')
+          timestamp: new Date('2024-02-15'),
+          metadata: { documentId: 'doc-draft-001' }
+        },
+        {
+          id: 'activity-002',
+          workOrderId: 'wo-001',
+          type: ActivityType.DOCUMENT_UPLOADED,
+          description: 'Requested bank statements for Q4 2023',
+          performedBy: 'provider-001',
+          performedByType: 'provider',
+          timestamp: new Date('2024-01-20'),
+          metadata: { requestId: 'ir-001' }
+        },
+        {
+          id: 'activity-003',
+          workOrderId: 'wo-001',
+          type: ActivityType.DOCUMENT_UPLOADED,
+          description: 'Bank statements provided by client',
+          performedBy: 'seeker-001',
+          performedByType: 'seeker',
+          timestamp: new Date('2024-01-22'),
+          metadata: { requestId: 'ir-001' }
+        },
+        {
+          id: 'activity-004',
+          workOrderId: 'wo-001',
+          type: ActivityType.WORK_ORDER_CREATED,
+          description: 'Initial Documentation Review milestone completed',
+          performedBy: 'provider-001',
+          performedByType: 'provider',
+          timestamp: new Date('2024-01-25'),
+          metadata: { milestoneId: 'ms-001' }
+        },
+        {
+          id: 'activity-005',
+          workOrderId: 'wo-001',
+          type: ActivityType.DOCUMENT_UPLOADED,
+          description: 'Financial Analysis - Working Document uploaded',
+          performedBy: 'provider-001',
+          performedByType: 'provider',
+          timestamp: new Date('2024-02-20'),
+          metadata: { documentId: 'doc-draft-002' }
+        },
+        {
+          id: 'activity-006',
+          workOrderId: 'wo-001',
+          type: ActivityType.DOCUMENT_UPLOADED,
+          description: 'Final Audit Report uploaded',
+          performedBy: 'provider-001',
+          performedByType: 'provider',
+          timestamp: new Date('2024-03-10'),
+          metadata: { documentId: 'doc-final-001' }
+        },
+        {
+          id: 'activity-007',
+          workOrderId: 'wo-001',
+          type: ActivityType.WORK_ORDER_CREATED,
+          description: 'Work order marked as completed',
+          performedBy: 'provider-001',
+          performedByType: 'provider',
+          timestamp: new Date('2024-03-15'),
+          metadata: {}
         }
       ],
+      feeAdvices: [],
+      moneyReceipts: [],
+      disputes: [],
+      feedback: [],
       signatures: {
         seekerSigned: true,
-        seekerSignedAt: new Date('2024-01-12'),
+        seekerSignedAt: new Date('2024-01-15'),
         seekerSignatureType: SignatureType.DIGITAL_SIGNATURE,
         providerSigned: true,
         providerSignedAt: new Date('2024-01-13'),
@@ -184,7 +572,29 @@ class WorkOrderService {
       createdByType: 'seeker',
       createdAt: new Date('2024-01-10'),
       updatedAt: new Date('2024-03-12'),
-      completedAt: new Date('2024-03-10')
+      completedAt: new Date('2024-03-10'),
+      questionnaire: [
+        {
+          id: 'q-001',
+          question: 'What is the nature of your business and primary revenue streams?',
+          answer: 'Manufacturing of automotive components with primary revenue from OEM supplies to Maruti, Tata Motors, and Mahindra. Secondary revenue from aftermarket sales.'
+        },
+        {
+          id: 'q-002',
+          question: 'Have there been any significant changes in accounting policies during FY 2023-24?',
+          answer: 'No significant changes in accounting policies. Continue to follow Indian Accounting Standards (Ind AS) as applicable.'
+        },
+        {
+          id: 'q-003',
+          question: 'Are there any pending litigations or contingent liabilities?',
+          answer: 'One pending labor dispute worth ₹2.5L and one GST notice under review worth ₹8.5L. Both have been disclosed in notes to accounts.'
+        },
+        {
+          id: 'q-004',
+          question: 'Details of any loans, advances, or investments made during the year?',
+          answer: 'Term loan of ₹75L taken for machinery purchase. No advances to related parties. Fixed deposits of ₹30L made with SBI and HDFC.'
+        }
+      ]
     },
     {
       id: 'wo-002',
@@ -515,6 +925,215 @@ class WorkOrderService {
       createdByType: 'seeker',
       createdAt: new Date('2024-02-28'),
       updatedAt: new Date('2024-02-28')
+    },
+    // Closed work orders to match IDs used by Closed list view
+    {
+      id: '1',
+      woNumber: 'WO/A-00111123',
+      referenceNumber: 'Final Tax Filing FY23',
+      type: WorkOrderType.SERVICE_PROVIDER_INITIATED,
+      status: WorkOrderStatus.COMPLETED,
+      serviceSeeker: {
+        id: 'seeker-c1',
+        name: 'Acme Industries Pvt Ltd',
+        email: 'accounts@acme.com',
+        address: 'Plot 21, MIDC, Pune, Maharashtra 411001'
+      },
+      serviceProvider: {
+        id: 'provider-c1',
+        name: 'IP Law Consultants',
+        email: 'info@iplawconsult.com',
+        address: '789 Legal Complex, Bangalore, Karnataka 560002'
+      },
+      title: 'Legal Due Diligence - Vendor Contracts',
+      scopeOfWork: 'Review vendor contracts and prepare due diligence report.',
+      deliverables: ['Due Diligence Report'],
+      timeline: {
+        startDate: new Date('2023-10-01'),
+        expectedCompletionDate: new Date('2023-10-20'),
+        actualCompletionDate: new Date('2023-10-12')
+      },
+      financials: {
+        professionalFee: 50000,
+        platformFee: 5000,
+        gst: 9900,
+        reimbursements: 0,
+        regulatoryPayouts: 0,
+        ope: 0,
+        totalAmount: 64900,
+        paymentTerms: [],
+        moneyReceipts: [],
+        feeAdvices: []
+      },
+      documents: [],
+      milestones: [],
+      informationRequests: [],
+      feedbacks: [],
+      disputes: [],
+      teamMembers: [],
+      activities: [],
+      signatures: { seekerSigned: true, providerSigned: true },
+      createdBy: 'provider-c1',
+      createdByType: 'provider',
+      createdAt: new Date('2023-10-01'),
+      updatedAt: new Date('2023-10-12'),
+      completedAt: new Date('2023-10-12')
+    },
+    {
+      id: '2',
+      woNumber: 'WO/A-00111124',
+      referenceNumber: 'ROC Annual Filing 2023',
+      type: WorkOrderType.SERVICE_PROVIDER_INITIATED,
+      status: WorkOrderStatus.COMPLETED,
+      serviceSeeker: {
+        id: 'seeker-c2',
+        name: 'Blue Ocean Retail Ltd',
+        email: 'finance@blueocean.com',
+        address: 'Connaught Place, New Delhi 110001'
+      },
+      serviceProvider: {
+        id: 'provider-c2',
+        name: 'Legal Associates LLP',
+        email: 'contact@legalassoc.com',
+        address: '321 Law Street, Delhi, Delhi 110002'
+      },
+      title: 'ROC Annual Filing',
+      scopeOfWork: 'Prepare and file annual returns and financial statements with ROC.',
+      deliverables: ['AOC-4', 'MGT-7'],
+      timeline: {
+        startDate: new Date('2023-11-01'),
+        expectedCompletionDate: new Date('2023-11-20'),
+        actualCompletionDate: new Date('2023-11-19')
+      },
+      financials: {
+        professionalFee: 30000,
+        platformFee: 3000,
+        gst: 5940,
+        reimbursements: 0,
+        regulatoryPayouts: 0,
+        ope: 0,
+        totalAmount: 38940,
+        paymentTerms: [],
+        moneyReceipts: [],
+        feeAdvices: []
+      },
+      documents: [],
+      milestones: [],
+      informationRequests: [],
+      feedbacks: [],
+      disputes: [],
+      teamMembers: [],
+      activities: [],
+      signatures: { seekerSigned: true, providerSigned: true },
+      createdBy: 'provider-c2',
+      createdByType: 'provider',
+      createdAt: new Date('2023-11-01'),
+      updatedAt: new Date('2023-11-19'),
+      completedAt: new Date('2023-11-19')
+    },
+    {
+      id: '3',
+      woNumber: 'WO/A-00111125',
+      referenceNumber: 'GST Advisory Q4',
+      type: WorkOrderType.SERVICE_SEEKER_INITIATED,
+      status: WorkOrderStatus.COMPLETED,
+      serviceSeeker: {
+        id: 'seeker-c3',
+        name: 'Tech Innovations Pvt Ltd',
+        email: 'admin@techinnovations.com',
+        address: '456 Tech Park, Bangalore, Karnataka 560001'
+      },
+      serviceProvider: {
+        id: 'provider-c3',
+        name: 'CA Rajesh Kumar & Associates',
+        email: 'rajesh@cakumar.com',
+        address: '456 Business District, Mumbai, Maharashtra 400002'
+      },
+      title: 'GST Advisory',
+      scopeOfWork: 'Quarterly GST advisory and compliance review.',
+      deliverables: ['Advisory Report'],
+      timeline: {
+        startDate: new Date('2023-11-10'),
+        expectedCompletionDate: new Date('2023-12-05'),
+        actualCompletionDate: new Date('2023-12-01')
+      },
+      financials: {
+        professionalFee: 40000,
+        platformFee: 4000,
+        gst: 7920,
+        reimbursements: 0,
+        regulatoryPayouts: 0,
+        ope: 0,
+        totalAmount: 51920,
+        paymentTerms: [],
+        moneyReceipts: [],
+        feeAdvices: []
+      },
+      documents: [],
+      milestones: [],
+      informationRequests: [],
+      feedbacks: [],
+      disputes: [],
+      teamMembers: [],
+      activities: [],
+      signatures: { seekerSigned: true, providerSigned: true },
+      createdBy: 'seeker-c3',
+      createdByType: 'seeker',
+      createdAt: new Date('2023-11-10'),
+      updatedAt: new Date('2023-12-01'),
+      completedAt: new Date('2023-12-01')
+    },
+    {
+      id: '4',
+      woNumber: 'WO/A-00111126',
+      referenceNumber: 'Compliance Advisory Setup',
+      type: WorkOrderType.SERVICE_SEEKER_INITIATED,
+      status: WorkOrderStatus.COMPLETED,
+      serviceSeeker: {
+        id: 'seeker-c4',
+        name: 'Gamma Traders',
+        email: 'contact@gammatraders.com',
+        address: 'MG Road, Bengaluru, Karnataka 560001'
+      },
+      serviceProvider: {
+        id: 'provider-c4',
+        name: 'IP Law Consultants',
+        email: 'info@iplawconsult.com',
+        address: '789 Legal Complex, Bangalore, Karnataka 560002'
+      },
+      title: 'Compliance Advisory Setup',
+      scopeOfWork: 'Set up ongoing compliance advisory framework.',
+      deliverables: ['Compliance Framework Document'],
+      timeline: {
+        startDate: new Date('2023-12-01'),
+        expectedCompletionDate: new Date('2023-12-20'),
+        actualCompletionDate: new Date('2023-12-18')
+      },
+      financials: {
+        professionalFee: 60000,
+        platformFee: 6000,
+        gst: 11880,
+        reimbursements: 0,
+        regulatoryPayouts: 0,
+        ope: 0,
+        totalAmount: 77880,
+        paymentTerms: [],
+        moneyReceipts: [],
+        feeAdvices: []
+      },
+      documents: [],
+      milestones: [],
+      informationRequests: [],
+      feedbacks: [],
+      disputes: [],
+      teamMembers: [],
+      activities: [],
+      signatures: { seekerSigned: true, providerSigned: true },
+      createdBy: 'seeker-c4',
+      createdByType: 'seeker',
+      createdAt: new Date('2023-12-01'),
+      updatedAt: new Date('2023-12-18'),
+      completedAt: new Date('2023-12-18')
     }
   ];
 
@@ -605,8 +1224,18 @@ class WorkOrderService {
     return this.mockWorkOrders.find(wo => wo.id === id) || null;
   }
 
-  // Get work order statistics
-  async getWorkOrderStats(userId: string, userType: 'seeker' | 'provider'): Promise<WorkOrderStats> {
+  // Update work order status
+  async updateWorkOrderStatus(workOrderId: string, status: WorkOrderStatus): Promise<WorkOrder> {
+    // Mock implementation - in real app, this would call API
+    const workOrder = this.mockWorkOrders.find(wo => wo.id === workOrderId);
+    if (workOrder) {
+      workOrder.status = status;
+    }
+    return workOrder!;
+  }
+
+  // Get work order statistics for dashboard
+  async getWorkOrderStats(userType: 'seeker' | 'provider'): Promise<WorkOrderStats> {
     await this.delay(200);
 
     // For demo purposes, return stats for all work orders for any authenticated user
@@ -874,6 +1503,36 @@ class WorkOrderService {
     };
     
     workOrder.feedbacks.push(newFeedback);
+    workOrder.updatedAt = new Date();
+    return true;
+  }
+
+  // Fee advice management methods
+  async acceptFeeAdvice(workOrderId: string, feeAdviceId: string): Promise<boolean> {
+    await this.delay(500);
+    const workOrder = this.mockWorkOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return false;
+    
+    const feeAdvice = workOrder.financials.feeAdvices.find(fa => fa.id === feeAdviceId);
+    if (!feeAdvice) return false;
+    
+    feeAdvice.status = FeeAdviceStatus.ACCEPTED;
+    feeAdvice.reviewedAt = new Date();
+    workOrder.updatedAt = new Date();
+    return true;
+  }
+
+  async rejectFeeAdvice(workOrderId: string, feeAdviceId: string, rejection: { reason: string; modification?: string }): Promise<boolean> {
+    await this.delay(500);
+    const workOrder = this.mockWorkOrders.find(wo => wo.id === workOrderId);
+    if (!workOrder) return false;
+    
+    const feeAdvice = workOrder.financials.feeAdvices.find(fa => fa.id === feeAdviceId);
+    if (!feeAdvice) return false;
+    
+    feeAdvice.status = FeeAdviceStatus.REJECTED;
+    feeAdvice.rejectionReason = rejection.reason;
+    feeAdvice.reviewedAt = new Date();
     workOrder.updatedAt = new Date();
     return true;
   }

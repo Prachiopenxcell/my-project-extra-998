@@ -336,7 +336,7 @@ const EditMeetingContent = () => {
 
 const EditMeeting = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <EditMeetingContent />
     </DashboardLayout>
   );

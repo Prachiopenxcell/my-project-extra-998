@@ -9,9 +9,10 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { User, FileText, MapPin, Save, Clock, CheckCircle } from 'lucide-react';
-import { IdentityDocumentType } from '@/types/profile';
+import { IdentityDocumentType, TeamMemberProfile } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/types/auth';
 
 interface ServiceProviderTeamMemberFormProps {
   onComplete: () => void;
@@ -42,6 +43,8 @@ interface FormData {
     state: string;
     pinCode: string;
   };
+  // Optional: used to seed ~5% completion without mandatory fields
+  openToRemoteWork: boolean;
 }
 
 export const ServiceProviderTeamMemberFormNew: React.FC<ServiceProviderTeamMemberFormProps> = ({
@@ -67,25 +70,29 @@ export const ServiceProviderTeamMemberFormNew: React.FC<ServiceProviderTeamMembe
       city: '',
       state: '',
       pinCode: ''
-    }
+    },
+    openToRemoteWork: true
   });
 
   const calculateCompletion = () => {
-    const mandatoryFields = [
-      formData.name,
-      formData.identityDocument.type,
-      formData.identityDocument.number,
-      formData.email,
-      formData.contactNumber,
-      formData.address.street,
-      formData.address.city,
-      formData.address.pinCode
-    ];
+    // Convert formData to profile format for ProfileService
+    const profileData = {
+      userId: "current-user",
+      name: formData.name,
+      email: formData.email,
+      contactNumber: formData.contactNumber,
+      address: formData.address,
+      identityDocument: formData.identityDocument,
+      openToRemoteWork: formData.openToRemoteWork
+    };
+
+    // Use ProfileService to calculate completion
+    const completionStatus = ProfileService.calculateCompletionStatus(
+      profileData as unknown as TeamMemberProfile,
+      UserRole.SERVICE_PROVIDER_TEAM_MEMBER
+    );
     
-    const completedMandatory = mandatoryFields.filter(field => field && field.toString().trim() !== '').length;
-    const totalMandatory = mandatoryFields.length;
-    
-    return Math.round((completedMandatory / totalMandatory) * 100);
+    return completionStatus.overallPercentage;
   };
 
   const handleInputChange = (field: string, value: string | File | null) => {
@@ -115,13 +122,14 @@ export const ServiceProviderTeamMemberFormNew: React.FC<ServiceProviderTeamMembe
     try {
       const profileData = {
         userId: user.id,
-        ...formData
+        ...formData,
+        completed: true
       };
       
       // Mock API call - replace with actual ProfileService method
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      toast.success('Profile saved successfully!');
+      toast.success('Team member profile saved successfully!');
       onComplete();
     } catch (error) {
       toast.error('Failed to save profile. Please try again.');
@@ -130,10 +138,15 @@ export const ServiceProviderTeamMemberFormNew: React.FC<ServiceProviderTeamMembe
     }
   };
 
+  const handleSkipProfile = () => {
+    toast.info('Profile creation skipped - you can complete it later');
+    onSkip();
+  };
+
   const completion = calculateCompletion();
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -164,7 +177,7 @@ export const ServiceProviderTeamMemberFormNew: React.FC<ServiceProviderTeamMembe
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Name of the Client *</Label>
+              <Label htmlFor="name">Name of the Team Member *</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -313,7 +326,7 @@ export const ServiceProviderTeamMemberFormNew: React.FC<ServiceProviderTeamMembe
       </div>
 
       <div className="flex justify-between items-center mt-8">
-        <Button variant="outline" onClick={onSkip} disabled={loading}>
+        <Button variant="outline" onClick={handleSkipProfile} disabled={loading}>
           <Clock className="h-4 w-4 mr-2" />
           Skip for Now
         </Button>

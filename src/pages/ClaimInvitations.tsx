@@ -169,7 +169,7 @@ const ClaimInvitations = () => {
   // If invitationId is provided and invitation exists, show details view
   if (invitationId && currentInvitation) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           {/* Header with Back Navigation */}
           <div className="flex items-center justify-between mb-6">
@@ -292,7 +292,7 @@ const ClaimInvitations = () => {
 
   // Default invitations list view
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">

@@ -42,7 +42,7 @@ const ComingSoon = () => {
   const isCompliance = location.pathname.startsWith('/compliance');
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6">
         {/* Header */}
         <div className="flex items-center mb-6">

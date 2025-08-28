@@ -77,7 +77,7 @@ interface LitigationStats {
 
 const LitigationManagement = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <LitigationModule />
     </DashboardLayout>
   );

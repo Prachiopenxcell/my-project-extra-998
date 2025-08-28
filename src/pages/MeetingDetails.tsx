@@ -165,6 +165,78 @@ const MeetingDetails = () => {
     });
   };
 
+  const handleReschedule = async () => {
+    if (!meeting) return;
+
+    // Simple prompt for new date-time (ISO or parseable format)
+    const input = window.prompt(
+      "Enter new start date & time (e.g., 2025-08-25 15:30 or ISO)",
+      meeting.startDate ? new Date(meeting.startDate).toISOString().slice(0, 16).replace('T', ' ') : ''
+    );
+    if (!input) return;
+
+    const parsed = new Date(input.replace(' ', 'T'));
+    if (isNaN(parsed.getTime())) {
+      toast({
+        title: "Invalid date",
+        description: "Please enter a valid date/time.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (meeting.status === 'concluded') {
+        // Clone into a new upcoming meeting
+        const newMeeting = await meetingsService.createMeeting({
+          title: meeting.title,
+          type: meeting.type,
+          status: 'upcoming',
+          entity: meeting.entity,
+          startDate: parsed,
+          duration: meeting.duration,
+          location: meeting.location,
+          isVirtual: meeting.isVirtual,
+          virtualMeetingLink: meeting.virtualMeetingLink,
+          virtualMeetingId: meeting.virtualMeetingId,
+          virtualMeetingPassword: meeting.virtualMeetingPassword,
+          description: meeting.description,
+          participants: meeting.participants ? [...meeting.participants] : [],
+          agenda: (meeting.agenda || []).map((a) => ({ ...a, status: 'pending', notes: undefined })),
+          documents: meeting.documents ? [...meeting.documents] : [],
+          resolutions: meeting.resolutions ? [...meeting.resolutions] : undefined,
+          officeBearers: meeting.officeBearers,
+          createdBy: meeting.createdBy,
+        });
+
+        toast({
+          title: "Meeting Rescheduled",
+          description: "A new meeting was created with the selected date/time.",
+        });
+        navigate(`/meetings/${newMeeting.id}`);
+      } else {
+        // Update the same meeting
+        const updated = await meetingsService.updateMeeting(meeting.id, {
+          startDate: parsed,
+          status: 'upcoming',
+          endDate: undefined,
+        });
+        if (updated) setMeeting(updated);
+        toast({
+          title: "Meeting Rescheduled",
+          description: "The meeting date/time has been updated.",
+        });
+      }
+    } catch (error) {
+      console.error('Error rescheduling meeting:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reschedule meeting. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "upcoming":
@@ -181,11 +253,11 @@ const MeetingDetails = () => {
             In Progress
           </Badge>
         );
-      case "completed":
+      case "concluded":
         return (
           <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 font-medium">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Completed
+            Concluded
           </Badge>
         );
       case "draft":
@@ -215,7 +287,7 @@ const MeetingDetails = () => {
 
   if (loading) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -227,7 +299,7 @@ const MeetingDetails = () => {
 
   if (!meeting) {
     return (
-      <DashboardLayout userType="service_provider">
+      <DashboardLayout>
         <div className="container mx-auto p-6">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-2">Meeting Not Found</h1>
@@ -242,7 +314,7 @@ const MeetingDetails = () => {
   }
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="space-y-6">
@@ -298,13 +370,21 @@ const MeetingDetails = () => {
                 </Button>
               )}
               
-              <Button variant="outline" onClick={() => navigate(`/edit-meeting/${id}`)}>
-                <Edit className="mr-2 h-4 w-4" /> Edit Meeting
-              </Button>
+              {meeting.status !== 'concluded' && (
+                <Button variant="outline" onClick={() => navigate(`/edit-meeting/${id}`)}>
+                  <Edit className="mr-2 h-4 w-4" /> Edit Meeting
+                </Button>
+              )}
               
               <Button variant="outline" onClick={copyMeetingLink}>
                 <Share2 className="mr-2 h-4 w-4" /> Share
               </Button>
+
+              {(meeting.status === 'upcoming' || meeting.status === 'draft') && (
+                <Button variant="outline" onClick={handleReschedule}>
+                  <Calendar className="mr-2 h-4 w-4" /> Reschedule
+                </Button>
+              )}
               
               <Button variant="outline" onClick={handleExport} disabled={isExporting}>
                 {isExporting ? (
@@ -337,12 +417,13 @@ const MeetingDetails = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-6 mb-6">
+          <TabsList className="grid grid-cols-7 mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="participants">Participants</TabsTrigger>
             <TabsTrigger value="agenda">Agenda</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="minutes">Minutes</TabsTrigger>
+            <TabsTrigger value="notice">Notice</TabsTrigger>
             <TabsTrigger value="recordings">Recordings</TabsTrigger>
           </TabsList>
 
@@ -470,14 +551,13 @@ const MeetingDetails = () => {
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Add Note
                     </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
-                      <Mail className="w-4 h-4 mr-2" />
-                      Send Reminder
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
-                      <Copy className="w-4 h-4 mr-2" />
-                      Duplicate Meeting
-                    </Button>
+                    {meeting.status !== 'concluded' && (
+                      <Button variant="outline" size="sm" className="w-full justify-start">
+                        <Mail className="w-4 h-4 mr-2" />
+                        Send Reminder
+                      </Button>
+                    )}
+                   
                   </CardContent>
                 </Card>
               </div>
@@ -603,10 +683,115 @@ const MeetingDetails = () => {
                 <CardDescription>Notes and decisions from this meeting</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-medium mb-2">No minutes available</h3>
-                  <p className="text-sm text-muted-foreground">Meeting minutes will be available after the meeting is completed.</p>
+                {meeting.status === 'concluded' ? (
+                  <div className="space-y-6">
+                    {/* Summary */}
+                    <div>
+                      <h4 className="font-medium mb-2">Summary</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Meeting concluded on {meeting.endDate ? format(new Date(meeting.endDate), "PPP 'at' p") : 'N/A'}.
+                        {meeting.resolutions && meeting.resolutions.length > 0 && ' See e-voting summary below.'}
+                      </p>
+                    </div>
+
+                    {/* Agenda outcomes */}
+                    <div>
+                      <h4 className="font-medium mb-3">Agenda Outcomes</h4>
+                      {meeting.agenda && meeting.agenda.length > 0 ? (
+                        <div className="space-y-3">
+                          {meeting.agenda.map((item: AgendaItem, idx: number) => (
+                            <div key={idx} className="p-3 border rounded-md">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium">{idx + 1}. {item.title}</div>
+                                <Badge variant="outline">{item.status === 'completed' ? 'Completed' : item.status === 'current' ? 'Discussed' : 'Pending'}</Badge>
+                              </div>
+                              {item.notes && (
+                                <p className="text-sm text-muted-foreground mt-2">{item.notes}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No agenda items recorded.</p>
+                      )}
+                    </div>
+
+                    {/* E-voting summary */}
+                    <div>
+                      <h4 className="font-medium mb-3">E‑Voting Summary</h4>
+                      {meeting.resolutions && meeting.resolutions.length > 0 ? (
+                        <div className="space-y-3">
+                          {meeting.resolutions.map((r, idx) => {
+                            const totalVotes = (r.votesFor || 0) + (r.votesAgainst || 0) + (r.votesAbstain || 0);
+                            const forPct = totalVotes ? Math.round((r.votesFor / totalVotes) * 100) : 0;
+                            const againstPct = totalVotes ? Math.round((r.votesAgainst / totalVotes) * 100) : 0;
+                            const abstainPct = totalVotes ? Math.round((r.votesAbstain / totalVotes) * 100) : 0;
+                            return (
+                              <div key={idx} className="p-3 border rounded-md">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-medium">{r.title}</div>
+                                  <Badge variant={r.status === 'passed' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
+                                    {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">Required majority: {r.requiredMajority}%</p>
+                                <div className="text-xs text-muted-foreground mt-2">Votes — For: {r.votesFor} ({forPct}%) • Against: {r.votesAgainst} ({againstPct}%) • Abstain: {r.votesAbstain} ({abstainPct}%)</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No e‑voting items.</p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="font-medium mb-2">No minutes available</h3>
+                    <p className="text-sm text-muted-foreground">Meeting minutes will be available after the meeting is concluded.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notice" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Meeting Notice</CardTitle>
+                <CardDescription>Formal notice generated from meeting details and agenda</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="prose max-w-none text-sm leading-6">
+                  <p className="font-semibold uppercase tracking-wide">Notice of Meeting</p>
+                  <p className="mt-2">Notice is hereby given that a meeting of {meeting.entity?.name || 'the Entity'} will be held on {meeting.startDate ? format(new Date(meeting.startDate), "PPP") : '[Date]'} at {meeting.startDate ? format(new Date(meeting.startDate), "p") : '[Time]'}{meeting.isVirtual ? ' (Virtual)' : ''}.</p>
+                  {!meeting.isVirtual && (
+                    <p className="mt-2">Venue: {meeting.location || '[Venue/Address]'}</p>
+                  )}
+                  {meeting.isVirtual && (
+                    <p className="mt-2">Virtual Meeting Link: {meeting.virtualMeetingLink || '[Meeting link will be shared separately]'}</p>
+                  )}
+                  <Separator className="my-4" />
+                  <p className="font-medium">Agenda</p>
+                  {meeting.agenda && meeting.agenda.length > 0 ? (
+                    <ol className="list-decimal pl-5 mt-2 space-y-1">
+                      {meeting.agenda.map((item, idx) => (
+                        <li key={idx}>{item.title}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="text-muted-foreground mt-2">Agenda will be circulated separately.</p>
+                  )}
+                  <Separator className="my-4" />
+                  <div className="mt-2">
+                    <p>By order of the Board</p>
+                    <p className="mt-1 text-muted-foreground">[Authorized Signatory]</p>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <div>Place: {meeting.location || '[Place]'}</div>
+                      <div>Date: {format(new Date(), 'PPP')}</div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -622,7 +807,7 @@ const MeetingDetails = () => {
                 <div className="text-center py-8">
                   <Video className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="font-medium mb-2">No recordings available</h3>
-                  <p className="text-sm text-muted-foreground">Meeting recordings will be available after the meeting is completed.</p>
+                  <p className="text-sm text-muted-foreground">Meeting recordings will be available after the meeting is concluded.</p>
                 </div>
               </CardContent>
             </Card>

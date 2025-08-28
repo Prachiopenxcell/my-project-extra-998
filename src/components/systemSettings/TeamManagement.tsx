@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,7 +22,11 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Eye,
+  Archive,
+  UserX,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { systemSettingsService } from "@/services/systemSettingsService";
@@ -34,6 +39,7 @@ const TeamManagement = () => {
   const [filters, setFilters] = useState<SystemSettingsFilters>({});
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [newMember, setNewMember] = useState({
     name: '',
@@ -41,11 +47,7 @@ const TeamManagement = () => {
     role: TeamMemberRole.TEAM_MEMBER
   });
 
-  useEffect(() => {
-    loadTeamMembers();
-  }, [filters]);
-
-  const loadTeamMembers = async () => {
+  const loadTeamMembers = useCallback(async () => {
     try {
       const response = await systemSettingsService.getTeamMembers(filters);
       setTeamMembers(response.data);
@@ -59,7 +61,13 @@ const TeamManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadTeamMembers();
+  }, [loadTeamMembers]);
+
+
 
   const handleAddMember = async () => {
     try {
@@ -81,10 +89,12 @@ const TeamManagement = () => {
     }
   };
 
-  const handleEditMember = async (member: TeamMember) => {
+  const handleEditMember = async () => {
+    if (!selectedMember) return;
+    
     try {
-      await systemSettingsService.updateTeamMember(member.id, member);
-      setTeamMembers(prev => prev.map(m => m.id === member.id ? member : m));
+      await systemSettingsService.updateTeamMember(selectedMember.id, selectedMember);
+      setTeamMembers(prev => prev.map(m => m.id === selectedMember.id ? selectedMember : m));
       setShowEditDialog(false);
       setSelectedMember(null);
       toast({
@@ -101,12 +111,17 @@ const TeamManagement = () => {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (!confirm('Are you sure you want to remove this team member?')) return;
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
 
+  const handleRemoveMember = async () => {
+    if (!memberToRemove) return;
+    
     try {
-      await systemSettingsService.removeTeamMember(memberId);
-      setTeamMembers(prev => prev.filter(m => m.id !== memberId));
+      await systemSettingsService.removeTeamMember(memberToRemove);
+      setTeamMembers(prev => prev.filter(m => m.id !== memberToRemove));
+      setShowRemoveDialog(false);
+      setMemberToRemove(null);
       toast({
         title: "Success",
         description: "Team member removed successfully",
@@ -120,6 +135,67 @@ const TeamManagement = () => {
       });
     }
   };
+
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [memberToArchive, setMemberToArchive] = useState<string | null>(null);
+
+  const handleArchiveMember = async () => {
+    if (!memberToArchive) return;
+    
+    try {
+      await systemSettingsService.archiveTeamMember(memberToArchive);
+      setTeamMembers(prev => prev.map(m => 
+        m.id === memberToArchive ? { ...m, status: TeamMemberStatus.INACTIVE, archived: true } : m
+      ));
+      setShowArchiveDialog(false);
+      setMemberToArchive(null);
+      toast({
+        title: "Success",
+        description: "Team member archived successfully",
+      });
+    } catch (error) {
+      console.error('Failed to archive team member:', error);
+      toast({
+        title: "Error",
+        description: "Failed to archive team member",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [memberToDeactivate, setMemberToDeactivate] = useState<string | null>(null);
+
+  const handleDeactivateMember = async () => {
+    if (!memberToDeactivate) return;
+    
+    try {
+      await systemSettingsService.deactivateTeamMember(memberToDeactivate);
+      setTeamMembers(prev => prev.map(m => 
+        m.id === memberToDeactivate ? { ...m, status: TeamMemberStatus.INACTIVE } : m
+      ));
+      setShowDeactivateDialog(false);
+      setMemberToDeactivate(null);
+      toast({
+        title: "Success",
+        description: "Team member deactivated successfully",
+      });
+    } catch (error) {
+      console.error('Failed to deactivate team member:', error);
+      toast({
+        title: "Error",
+        description: "Failed to deactivate team member",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewMemberDetail = (member: TeamMember) => {
+    setSelectedMember(member);
+    setShowDetailDialog(true);
+  };
+
+ 
 
   const getStatusBadge = (status: TeamMemberStatus) => {
     switch (status) {
@@ -344,11 +420,18 @@ const TeamManagement = () => {
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {getLastActiveText(member.lastActive)}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewMemberDetail(member)}
+                            title="View Details"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -356,17 +439,46 @@ const TeamManagement = () => {
                             setSelectedMember(member);
                             setShowEditDialog(true);
                           }}
+                          title="Edit Member"
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
                         {member.role !== TeamMemberRole.ADMIN && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoveMember(member.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setMemberToArchive(member.id);
+                                setShowArchiveDialog(true);
+                              }}
+                              title="Archive Member"
+                            >
+                              <Archive className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setMemberToDeactivate(member.id);
+                                setShowDeactivateDialog(true);
+                              }}
+                              title="Deactivate Member"
+                            >
+                              <UserX className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setMemberToRemove(member.id);
+                                setShowRemoveDialog(true);
+                              }}
+                              title="Remove Member"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -424,12 +536,166 @@ const TeamManagement = () => {
           <Separator />
 
           <div className="flex gap-3">
-            <Button variant="outline">Manage Roles</Button>
-            <Button variant="outline">Set Permissions</Button>
-            <Button variant="outline">Usage Analytics</Button>
+            <Button variant="outline" asChild>
+              <Link to="/settings?tab=roles">
+                Manage Roles
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/settings?tab=permissions">
+                Set Permissions
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/settings?tab=analytics">
+                Usage Analytics
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/settings?tab=team">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View More
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Team Member Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Team Member Details</DialogTitle>
+            <DialogDescription>
+              Complete information about the team member.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMember && (
+            <div className="space-y-6">
+              {/* Basic Info */}
+              <div className="flex items-start gap-4">
+                <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl font-medium text-blue-600">
+                    {selectedMember.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{selectedMember.name}</h3>
+                  <p className="text-muted-foreground">{selectedMember.email}</p>
+                  <div className="flex gap-2 mt-2">
+                    {getRoleBadge(selectedMember.role)}
+                    {getStatusBadge(selectedMember.status)}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Detailed Information */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Member ID</Label>
+                    <p className="text-sm text-muted-foreground">{selectedMember.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Join Date</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(selectedMember.createdAt || new Date()), 'MMM dd, yyyy')}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Last Active</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {getLastActiveText(selectedMember.lastActive)}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Department</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedMember.department || 'Not specified'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Phone</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedMember.phone || 'Not provided'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">Location</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedMember.location || 'Not specified'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Permissions & Access */}
+              <div>
+                <Label className="text-sm font-medium mb-3 block">Module Access</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Claims', 'Meetings', 'Documents', 'Reports', 'Billing', 'Settings'].map((module) => (
+                    <div key={module} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span className="text-sm">{module}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4">
+                <Button
+                  onClick={() => {
+                    setShowDetailDialog(false);
+                    setShowEditDialog(true);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Member
+                </Button>
+                {selectedMember.role !== TeamMemberRole.ADMIN && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setMemberToArchive(selectedMember.id);
+                        setShowArchiveDialog(true);
+                        setShowDetailDialog(false);
+                      }}
+                    >
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archive
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setMemberToDeactivate(selectedMember.id);
+                        setShowDeactivateDialog(true);
+                        setShowDetailDialog(false);
+                      }}
+                    >
+                      <UserX className="h-4 w-4 mr-2" />
+                      Deactivate
+                    </Button>
+                  </>
+                )}
+                <Button variant="outline" asChild>
+                  <Link to="/settings?tab=team">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Team Management
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Member Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
@@ -437,7 +703,7 @@ const TeamManagement = () => {
           <DialogHeader>
             <DialogTitle>Edit Team Member</DialogTitle>
             <DialogDescription>
-              Update team member information and permissions.
+              Update team member information and role.
             </DialogDescription>
           </DialogHeader>
           {selectedMember && (
@@ -447,7 +713,8 @@ const TeamManagement = () => {
                 <Input
                   id="editName"
                   value={selectedMember.name}
-                  onChange={(e) => setSelectedMember(prev => prev ? { ...prev, name: e.target.value } : null)}
+                  onChange={(e) => setSelectedMember(prev => prev ? { ...prev, name: e.target.value } : prev)}
+                  placeholder="Enter full name"
                 />
               </div>
               <div className="space-y-2">
@@ -456,14 +723,15 @@ const TeamManagement = () => {
                   id="editEmail"
                   type="email"
                   value={selectedMember.email}
-                  onChange={(e) => setSelectedMember(prev => prev ? { ...prev, email: e.target.value } : null)}
+                  onChange={(e) => setSelectedMember(prev => prev ? { ...prev, email: e.target.value } : prev)}
+                  placeholder="Enter email address"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="editRole">Role</Label>
                 <Select 
                   value={selectedMember.role} 
-                  onValueChange={(value) => setSelectedMember(prev => prev ? { ...prev, role: value as TeamMemberRole } : null)}
+                  onValueChange={(value) => setSelectedMember(prev => prev ? { ...prev, role: value as TeamMemberRole } : prev)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -479,7 +747,7 @@ const TeamManagement = () => {
                 <Label htmlFor="editStatus">Status</Label>
                 <Select 
                   value={selectedMember.status} 
-                  onValueChange={(value) => setSelectedMember(prev => prev ? { ...prev, status: value as TeamMemberStatus } : null)}
+                  onValueChange={(value) => setSelectedMember(prev => prev ? { ...prev, status: value as TeamMemberStatus } : prev)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -492,8 +760,8 @@ const TeamManagement = () => {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => handleEditMember(selectedMember)}>
-                  Update Member
+                <Button onClick={handleEditMember}>
+                  Save Changes
                 </Button>
                 <Button variant="outline" onClick={() => setShowEditDialog(false)}>
                   Cancel
@@ -501,6 +769,66 @@ const TeamManagement = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Archive Member Confirmation Dialog */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive Team Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to archive this team member? This will make their profile inactive and archive their data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowArchiveDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleArchiveMember}>
+              Archive Member
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Deactivate Member Confirmation Dialog */}
+      <Dialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deactivate Team Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to deactivate this team member? They will no longer have access to the system.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowDeactivateDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeactivateMember}>
+              Deactivate Member
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Remove Member Confirmation Dialog */}
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Team Member</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove this team member? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowRemoveDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveMember}>
+              Remove Member
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

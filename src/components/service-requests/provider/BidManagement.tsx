@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   Search, 
   Filter, 
@@ -25,7 +28,9 @@ import {
   RefreshCw,
   Send,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  HelpCircle,
+  Handshake
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { serviceRequestService } from "@/services/serviceRequestService";
@@ -46,6 +51,15 @@ const BidManagement = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [sortBy, setSortBy] = useState("submittedAt");
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  
+  // Dialog states for negotiate and query
+  const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
+  const [showQueryDialog, setShowQueryDialog] = useState(false);
+  const [selectedBid, setSelectedBid] = useState<Bid | null>(null);
+  const [negotiateMessage, setNegotiateMessage] = useState('');
+  const [negotiateType, setNegotiateType] = useState<'price' | 'timeline' | 'scope' | 'terms'>('price');
+  const [queryMessage, setQueryMessage] = useState('');
+  const [queryType, setQueryType] = useState<'public' | 'private'>('private');
 
   // Mock data for demonstration
   const mockBids: Bid[] = useMemo(() => [
@@ -95,9 +109,135 @@ const BidManagement = () => {
       documents: [],
       status: BidStatus.UNDER_NEGOTIATION,
       isInvited: false,
-      submittedAt: new Date('2024-01-14'),
-      updatedAt: new Date('2024-01-15'),
+      submittedAt: new Date('2024-01-15'),
+      updatedAt: new Date('2024-01-16'),
       lastEditDate: new Date('2024-01-15')
+    },
+    // Completed Bids
+    {
+      id: 'bid-004',
+      bidNumber: 'BID2024004',
+      serviceRequestId: 'sr-004',
+      providerId: 'provider-001',
+      providerName: 'Current Provider',
+      financials: {
+        professionalFee: 35000,
+        platformFee: 3500,
+        gst: 6930,
+        reimbursements: 2000,
+        regulatoryPayouts: 1000,
+        ope: 1500,
+        totalAmount: 49930,
+        paymentStructure: PaymentStructure.LUMP_SUM
+      },
+      deliveryDate: new Date('2023-12-15'),
+      additionalInputs: 'Tax advisory services with GST compliance',
+      documents: [],
+      status: BidStatus.ACCEPTED,
+      isInvited: false,
+      submittedAt: new Date('2023-11-20'),
+      updatedAt: new Date('2023-12-20'),
+      lastEditDate: new Date('2023-11-20')
+    },
+    {
+      id: 'bid-005',
+      bidNumber: 'BID2024005',
+      serviceRequestId: 'sr-005',
+      providerId: 'provider-001',
+      providerName: 'Current Provider',
+      financials: {
+        professionalFee: 65000,
+        platformFee: 6500,
+        gst: 12870,
+        reimbursements: 3000,
+        regulatoryPayouts: 2000,
+        ope: 2500,
+        totalAmount: 91870,
+        paymentStructure: PaymentStructure.MILESTONE_BASED
+      },
+      deliveryDate: new Date('2024-01-10'),
+      additionalInputs: 'Complete statutory audit with compliance reporting',
+      documents: [],
+      status: BidStatus.ACCEPTED,
+      isInvited: true,
+      submittedAt: new Date('2023-11-15'),
+      updatedAt: new Date('2024-01-15'),
+      lastEditDate: new Date('2023-11-15')
+    },
+    {
+      id: 'bid-006',
+      bidNumber: 'BID2024006',
+      serviceRequestId: 'sr-006',
+      providerId: 'provider-001',
+      providerName: 'Current Provider',
+      financials: {
+        professionalFee: 28000,
+        platformFee: 2800,
+        gst: 5544,
+        reimbursements: 1500,
+        regulatoryPayouts: 800,
+        ope: 1200,
+        totalAmount: 39844,
+        paymentStructure: PaymentStructure.LUMP_SUM
+      },
+      deliveryDate: new Date('2023-10-25'),
+      additionalInputs: 'Contract drafting and legal advisory services',
+      documents: [],
+      status: BidStatus.ACCEPTED,
+      isInvited: false,
+      submittedAt: new Date('2023-10-05'),
+      updatedAt: new Date('2023-10-30'),
+      lastEditDate: new Date('2023-10-05')
+    },
+    {
+      id: 'bid-007',
+      bidNumber: 'BID2024007',
+      serviceRequestId: 'sr-007',
+      providerId: 'provider-001',
+      providerName: 'Current Provider',
+      financials: {
+        professionalFee: 42000,
+        platformFee: 4200,
+        gst: 8316,
+        reimbursements: 2500,
+        regulatoryPayouts: 1200,
+        ope: 1800,
+        totalAmount: 60016,
+        paymentStructure: PaymentStructure.MILESTONE_BASED
+      },
+      deliveryDate: new Date('2023-09-20'),
+      additionalInputs: 'Company secretary services with ROC compliance',
+      documents: [],
+      status: BidStatus.ACCEPTED,
+      isInvited: true,
+      submittedAt: new Date('2023-08-25'),
+      updatedAt: new Date('2023-09-25'),
+      lastEditDate: new Date('2023-08-25')
+    },
+    {
+      id: 'bid-008',
+      bidNumber: 'BID2024008',
+      serviceRequestId: 'sr-008',
+      providerId: 'provider-001',
+      providerName: 'Current Provider',
+      financials: {
+        professionalFee: 18000,
+        platformFee: 1800,
+        gst: 3564,
+        reimbursements: 800,
+        regulatoryPayouts: 400,
+        ope: 600,
+        totalAmount: 25164,
+        paymentStructure: PaymentStructure.LUMP_SUM
+      },
+      deliveryDate: new Date('2023-08-15'),
+      additionalInputs: 'Legal notice drafting for recovery matters',
+      documents: [],
+      status: BidStatus.ACCEPTED,
+      isInvited: false,
+      submittedAt: new Date('2023-07-20'),
+      updatedAt: new Date('2023-08-20'),
+      lastEditDate: new Date('2023-07-20')
     }
   ], []);
 
@@ -221,6 +361,64 @@ const BidManagement = () => {
     }
   };
 
+  const handleNegotiate = async () => {
+    if (!selectedBid || !negotiateMessage.trim()) return;
+    
+    try {
+      // TODO: Integrate with real API
+      // await serviceRequestService.submitNegotiation(selectedBid.id, {
+      //   type: negotiateType,
+      //   message: negotiateMessage
+      // });
+      
+      toast({
+        title: "Negotiation Submitted",
+        description: `Your ${negotiateType} negotiation has been sent to the client.`,
+      });
+      
+      setShowNegotiateDialog(false);
+      setNegotiateMessage('');
+      setSelectedBid(null);
+      
+      // Refresh bids to show updated status
+      fetchBids();
+    } catch (error) {
+      toast({
+        title: "Failed to Submit",
+        description: "Failed to submit negotiation. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleQuery = async () => {
+    if (!selectedBid || !queryMessage.trim()) return;
+    
+    try {
+      // TODO: Integrate with real API
+      // await serviceRequestService.submitQuery(selectedBid.serviceRequestId, {
+      //   bidId: selectedBid.id,
+      //   type: queryType,
+      //   message: queryMessage
+      // });
+      
+      toast({
+        title: "Query Submitted",
+        description: `Your ${queryType} query has been sent to the client.`,
+      });
+      
+      setShowQueryDialog(false);
+      setQueryMessage('');
+      setSelectedBid(null);
+    } catch (error) {
+      toast({
+        title: "Failed to Submit",
+        description: "Failed to submit query. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const renderTableContent = () => {
     if (loading) {
       return (
@@ -307,8 +505,37 @@ const BidManagement = () => {
                     </Button>
                   </Link>
                 )}
+                {/* Negotiate button for submitted/under review bids */}
+                {[BidStatus.SUBMITTED, BidStatus.UNDER_REVIEW].includes(bid.status) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedBid(bid);
+                      setShowNegotiateDialog(true);
+                    }}
+                    title="Negotiate Terms"
+                  >
+                    <Handshake className="h-3 w-3" />
+                  </Button>
+                )}
+                {/* Query button for all active bids */}
+                {[BidStatus.SUBMITTED, BidStatus.UNDER_REVIEW, BidStatus.UNDER_NEGOTIATION].includes(bid.status) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setSelectedBid(bid);
+                      setShowQueryDialog(true);
+                    }}
+                    title="Ask Question"
+                  >
+                    <HelpCircle className="h-3 w-3" />
+                  </Button>
+                )}
+                {/* Chat button for negotiation status */}
                 {bid.status === BidStatus.UNDER_NEGOTIATION && (
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" title="Open Chat">
                     <MessageSquare className="h-3 w-3" />
                   </Button>
                 )}
@@ -557,6 +784,96 @@ const BidManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Negotiate Dialog */}
+    <Dialog open={showNegotiateDialog} onOpenChange={setShowNegotiateDialog}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Negotiate Bid Terms</DialogTitle>
+          <DialogDescription>
+            Propose changes to your bid for {selectedBid?.bidNumber}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="negotiateType">Negotiation Type</Label>
+            <Select value={negotiateType} onValueChange={(value: 'price' | 'timeline' | 'scope' | 'terms') => setNegotiateType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="price">Price Adjustment</SelectItem>
+                <SelectItem value="timeline">Timeline Extension</SelectItem>
+                <SelectItem value="scope">Scope Modification</SelectItem>
+                <SelectItem value="terms">Terms & Conditions</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="negotiateMessage">Negotiation Details</Label>
+            <Textarea 
+              id="negotiateMessage"
+              value={negotiateMessage}
+              onChange={(e) => setNegotiateMessage(e.target.value)}
+              placeholder="Explain your proposed changes and reasoning..."
+              rows={5}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowNegotiateDialog(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleNegotiate} disabled={!negotiateMessage.trim()}>
+            Submit Negotiation
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Query Dialog */}
+    <Dialog open={showQueryDialog} onOpenChange={setShowQueryDialog}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Ask Question</DialogTitle>
+          <DialogDescription>
+            Send a query about service request for {selectedBid?.bidNumber}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="queryType">Query Type</Label>
+            <Select value={queryType} onValueChange={(value: 'public' | 'private') => setQueryType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="private">Private (Only to Client)</SelectItem>
+                <SelectItem value="public">Public (Visible to All Bidders)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="queryMessage">Your Question</Label>
+            <Textarea 
+              id="queryMessage"
+              value={queryMessage}
+              onChange={(e) => setQueryMessage(e.target.value)}
+              placeholder="Ask your question about the service request..."
+              rows={4}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowQueryDialog(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleQuery} disabled={!queryMessage.trim()}>
+            Send Query
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };

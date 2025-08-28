@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,9 +28,10 @@ import {
   User,
   AlertCircle
 } from 'lucide-react';
-import { PersonType, IdentityDocumentType, AccountType } from '@/types/profile';
+import { AccountType, ServiceSeekerEntityProfile } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/types/auth';
 import { ProfileStepNavigation } from '../utils/profileStepNavigation';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -49,10 +50,11 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
   const [loading, setLoading] = useState(false);
   const [documentVerifying, setDocumentVerifying] = useState(false);
   const [documentVerified, setDocumentVerified] = useState(false);
-  const [sameBillingAddress, setSameBillingAddress] = useState(true);
+  const [sameBillingAddress, setSameBillingAddress] = useState(false);
   const [formData, setFormData] = useState({
     // Basic entity info
     personType: '',
+    otherPersonType: '',
     name: user?.name || '',
     clientLogo: null as File | null,
     email: user?.email || '',
@@ -62,6 +64,7 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
     identityDocument: {
       type: '',
       number: '',
+      otherDetails: '',
       uploadedFile: null as File | null
     },
     
@@ -116,6 +119,25 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
     }
   });
 
+  // Load any saved profile to sync initial form state (ensures seeded 22% shows up)
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) return;
+      const saved = await ProfileService.getProfile(user.id);
+      if (saved) {
+        const p = saved as ServiceSeekerEntityProfile;
+        setFormData(prev => ({
+          ...prev,
+          name: p.name || prev.name,
+          email: p.email || prev.email,
+          contactNumber: p.contactNumber || prev.contactNumber,
+          // Keep the rest as-is to avoid accidentally marking other sections complete
+        }));
+      }
+    };
+    load();
+  }, [user]);
+
   const tabs = [
     { id: 'basic', title: 'Basic Info', icon: Building, required: true },
     { id: 'identity', title: 'Identity Documents', icon: FileText, required: true },
@@ -127,17 +149,28 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
   ];
 
   const calculateCompletion = () => {
-    const mandatoryFields = [
-      formData.name, formData.email, formData.contactNumber,
-      formData.address.street, formData.address.city, formData.address.pinCode,
-      formData.identityDocument.type, formData.identityDocument.number,
-      formData.authorizedRepresentative.name, formData.authorizedRepresentative.designation,
-      formData.authorizedRepresentative.email, formData.authorizedRepresentative.contactNumber,
-      formData.bankingDetails[0].beneficiaryName, formData.bankingDetails[0].accountNumber,
-      formData.bankingDetails[0].ifscCode
-    ];
-    const completed = mandatoryFields.filter(field => field && field.toString().trim() !== '').length;
-    return Math.round((completed / mandatoryFields.length) * 100);
+    // Convert formData to profile format for ProfileService
+    const profileData = {
+      userId: "current-user",
+      name: formData.name,
+      email: formData.email,
+      contactNumber: formData.contactNumber,
+      address: formData.address,
+      identityDocument: formData.identityDocument,
+      authorizedRepresentative: formData.authorizedRepresentative,
+      resourceInfra: formData.resourceInfra,
+      bankingDetails: formData.bankingDetails,
+      personType: formData.personType,
+      otherPersonType: formData.otherPersonType
+    };
+
+    // Use ProfileService to calculate completion
+    const completionStatus = ProfileService.calculateCompletionStatus(
+      profileData as any, 
+      UserRole.SERVICE_SEEKER_ENTITY_ADMIN
+    );
+    
+    return completionStatus.overallPercentage;
   };
 
   const handleInputChange = (field: string, value: string | number | boolean | File | null) => {
@@ -211,6 +244,18 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
       toast.error('Failed to save progress. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSkipCurrentTab = () => {
+    // Skip current tab and move to next one
+    const currentIndex = tabs.findIndex(tab => tab.id === currentTab);
+    if (currentIndex < tabs.length - 1) {
+      setCurrentTab(tabs[currentIndex + 1].id);
+      toast.info('Section skipped');
+    } else {
+      // If on last tab, complete the profile
+      onSkip();
     }
   };
 
@@ -311,23 +356,56 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Person Type *</Label>
-                <Select value={formData.personType} onValueChange={(value) => handleInputChange('personType', value)}>
+  <div className="space-y-2">
+    <Label>Person Type *</Label>
+    <Select value={formData.personType} onValueChange={(value) => handleInputChange('personType', value)}>
                   <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={PersonType.PUBLIC_LIMITED}>Public Limited</SelectItem>
-                    <SelectItem value={PersonType.PRIVATE_LIMITED}>Private Limited</SelectItem>
-                    <SelectItem value={PersonType.LIMITED_LIABILITY_PARTNERSHIP}>LLP</SelectItem>
-                    <SelectItem value={PersonType.REGISTERED_PARTNERSHIP}>Partnership</SelectItem>
+                    <SelectItem value="Private Limited Company">Private Limited Company</SelectItem>
+                    <SelectItem value="Public Limited Company">Public Limited Company</SelectItem>
+                    <SelectItem value="One Person Company (OPC)">One Person Company (OPC)</SelectItem>
+                    <SelectItem value="Limited Liability Partnership (LLP)">Limited Liability Partnership (LLP)</SelectItem>
+                    <SelectItem value="Registered Partnership Firm">Registered Partnership Firm</SelectItem>
+                    <SelectItem value="Trust">Trust</SelectItem>
+                    <SelectItem value="Society">Society</SelectItem>
+                    <SelectItem value="Government Body / PSU">Government Body / PSU</SelectItem>
+                    <SelectItem value="Non-Governmental Organisation (NGO)">Non-Governmental Organisation (NGO)</SelectItem>
+                    <SelectItem value="Other">Any other (please mention)</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Entity Name *</Label>
-                <Input value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Enter entity name" required />
-              </div>
             </div>
+            <div className="space-y-2">
+              {formData.personType === 'Other' ? (
+                <>
+                  <Label>Please mention *</Label>
+                  <Input 
+                    value={formData.otherPersonType} 
+                    onChange={(e) => handleInputChange('otherPersonType', e.target.value)} 
+                    placeholder="Specify person type" 
+                    required 
+                  />
+                </>
+              ) : (
+      <>
+        <Label>Entity Name *</Label>
+        <Input 
+          value={formData.name} 
+          onChange={(e) => handleInputChange('name', e.target.value)} 
+          placeholder="Enter entity name" 
+          required 
+        />
+      </>
+    )}
+  </div>
+</div>
+            {formData.personType === 'Other' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Entity Name *</Label>
+                  <Input value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Enter entity name" required />
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Email *</Label>
@@ -355,11 +433,31 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
                 <Select value={formData.identityDocument.type} onValueChange={(value) => handleInputChange('identityDocument.type', value)}>
                   <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={IdentityDocumentType.PAN}>PAN</SelectItem>
-                    <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar</SelectItem>
-                    <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
+                    <SelectItem value="Certificate of Incorporation (COI)">Certificate of Incorporation (COI)</SelectItem>
+                    <SelectItem value="PAN Card">PAN Card</SelectItem>
+                    <SelectItem value="GST Registration Certificate">GST Registration Certificate</SelectItem>
+                    <SelectItem value="LLP Incorporation Certificate">LLP Incorporation Certificate</SelectItem>
+                    <SelectItem value="Registered Partnership Deed">Registered Partnership Deed</SelectItem>
+                    <SelectItem value="Society/Trust Registration Certificate">Society/Trust Registration Certificate</SelectItem>
+                    <SelectItem value="Import Export Code (IEC)">Import Export Code (IEC), if applicable</SelectItem>
+                    <SelectItem value="Professional Tax Registration Certificate">Professional Tax Registration Certificate</SelectItem>
+                    <SelectItem value="Trade License">Trade License</SelectItem>
+                    <SelectItem value="Voter ID">Voter ID</SelectItem>
+                    <SelectItem value="Driving Licence">Driving Licence</SelectItem>
+                    <SelectItem value="Any other government-issued registration/license">Any other government-issued registration/license</SelectItem>
                   </SelectContent>
                 </Select>
+                {formData.identityDocument.type === 'Any other government-issued registration/license' && (
+                  <div className="space-y-2">
+                    <Label>Please specify *</Label>
+                    <Input
+                      value={formData.identityDocument.otherDetails}
+                      onChange={(e) => handleInputChange('identityDocument.otherDetails', e.target.value)}
+                      placeholder="Mention registration/license details"
+                      required
+                    />
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>ID Number *</Label>
@@ -543,9 +641,11 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
                 <Select value={formData.authorizedRepresentative.identityDocument.type} onValueChange={(value) => handleInputChange('authorizedRepresentative.identityDocument.type', value)}>
                   <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={IdentityDocumentType.PAN}>PAN</SelectItem>
-                    <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar</SelectItem>
-                    <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
+                    <SelectItem value="PAN">PAN</SelectItem>
+                    <SelectItem value="Aadhar">Aadhar</SelectItem>
+                    <SelectItem value="Passport">Passport</SelectItem>
+                    <SelectItem value="Voter ID">Voter ID</SelectItem>
+                    <SelectItem value="Driving Licence">Driving Licence</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -629,7 +729,7 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
   const completion = calculateCompletion();
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -646,7 +746,7 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
         </div>
         
         {completion < 100 && (
-          <Alert className="mb-4">
+          <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Complete all mandatory sections to get your permanent registration number. Missing: name, mobile, identity document number, and {13 - Math.floor((completion / 100) * 13)} more.
@@ -655,19 +755,22 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
         )}
       </div>
 
-      <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="identity">Identity</TabsTrigger>
-          <TabsTrigger value="address">Address</TabsTrigger>
-          <TabsTrigger value="tax">Tax Details</TabsTrigger>
-          <TabsTrigger value="banking">Banking</TabsTrigger>
-          <TabsTrigger value="ar">AR Details</TabsTrigger>
-          <TabsTrigger value="resources">Resources</TabsTrigger>
+      <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-8">
+        <TabsList className="h-auto grid w-full grid-cols-7 gap-2 rounded-2xl border bg-background/60 p-1.5 shadow-sm overflow-hidden backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          {tabs.map(({ id, title, icon: Icon }) => (
+            <TabsTrigger
+              key={id}
+              value={id}
+              className="flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors hover:bg-muted data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm"
+            >
+              <Icon className="h-4 w-4" />
+              <span>{title}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* Basic Information Tab */}
-        <TabsContent value="basic" className="space-y-6">
+        <TabsContent value="basic" className="mt-4 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -679,73 +782,94 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="personType">Person Type *</Label>
-                <Select value={formData.personType} onValueChange={(value) => handleInputChange('personType', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select person type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={PersonType.PUBLIC_LIMITED}>Public Limited</SelectItem>
-                    <SelectItem value={PersonType.PRIVATE_LIMITED}>Private Limited</SelectItem>
-                    <SelectItem value={PersonType.LIMITED_LIABILITY_PARTNERSHIP}>Limited Liability Partnership</SelectItem>
-                    <SelectItem value={PersonType.REGISTERED_PARTNERSHIP}>Registered Partnership</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="personType">Person Type *</Label>
+            <Select value={formData.personType} onValueChange={(value) => handleInputChange('personType', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select person type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Private Limited Company">Private Limited Company</SelectItem>
+                <SelectItem value="Public Limited Company">Public Limited Company</SelectItem>
+                <SelectItem value="One Person Company (OPC)">One Person Company (OPC)</SelectItem>
+                <SelectItem value="Limited Liability Partnership (LLP)">Limited Liability Partnership (LLP)</SelectItem>
+                <SelectItem value="Registered Partnership Firm">Registered Partnership Firm</SelectItem>
+                <SelectItem value="Trust">Trust</SelectItem>
+                <SelectItem value="Society">Society</SelectItem>
+                <SelectItem value="Government Body / PSU">Government Body / PSU</SelectItem>
+                <SelectItem value="Non-Governmental Organisation (NGO)">Non-Governmental Organisation (NGO)</SelectItem>
+                <SelectItem value="Other">Any other (please mention)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {formData.personType === 'Other' && (
+            <div>
+              <Label htmlFor="otherPersonType">Please mention *</Label>
+              <Input
+                id="otherPersonType"
+                value={formData.otherPersonType}
+                onChange={(e) => handleInputChange('otherPersonType', e.target.value)}
+                placeholder="Specify person type"
+                required
+              />
+            </div>
+          )}
+        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="clientName">Name of the Client *</Label>
-                  <Input
-                    id="clientName"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Enter client name"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="Enter email address"
-                    required
-                  />
-                </div>
-              </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <Label htmlFor="clientName">Name of the Team Member *</Label>
+      <Input
+        id="clientName"
+        value={formData.name}
+        onChange={(e) => handleInputChange('name', e.target.value)}
+        placeholder="Enter team member name"
+        required
+      />
+    </div>
+    
+    <div>
+      <Label htmlFor="email">Email *</Label>
+      <Input
+        id="email"
+        type="email"
+        value={formData.email}
+        onChange={(e) => handleInputChange('email', e.target.value)}
+        placeholder="Enter email address"
+        required
+      />
+    </div>
+  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contactNumber">Contact Number *</Label>
-                  <Input
-                    id="contactNumber"
-                    value={formData.contactNumber}
-                    onChange={(e) => handleInputChange('contactNumber', e.target.value)}
-                    placeholder="Enter contact number"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="clientLogo">Client Logo</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="clientLogo"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => e.target.files?.[0] && handleFileUpload('clientLogo', e.target.files[0])}
-                      className="flex-1"
-                    />
-                    <Upload className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <Label htmlFor="contactNumber">Contact Number *</Label>
+      <Input
+        id="contactNumber"
+        value={formData.contactNumber}
+        onChange={(e) => handleInputChange('contactNumber', e.target.value)}
+        placeholder="Enter contact number"
+        required
+      />
+    </div>
+    
+    <div>
+      <Label htmlFor="clientLogo">Client Logo</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          id="clientLogo"
+          type="file"
+          accept="image/*"
+          onChange={(e) => e.target.files?.[0] && handleFileUpload('clientLogo', e.target.files[0])}
+          className="flex-1"
+        />
+        <Upload className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </div>
+  </div>
+</CardContent>
           </Card>
         </TabsContent>
 
@@ -774,13 +898,32 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
                       <SelectValue placeholder="Select document type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={IdentityDocumentType.PAN}>PAN Card</SelectItem>
-                      <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar Card</SelectItem>
-                      <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
-                      <SelectItem value={IdentityDocumentType.VOTER_ID}>Voter ID</SelectItem>
-                      <SelectItem value={IdentityDocumentType.DRIVING_LICENSE}>Driving License</SelectItem>
+                      <SelectItem value="Certificate of Incorporation (COI)">Certificate of Incorporation (COI)</SelectItem>
+                      <SelectItem value="PAN Card">PAN Card</SelectItem>
+                      <SelectItem value="GST Registration Certificate">GST Registration Certificate</SelectItem>
+                      <SelectItem value="LLP Incorporation Certificate">LLP Incorporation Certificate</SelectItem>
+                      <SelectItem value="Registered Partnership Deed">Registered Partnership Deed</SelectItem>
+                      <SelectItem value="Society/Trust Registration Certificate">Society/Trust Registration Certificate</SelectItem>
+                      <SelectItem value="Import Export Code (IEC)">Import Export Code (IEC), if applicable</SelectItem>
+                      <SelectItem value="Professional Tax Registration Certificate">Professional Tax Registration Certificate</SelectItem>
+                      <SelectItem value="Trade License">Trade License</SelectItem>
+                      <SelectItem value="Voter ID">Voter ID</SelectItem>
+                      <SelectItem value="Driving Licence">Driving Licence</SelectItem>
+                      <SelectItem value="Any other government-issued registration/license">Any other government-issued registration/license</SelectItem>
                     </SelectContent>
                   </Select>
+                  {formData.identityDocument.type === 'Any other government-issued registration/license' && (
+                    <div className="mt-2">
+                      <Label htmlFor="otherIdDetails">Please specify *</Label>
+                      <Input
+                        id="otherIdDetails"
+                        value={formData.identityDocument.otherDetails}
+                        onChange={(e) => handleInputChange('identityDocument.otherDetails', e.target.value)}
+                        placeholder="Mention registration/license details"
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1221,9 +1364,11 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
                       <SelectValue placeholder="Select ID type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={IdentityDocumentType.PAN}>PAN</SelectItem>
-                      <SelectItem value={IdentityDocumentType.AADHAR}>Aadhar</SelectItem>
-                      <SelectItem value={IdentityDocumentType.PASSPORT}>Passport</SelectItem>
+                      <SelectItem value="PAN">PAN</SelectItem>
+                      <SelectItem value="Aadhar">Aadhar</SelectItem>
+                      <SelectItem value="Passport">Passport</SelectItem>
+                    <SelectItem value="Voter ID">Voter ID</SelectItem>
+                    <SelectItem value="Driving Licence">Driving Licence</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1355,7 +1500,7 @@ export const ServiceSeekerEntityAdminForm: React.FC<ServiceSeekerEntityAdminForm
         </div>
         
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={onSkip} className="min-w-[120px]">
+          <Button variant="outline" onClick={handleSkipCurrentTab} className="min-w-[120px]" disabled={loading}>
             Skip for Now
           </Button>
           

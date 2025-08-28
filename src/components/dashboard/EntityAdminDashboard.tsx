@@ -129,9 +129,11 @@ export const EntityAdminDashboard = ({ userRole }: EntityAdminDashboardProps) =>
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
-            <Calendar className="h-4 w-4 mr-2" />
-            This Month
+          <Button variant="outline" asChild>
+            <Link to="/reports?period=month">
+              <Calendar className="h-4 w-4 mr-2" />
+              This Month
+            </Link>
           </Button>
           <Button asChild>
             <Link to="/team/invite">
@@ -261,12 +263,12 @@ export const EntityAdminDashboard = ({ userRole }: EntityAdminDashboardProps) =>
                       Invite Team Member
                     </Link>
                   </Button>
-                  <Button className="w-full justify-start" variant="outline" asChild>
+                  {/* <Button className="w-full justify-start" variant="outline" asChild>
                     <Link to={isServiceSeeker ? "/service-requests/create" : "/work-orders/create"}>
                       <Plus className="h-4 w-4 mr-2" />
                       {isServiceSeeker ? "New Service Request" : "New Work Order"}
                     </Link>
-                  </Button>
+                  </Button> */}
                   <Button className="w-full justify-start" variant="outline" asChild>
                     <Link to="/entity-management">
                       <Building className="h-4 w-4 mr-2" />

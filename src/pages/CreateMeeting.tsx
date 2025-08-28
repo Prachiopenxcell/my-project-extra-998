@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +14,14 @@ import { cn } from "@/lib/utils";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReminderDialog } from "@/components/notifications/ReminderDialog";
+import { useRecurringReminder } from "@/hooks/useRecurringReminder";
+import { useSubscription } from "@/contexts/SubscriptionContext";
 
 // Step components
 const EntityAndMeetingDetails = ({ formData, setFormData, nextStep, saveAsDraft }) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -55,7 +59,7 @@ const EntityAndMeetingDetails = ({ formData, setFormData, nextStep, saveAsDraft 
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline">+ Create New Entity</Button>
+            <Button onClick={() => navigate('/create-entity')} variant="outline">+ Create New Entity</Button>
           </div>
           
           <div>
@@ -454,10 +458,213 @@ const OfficeBearers = ({ formData, setFormData, prevStep, nextStep, saveAsDraft 
   const [chairpersonSelection, setChairpersonSelection] = useState(formData.chairpersonSelection || 'select');
   const [secretarySelection, setSecretarySelection] = useState(formData.secretarySelection || 'select');
   const [scrutinizerSelection, setScrutinizerSelection] = useState(formData.scrutinizerSelection || 'select');
-  const [enableVoting, setEnableVoting] = useState(formData.enableVoting || false);
+  // Signature of Notice (moved from Review step)
+  const [signatureMethod, setSignatureMethod] = useState(formData.signatureMethod || 'physical');
+  const [additionalSignatories, setAdditionalSignatories] = useState(formData.additionalSignatories || []);
+  const [generateAINotice, setGenerateAINotice] = useState(formData.generateAINotice || false);
+  const [isEditingNotice, setIsEditingNotice] = useState(false);
+  
+  // Get template data for visual design
+  const getTemplateData = () => {
+    const meetingDate = formData.meetingDate ? format(new Date(formData.meetingDate), 'PPP') : '___day, the__ August 2025';
+    const meetingTime = formData.meetingTime || '12:45 PM';
+    const entityName = formData.entityName || 'THE ABC PRIVATE LIMITED';
+    const venue = formData.venue || '_________ Rajasthan - 313001';
+    
+    return {
+      noticeNumber: 'No. ______________ ________ 2025',
+      entityName,
+      meetingDate,
+      meetingTime,
+      venue,
+      serialNumber: '02/2025-2026',
+      agendaItems: [
+        { id: 1, title: 'To grant Leave of absence.' },
+        { id: 2, title: 'To take note of and sign the Minutes of the preceding Board of Directors Meeting held on 12th April 2025.' },
+        {
+          id: 3,
+          title: 'To consider and approve:',
+          subItems: [
+            'Financial Statements for the year ended 31st March 2025.',
+            'Recommendation of Dividend.',
+            'Recommendation for Regularization of the Additional Director.',
+            'Directors\' Report.'
+          ]
+        },
+        { id: 4, title: 'To fix the date of the ___ Annual General Meeting of the Company and to approve the Notice to the Shareholders for the said Annual General Meeting.' },
+        { id: 5, title: 'Any other matter with the permission of the Chair.' }
+      ],
+      agendaNotes: [
+        { items: '1 & 2', note: 'Self Explanatory.' },
+        {
+          items: '3',
+          note: '(a) Consideration and approval by Board of Directors of the audited consolidated/standalone financial Statements of the company for the year ended 31st March 2025.\n\n(b) Self Explanatory.\n\n(c) The tenure of Shri Ram as an Additional Director will conclude at the forthcoming Annual General Meeting of the Company. The Board of Directors may propose his appointment as a Director, liable to retire by rotation, for the approval of the Shareholders. Shri Ram is deemed to be interested in this agenda item to the extent of his own appointment.\n\n(d) Self Explanatory.'
+        },
+        { items: '4, 5 & 6', note: 'Self Explanatory.' }
+      ]
+    };
+  };
+  
+  const [templateData, setTemplateData] = useState(getTemplateData());
+  const [editableFields, setEditableFields] = useState({
+    noticeNumber: templateData.noticeNumber,
+    entityName: templateData.entityName,
+    venue: templateData.venue,
+    agendaItems: templateData.agendaItems,
+    agendaNotes: templateData.agendaNotes
+  });
+  const { hasModuleAccess, loading } = useSubscription();
+  // Dev override: assume subscription exists for E-Voting
+  const DEV_ASSUME_VOTING = true;
+  const hasVotingAccess = DEV_ASSUME_VOTING || hasModuleAccess('e-voting');
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Signatory handlers persisted to formData
+  const addSignatory = () => {
+    const newSignatory = { id: Date.now().toString(), name: '', email: '', role: 'Director' };
+    const next = [...additionalSignatories, newSignatory];
+    setAdditionalSignatories(next);
+    handleInputChange('additionalSignatories', next);
+  };
+
+  const updateSignatory = (id, field, value) => {
+    const next = additionalSignatories.map(sig => sig.id === id ? { ...sig, [field]: value } : sig);
+    setAdditionalSignatories(next);
+    handleInputChange('additionalSignatories', next);
+  };
+
+  const removeSignatory = (id) => {
+    const next = additionalSignatories.filter(sig => sig.id !== id);
+    setAdditionalSignatories(next);
+    handleInputChange('additionalSignatories', next);
+  };
+
+  const downloadNoticeFromOfficeBearers = () => {
+    // Generate comprehensive notice content
+    const noticeContent = `
+NOTICE OF MEETING
+
+${templateData.entityName}
+${templateData.noticeNumber}
+
+Date: ${templateData.meetingDate}
+Time: ${templateData.meetingTime}
+Venue: ${templateData.venue}
+
+AGENDA:
+${templateData.agendaItems.map((item, index) => {
+  if (item.subItems) {
+    return `${index + 1}. ${item.title}\n${item.subItems.map(sub => `   • ${sub}`).join('\n')}`;
+  }
+  return `${index + 1}. ${item.title}`;
+}).join('\n\n')}
+
+EXPLANATORY NOTES:
+${templateData.agendaNotes.map(note => `Items ${note.items}: ${note.note}`).join('\n\n')}
+
+${formData.explanatoryStatement ? `\nEXPLANATORY STATEMENT:\n${formData.explanatoryStatement}` : ''}
+
+OFFICE BEARERS:
+Chairperson: ${formData.chairperson ? 'Selected' : 'To be selected during meeting'}
+Secretary: ${formData.secretary ? 'Selected' : 'To be selected during meeting'}
+${formData.scrutinizer ? 'Scrutinizer: Selected' : ''}
+
+By Order of the Board
+${formData.secretary || 'Company Secretary'}
+    `.trim();
+
+    // Create and download the notice
+    const blob = new Blob([noticeContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Meeting_Notice_${templateData.entityName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Notice Downloaded",
+      description: "Meeting notice has been downloaded successfully.",
+    });
+  };
+  const generateAINoticeContent = () => {
+    // Simulate AI notice generation based on meeting details
+    const aiGeneratedData = {
+      ...templateData,
+      entityName: formData.entity || 'Company',
+      meetingDate: formData.meetingDate ? format(new Date(formData.meetingDate), 'PPP') : '[Date]',
+      meetingTime: formData.meetingTime || '[Time]',
+      agendaItems: formData.agendaItems?.map((item, index) => ({
+        id: index + 1,
+        title: item.title
+      })) || templateData.agendaItems
+    };
+    setTemplateData(aiGeneratedData);
+    setEditableFields({
+      noticeNumber: aiGeneratedData.noticeNumber,
+      entityName: aiGeneratedData.entityName,
+      venue: aiGeneratedData.venue,
+      agendaItems: aiGeneratedData.agendaItems,
+      agendaNotes: aiGeneratedData.agendaNotes
+    });
+    handleInputChange('templateData', aiGeneratedData);
+  };
+
+  const handleEditNotice = () => {
+    setIsEditingNotice(true);
+  };
+
+  const handleSaveNotice = () => {
+    // Update template data with edited fields
+    const updatedData = {
+      ...templateData,
+      noticeNumber: editableFields.noticeNumber,
+      entityName: editableFields.entityName,
+      venue: editableFields.venue,
+      agendaItems: editableFields.agendaItems,
+      agendaNotes: editableFields.agendaNotes
+    };
+    setTemplateData(updatedData);
+    handleInputChange('templateData', updatedData);
+    setIsEditingNotice(false);
+    toast({ title: "Notice content saved successfully" });
+  };
+
+  const handleCancelEdit = () => {
+    // Reset editable fields to original template data
+    setEditableFields({
+      noticeNumber: templateData.noticeNumber,
+      entityName: templateData.entityName,
+      venue: templateData.venue,
+      agendaItems: templateData.agendaItems,
+      agendaNotes: templateData.agendaNotes
+    });
+    setIsEditingNotice(false);
+  };
+
+  // Update template data when form data changes
+  const updateTemplateData = () => {
+    const updatedData = getTemplateData();
+    setTemplateData(updatedData);
+    setEditableFields({
+      noticeNumber: updatedData.noticeNumber,
+      entityName: updatedData.entityName,
+      venue: updatedData.venue,
+      agendaItems: updatedData.agendaItems,
+      agendaNotes: updatedData.agendaNotes
+    });
+    handleInputChange('templateData', updatedData);
+  };
+
+  const handleFieldChange = (field, value) => {
+    setEditableFields(prev => ({ ...prev, [field]: value }));
   };
 
   const participantOptions = formData.participants?.map(p => ({ value: p.id, label: p.name })) || [];
@@ -520,9 +727,560 @@ const OfficeBearers = ({ formData, setFormData, prevStep, nextStep, saveAsDraft 
           </div>
         </CardContent>
       </Card>
+      {/* Secretary Selection */}
+      <Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-medium">Secretary of Meeting</Label>
+              <span className="text-xs text-muted-foreground">Optional</span>
+            </div>
 
-      {/* Secretary and Scrutinizer cards would follow similar pattern */}
+            <RadioGroup value={secretarySelection} onValueChange={(value) => {
+              setSecretarySelection(value);
+              handleInputChange('secretarySelection', value);
+            }}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="select" id="secretary-select" />
+                <Label htmlFor="secretary-select">Select Secretary</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="during-meeting" id="secretary-during" />
+                <Label htmlFor="secretary-during">Select Secretary During Meeting</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="none" id="secretary-none" />
+                <Label htmlFor="secretary-none">No Secretary</Label>
+              </div>
+            </RadioGroup>
+
+            {secretarySelection === 'select' && (
+              <div className="mt-4">
+                <Label htmlFor="secretary">Choose Secretary:</Label>
+                <Select 
+                  value={formData.secretary}
+                  onValueChange={(value) => handleInputChange('secretary', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select secretary (Participants / Team / COC)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                    {/* Mock COC list entries */}
+                    <SelectItem value="coc-1">COC Member 1</SelectItem>
+                    <SelectItem value="coc-2">COC Member 2</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Scrutinizer Selection */}
+      <Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-medium">Scrutinizer of Meeting</Label>
+              <span className="text-xs text-muted-foreground">Optional</span>
+            </div>
+
+            <RadioGroup value={scrutinizerSelection} onValueChange={(value) => {
+              setScrutinizerSelection(value);
+              handleInputChange('scrutinizerSelection', value);
+            }}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="select" id="scrutinizer-select" />
+                <Label htmlFor="scrutinizer-select">Select Scrutinizer</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="during-meeting" id="scrutinizer-during" />
+                <Label htmlFor="scrutinizer-during">Select Scrutinizer During Meeting</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="none" id="scrutinizer-none" />
+                <Label htmlFor="scrutinizer-none">No Scrutinizer</Label>
+              </div>
+            </RadioGroup>
+
+            {scrutinizerSelection === 'select' && (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <Label className="text-sm">Select From</Label>
+                  <Select
+                    value={formData.scrutinizerSource || ''}
+                    onValueChange={(value) => handleInputChange('scrutinizerSource', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="participant">Participants</SelectItem>
+                      <SelectItem value="chairperson">Chairperson</SelectItem>
+                      <SelectItem value="secretary">Secretary</SelectItem>
+                      <SelectItem value="third-party">Third Party</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.scrutinizerSource === 'participant' && (
+                  <div>
+                    <Label htmlFor="scrutinizer">Choose Participant as Scrutinizer:</Label>
+                    <Select 
+                      value={formData.scrutinizer}
+                      onValueChange={(value) => handleInputChange('scrutinizer', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select participant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {participantOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formData.scrutinizerSource === 'chairperson' && (
+                  <div className="text-sm text-muted-foreground">
+                    Scrutinizer will be the selected Chairperson{formData.chairperson ? ` (${formData.chairperson})` : ''}.
+                  </div>
+                )}
+
+                {formData.scrutinizerSource === 'secretary' && (
+                  <div className="text-sm text-muted-foreground">
+                    Scrutinizer will be the selected Secretary{formData.secretary ? ` (${formData.secretary})` : ''}.
+                  </div>
+                )}
+
+                {formData.scrutinizerSource === 'third-party' && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="thirdPartyName">Name</Label>
+                      <Input
+                        id="thirdPartyName"
+                        value={formData.scrutinizerThirdPartyName || ''}
+                        onChange={(e) => handleInputChange('scrutinizerThirdPartyName', e.target.value)}
+                        placeholder="Full name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="thirdPartyContact">Contact No.</Label>
+                      <Input
+                        id="thirdPartyContact"
+                        value={formData.scrutinizerThirdPartyContact || ''}
+                        onChange={(e) => handleInputChange('scrutinizerThirdPartyContact', e.target.value)}
+                        placeholder="Phone number"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="thirdPartyEmail">Email</Label>
+                      <Input
+                        id="thirdPartyEmail"
+                        type="email"
+                        value={formData.scrutinizerThirdPartyEmail || ''}
+                        onChange={(e) => handleInputChange('scrutinizerThirdPartyEmail', e.target.value)}
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      {/* Notice Content */}
+      <Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base font-medium">Notice Content</Label>
+                <p className="text-sm text-muted-foreground mt-1">Pre-built template with meeting details</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button onClick={updateTemplateData} size="sm" variant="outline">
+                  Refresh Template
+                </Button>
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    id="generate-ai-notice" 
+                    checked={generateAINotice}
+                    onChange={(e) => {
+                      setGenerateAINotice(e.target.checked);
+                      handleInputChange('generateAINotice', e.target.checked);
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="generate-ai-notice" className="text-sm">Use AI Generation</Label>
+                </div>
+                {generateAINotice && (
+                  <Button onClick={generateAINoticeContent} size="sm">
+                    🤖 Generate Notice
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            <div className="border rounded-lg">
+              <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span className="text-sm font-medium">Notice Template</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="default" 
+                    onClick={downloadNoticeFromOfficeBearers}
+                    size="sm"
+                    className="h-8 px-3 bg-green-600 hover:bg-green-700"
+                  >
+                    <span className="text-xs">📄 Download Notice</span>
+                  </Button>
+                  {!isEditingNotice ? (
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleEditNotice}
+                      size="sm"
+                      className="h-8 px-3"
+                    >
+                      <span className="text-xs">Edit</span>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        onClick={handleCancelEdit}
+                        size="sm"
+                        className="h-8 px-3 text-muted-foreground"
+                      >
+                        <span className="text-xs">Cancel</span>
+                      </Button>
+                      <Button 
+                        onClick={handleSaveNotice}
+                        size="sm"
+                        className="h-8 px-3 bg-primary text-primary-foreground"
+                      >
+                        <span className="text-xs">Save</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {!isEditingNotice ? (
+                <div className="p-6 bg-white max-h-96 overflow-y-auto">
+                  {/* Notice Header */}
+                  <div className="text-center mb-6">
+                    <div className="text-sm text-gray-600 mb-4">{templateData.noticeNumber}</div>
+                    <div className="bg-blue-900 text-white py-3 px-6 font-bold text-lg tracking-wide">
+                      NOTICE OF MEETING OF BOARD OF DIRECTORS
+                    </div>
+                  </div>
+
+                  {/* Main Notice Content */}
+                  <div className="space-y-4 text-sm leading-relaxed">
+                    <p>
+                      Notice is hereby given that a Meeting of the Board of Directors
+                      (Serial No. {templateData.serialNumber}) of <strong>{templateData.entityName}</strong> will be held at
+                      <strong> {templateData.meetingTime}</strong> on <strong>{templateData.meetingDate}</strong> at registered office of the
+                      Company at <strong>{templateData.venue}</strong> to transact following business:
+                    </p>
+
+                    {/* Agenda Section */}
+                    <div className="mt-6">
+                      <div className="bg-gray-100 border-2 border-gray-300 py-2 px-4 text-center font-semibold mb-4">
+                        AGENDA
+                      </div>
+                      <div className="space-y-3">
+                        {templateData.agendaItems.map((item) => (
+                          <div key={item.id} className="flex">
+                            <span className="font-medium mr-2">{item.id}.</span>
+                            <div className="flex-1">
+                              <span>{item.title}</span>
+                              {item.subItems && (
+                                <div className="mt-2 ml-4 border border-gray-300 p-3 bg-gray-50">
+                                  {item.subItems.map((subItem, index) => (
+                                    <div key={index} className="mb-1">
+                                      <span className="font-medium">{String.fromCharCode(97 + index)})</span> {subItem}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Special Note */}
+                    <div className="mt-6">
+                      <div className="bg-gray-100 border-2 border-gray-300 py-2 px-4 text-center font-semibold mb-3">
+                        SPECIAL NOTE
+                      </div>
+                      <p className="mb-3">
+                        Directors have an option to attend the meeting through Video Conferencing,
+                        details of which shall be provided in due course.
+                      </p>
+                      <p>
+                        You are requested to make it convenient to attend the Meeting of the
+                        Board of Directors.
+                      </p>
+                    </div>
+
+                    {/* Signature Section */}
+                    <div className="mt-6">
+                      <div className="bg-gray-100 border-2 border-gray-300 py-2 px-4 text-center font-semibold mb-4">
+                        SIGNATURE
+                      </div>
+                      <div className="mb-4">
+                        <p>Company Secretary</p>
+                        <p>M. No.______________________</p>
+                      </div>
+                      <p className="text-sm">Enclosed: Notes on Agenda.</p>
+                    </div>
+
+                    {/* Agenda Notes Section */}
+                    <div className="mt-8 border-t-2 pt-6">
+                      <div className="text-center mb-4">
+                        <div className="text-sm text-gray-600 mb-2">31 July 2025</div>
+                        <div className="bg-blue-900 text-white py-3 px-6 font-bold text-lg tracking-wide">
+                          NOTES ON AGENDA OF NOTICE OF BOARD MEETING
+                        </div>
+                        <div className="bg-blue-900 text-white py-1 px-6 text-sm">
+                          (Serial No.{templateData.serialNumber})
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-100 border-2 border-gray-300 py-2 px-4 text-center font-semibold mb-4">
+                        AGENDA NOTES
+                      </div>
+
+                      {templateData.agendaNotes.map((note, index) => (
+                        <div key={index} className="mb-4">
+                          <div className="font-medium mb-2">Agenda No. {note.items}</div>
+                          <div className="border border-gray-300 p-3 bg-gray-50 whitespace-pre-line">
+                            {note.note}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="mt-6">
+                        <div className="bg-gray-100 border-2 border-gray-300 py-2 px-4 text-center font-semibold mb-4">
+                          SIGNATURE
+                        </div>
+                        <div>
+                          <p>Company Secretary</p>
+                          <p>M. No.______________________</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 bg-white max-h-96 overflow-y-auto space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Notice Number</Label>
+                      <Input
+                        value={editableFields.noticeNumber}
+                        onChange={(e) => handleFieldChange('noticeNumber', e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Entity Name</Label>
+                      <Input
+                        value={editableFields.entityName}
+                        onChange={(e) => handleFieldChange('entityName', e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Venue</Label>
+                      <Input
+                        value={editableFields.venue}
+                        onChange={(e) => handleFieldChange('venue', e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Signature of Notice (moved up from Review step) */}
+      <Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <Label className="text-base font-medium">Signature of Notice</Label>
+            <p className="text-sm text-muted-foreground">Configure how the notice will be signed</p>
+
+            <RadioGroup value={signatureMethod} onValueChange={(v) => { setSignatureMethod(v); handleInputChange('signatureMethod', v); }}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="physical" id="ob-physical-signature" />
+                <Label htmlFor="ob-physical-signature">Physical Signature (Download, Sign & Upload)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="digital" id="ob-digital-signature" />
+                <Label htmlFor="ob-digital-signature">Digital/E-sign (Third-party system)</Label>
+              </div>
+            </RadioGroup>
+
+            {signatureMethod === 'physical' && (
+              <div className="mt-3 p-3 border rounded-lg bg-gray-50">
+                <Label className="text-sm font-medium">Upload Signed Notice</Label>
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    id="physical-signature-upload"
+                    type="file"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleInputChange('physicalSignatureFile', file);
+                        handleInputChange('physicalSignatureFileName', file.name);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('physical-signature-upload')?.click()}
+                  >
+                    Upload File
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {formData.physicalSignatureFileName || 'No file selected'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <Label className="text-base font-medium">Additional Signatories</Label>
+                <Button onClick={addSignatory} size="sm">+ Add Signatory</Button>
+              </div>
+
+              {additionalSignatories.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No additional signatories added</p>
+              ) : (
+                <div className="space-y-3">
+                  {additionalSignatories.map((signatory) => (
+                    <div key={signatory.id} className="p-3 border rounded-lg bg-gray-50">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Input 
+                          placeholder="Name"
+                          value={signatory.name}
+                          onChange={(e) => updateSignatory(signatory.id, 'name', e.target.value)}
+                        />
+                        <Input 
+                          placeholder="Email"
+                          type="email"
+                          value={signatory.email}
+                          onChange={(e) => updateSignatory(signatory.id, 'email', e.target.value)}
+                        />
+                        <div className="flex space-x-2">
+                          <Select 
+                            value={signatory.role}
+                            onValueChange={(value) => updateSignatory(signatory.id, 'role', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Director">Director</SelectItem>
+                              <SelectItem value="Secretary">Secretary</SelectItem>
+                              <SelectItem value="Chairperson">Chairperson</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => removeSignatory(signatory.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        {signatory.role === "Other" && (
+                          <div className="mt-2">
+                            <Input 
+                              placeholder="Specify role"
+                              value={signatory.customRole || ''}
+                              onChange={(e) => updateSignatory(signatory.id, 'customRole', e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+     
       
+      {/* Enable E-Voting */}
+      <Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <Label className="text-base font-medium">Enable E-Voting</Label>
+              <p className="text-sm text-muted-foreground mt-1">Allow participants to vote electronically for this meeting</p>
+              {!loading && !hasVotingAccess && (
+                <p className="text-xs text-red-600 mt-2">Requires E-Voting subscription. Visit Subscription to enable.</p>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="enable-voting"
+                checked={!!formData.enableVoting}
+                disabled={!hasVotingAccess}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  handleInputChange('enableVoting', checked);
+                  if (checked) {
+                    if (hasVotingAccess) {
+                      navigate('/voting/create');
+                    } else {
+                      toast({
+                        title: 'E-Voting not available',
+                        description: 'Your subscription does not include E-Voting. Please upgrade to use this feature.',
+                        variant: 'destructive'
+                      });
+                    }
+                  }
+                }}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="enable-voting">Enable EVoting</Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end space-x-4 pt-4">
         <Button variant="outline" onClick={prevStep}>← Back</Button>
         <Button variant="outline" onClick={saveAsDraft}>
@@ -537,9 +1295,12 @@ const OfficeBearers = ({ formData, setFormData, prevStep, nextStep, saveAsDraft 
 
 const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
   const [agendaItems, setAgendaItems] = useState(formData.agendaItems || []);
+  const [additionalDocs, setAdditionalDocs] = useState(formData.additionalDocuments || []);
   const [description, setDescription] = useState(formData.meetingDescription || '');
   const [useAI, setUseAI] = useState(formData.useAIAgenda || false);
   const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [explanatoryStatement, setExplanatoryStatement] = useState(formData.explanatoryStatement || '');
+  const [aiExplanatoryStatements, setAiExplanatoryStatements] = useState([]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -593,6 +1354,55 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
     setAiSuggestions(suggestions);
   };
 
+  const generateAIExplanatoryStatements = () => {
+    const statements = [
+      {
+        id: 1,
+        title: "Annual Financial Review Statement",
+        content: `Dear Shareholders,
+
+The Board of Directors is pleased to present the Annual Financial Statements for the financial year ended March 31, 2024. The company has demonstrated strong performance with a revenue growth of 15% compared to the previous year.
+
+Key highlights include:
+• Total revenue increased to ₹125 crores from ₹108 crores
+• Net profit margin improved to 12.5%
+• Successful expansion into two new markets
+• Investment in digital transformation initiatives
+
+The audited financial statements, along with the auditor's report, are enclosed for your review and approval.`
+      },
+      {
+        id: 2,
+        title: "Board Composition and Governance Statement",
+        content: `Dear Members,
+
+In accordance with the Companies Act, 2013 and SEBI regulations, the Board recommends the appointment/re-appointment of directors to ensure effective governance and strategic oversight.
+
+The proposed changes include:
+• Re-appointment of Mr. John Smith as Independent Director for a second term
+• Appointment of Ms. Sarah Johnson as Non-Executive Director
+• Retirement by rotation of Mr. Michael Brown, who offers himself for re-election
+
+Each nominee brings valuable expertise and experience that will contribute to the company's continued growth and success.`
+      },
+      {
+        id: 3,
+        title: "Dividend Declaration Statement",
+        content: `Dear Shareholders,
+
+Based on the company's strong financial performance and healthy cash position, the Board of Directors is pleased to recommend a dividend of ₹2.50 per equity share for the financial year 2023-24.
+
+This represents:
+• A dividend yield of 4.2% based on current market price
+• Total dividend payout of ₹15 crores
+• Payout ratio of 25% of net profits
+
+The dividend, if approved, will be paid within 30 days of the AGM to shareholders whose names appear in the register of members as on the record date.`
+      }
+    ];
+    setAiExplanatoryStatements(statements);
+  };
+
   const acceptAISuggestion = (suggestion) => {
     const newItem = {
       id: Date.now().toString(),
@@ -604,6 +1414,71 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
     handleInputChange('agendaItems', updatedItems);
   };
 
+  const acceptExplanatoryStatement = (statement) => {
+    setExplanatoryStatement(statement.content);
+    handleInputChange('explanatoryStatement', statement.content);
+  };
+
+  const downloadNotice = () => {
+    // Generate notice content with explanatory statement
+    const noticeContent = `
+NOTICE OF MEETING
+
+${formData.entityName || 'Company Name'}
+Meeting Notice
+
+Date: ${formData.meetingDate ? format(new Date(formData.meetingDate), 'PPP') : '[Date]'}
+Time: ${formData.meetingTime || '[Time]'}
+Venue: ${formData.venue || '[Venue]'}
+
+AGENDA:
+${agendaItems.map((item, index) => `${index + 1}. ${item.title}`).join('\n')}
+
+EXPLANATORY STATEMENT:
+${explanatoryStatement}
+
+By Order of the Board
+${formData.secretary || 'Company Secretary'}
+    `.trim();
+
+    // Create and download the notice
+    const blob = new Blob([noticeContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Meeting_Notice_${formData.entityName || 'Company'}_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+  const addAdditionalDocument = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const newDoc = {
+          id: Date.now().toString(),
+          name: file.name,
+          size: (file.size / 1024).toFixed(2) + ' KB',
+          type: file.type,
+          uploadDate: new Date().toISOString()
+        };
+        const updatedDocs = [...additionalDocs, newDoc];
+        setAdditionalDocs(updatedDocs);
+        handleInputChange('additionalDocuments', updatedDocs);
+      }
+    };
+    input.click();
+  };
+
+  const removeDocument = (id) => {
+    const updatedDocs = additionalDocs.filter(doc => doc.id !== id);
+    setAdditionalDocs(updatedDocs);
+    handleInputChange('additionalDocuments', updatedDocs);
+  };
   return (
     <div className="space-y-6">
       <div>
@@ -611,24 +1486,8 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
         <p className="text-sm text-muted-foreground mb-6">Define the meeting agenda and provide explanatory details</p>
       </div>
 
-      {/* Meeting Description */}
-      <Card className="border rounded-lg">
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <Label className="text-base font-medium">Meeting Description/Explanation</Label>
-            <textarea 
-              className="w-full min-h-[120px] p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Provide a detailed explanation of the meeting purpose, background, and context..."
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
-                handleInputChange('meetingDescription', e.target.value);
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
+      
+      
       {/* AI Features */}
       <Card className="border rounded-lg">
         <CardContent className="pt-6">
@@ -694,7 +1553,79 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
           </div>
         </CardContent>
       </Card>
-
+{/* AI Explanatory Statement */}
+<Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-medium">AI Generate Explanatory Statement</Label>
+              <Button variant="outline" onClick={generateAIExplanatoryStatements}>
+                🤖 Generate AI Statements
+              </Button>
+            </div>
+            
+            {aiExplanatoryStatements.length > 0 && (
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">AI - Powerd Explanatory Generated Statements:</Label>
+                {aiExplanatoryStatements.map((statement) => (
+                  <div key={statement.id} className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-medium text-green-900">{statement.title}</h4>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => acceptExplanatoryStatement(statement)}
+                        className="ml-4"
+                      >
+                        Use This Statement
+                      </Button>
+                    </div>
+                    <div className="text-sm text-green-700 whitespace-pre-line max-h-32 overflow-y-auto">
+                      {statement.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {explanatoryStatement && (
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Current Explanatory Statement</Label>
+                <textarea 
+                  className="w-full min-h-[200px] p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="The explanatory statement will appear here after AI generation or you can write your own..."
+                  value={explanatoryStatement}
+                  onChange={(e) => {
+                    setExplanatoryStatement(e.target.value);
+                    handleInputChange('explanatoryStatement', e.target.value);
+                  }}
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      handleInputChange('explanatoryStatement', explanatoryStatement);
+                      // You could add a toast notification here if needed
+                    }}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Statement
+                  </Button>
+                  {/* <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={downloadNotice}
+                    disabled={!explanatoryStatement || agendaItems.length === 0}
+                  >
+                    📄 Download Notice
+                  </Button> */}
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       {/* Agenda Items */}
       <Card className="border rounded-lg">
         <CardContent className="pt-6">
@@ -778,6 +1709,53 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
         </CardContent>
       </Card>
       
+       {/* Additional Documents */}
+       <Card className="border rounded-lg">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base font-medium">Additional Documents & Attachments</Label>
+                <p className="text-sm text-muted-foreground mt-1">Upload supporting documents for the meeting</p>
+              </div>
+              <Button onClick={addAdditionalDocument} size="sm">
+                + Add Document
+              </Button>
+            </div>
+            
+            {additionalDocs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No additional documents uploaded.</p>
+                <p className="text-sm">Click "Add Document" to upload supporting files.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {additionalDocs.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                        📄
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{doc.name}</p>
+                        <p className="text-xs text-muted-foreground">{doc.size}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => removeDocument(doc.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       <div className="flex justify-end space-x-4 pt-4">
         <Button variant="outline" onClick={prevStep}>← Back</Button>
         <Button variant="outline" onClick={saveAsDraft}>
@@ -792,7 +1770,7 @@ const Agenda = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
 
 const Documents = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) => {
   const [lastMeetingOption, setLastMeetingOption] = useState(formData.lastMeetingOption || 'manual');
-  const [additionalDocs, setAdditionalDocs] = useState(formData.additionalDocuments || []);
+  
   const [reminderSettings, setReminderSettings] = useState(formData.reminderSettings || {
     enabled: false,
     date: null,
@@ -816,33 +1794,7 @@ const Documents = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) =
     }
   };
 
-  const addAdditionalDocument = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const newDoc = {
-          id: Date.now().toString(),
-          name: file.name,
-          size: (file.size / 1024).toFixed(2) + ' KB',
-          type: file.type,
-          uploadDate: new Date().toISOString()
-        };
-        const updatedDocs = [...additionalDocs, newDoc];
-        setAdditionalDocs(updatedDocs);
-        handleInputChange('additionalDocuments', updatedDocs);
-      }
-    };
-    input.click();
-  };
 
-  const removeDocument = (id) => {
-    const updatedDocs = additionalDocs.filter(doc => doc.id !== id);
-    setAdditionalDocs(updatedDocs);
-    handleInputChange('additionalDocuments', updatedDocs);
-  };
 
   const updateReminderSettings = (field, value) => {
     const updated = { ...reminderSettings, [field]: value };
@@ -976,53 +1928,7 @@ const Documents = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) =
         </CardContent>
       </Card>
 
-      {/* Additional Documents */}
-      <Card className="border rounded-lg">
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-base font-medium">Additional Documents & Attachments</Label>
-                <p className="text-sm text-muted-foreground mt-1">Upload supporting documents for the meeting</p>
-              </div>
-              <Button onClick={addAdditionalDocument} size="sm">
-                + Add Document
-              </Button>
-            </div>
-            
-            {additionalDocs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No additional documents uploaded.</p>
-                <p className="text-sm">Click "Add Document" to upload supporting files.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {additionalDocs.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                        📄
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{doc.name}</p>
-                        <p className="text-xs text-muted-foreground">{doc.size}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => removeDocument(doc.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+     
 
       {/* Reminder Settings */}
       <Card className="border rounded-lg">
@@ -1146,62 +2052,34 @@ const Documents = ({ formData, setFormData, prevStep, nextStep, saveAsDraft }) =
 };
 
 const Review = ({ formData, setFormData, prevStep, saveAsDraft, submitMeeting }) => {
-  const [noticeContent, setNoticeContent] = useState(formData.noticeContent || '');
-  const [generateAINotice, setGenerateAINotice] = useState(formData.generateAINotice || false);
-  const [signatureMethod, setSignatureMethod] = useState('physical');
-  const [additionalSignatories, setAdditionalSignatories] = useState([]);
+  
   const [circulationOptions, setCirculationOptions] = useState({
     sendEmail: true,
     additionalEmails: '',
     printLabels: false,
     offlinePublished: false
   });
-  const [showNoticePreview, setShowNoticePreview] = useState(false);
+  const [offlineSelected, setOfflineSelected] = useState(false);
+  const [showOfflineReminder, setShowOfflineReminder] = useState(false);
+  const [offlineReminderActive, setOfflineReminderActive] = useState(false);
+  const { toast } = useToast();
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const generateAINoticeContent = () => {
-    // Simulate AI notice generation based on meeting details
-    const aiGeneratedNotice = `
-NOTICE OF ${formData.meetingClass?.toUpperCase() || 'MEETING'}
 
-Notice is hereby given that the ${formData.meetingClass || 'Meeting'} of ${formData.entity || 'Company'} will be held on ${formData.meetingDate ? format(new Date(formData.meetingDate), 'PPP') : '[Date]'} at ${formData.meetingTime || '[Time]'}.
+  // Signature configuration moved to Office Bearers step.
 
-AGENDA:
-${formData.agendaItems?.map((item, index) => `${index + 1}. ${item.title}`).join('\n') || 'To be updated'}
-
-By Order of the Board
-[Secretary Name]
-Company Secretary
-
-Place: [Location]
-Date: ${format(new Date(), 'PPP')}
-    `;
-    setNoticeContent(aiGeneratedNotice);
-    handleInputChange('noticeContent', aiGeneratedNotice);
-  };
-
-  const addSignatory = () => {
-    const newSignatory = {
-      id: Date.now().toString(),
-      name: '',
-      email: '',
-      role: 'Director'
-    };
-    setAdditionalSignatories([...additionalSignatories, newSignatory]);
-  };
-
-  const updateSignatory = (id, field, value) => {
-    setAdditionalSignatories(prev => 
-      prev.map(sig => sig.id === id ? { ...sig, [field]: value } : sig)
-    );
-  };
-
-  const removeSignatory = (id) => {
-    setAdditionalSignatories(prev => prev.filter(sig => sig.id !== id));
-  };
+  // Start recurring reminder while selected and not yet marked as published
+  useRecurringReminder(offlineReminderActive && !circulationOptions.offlinePublished, 30000, () => {
+    // 30s interval for demo; adjust as needed
+    toast({
+      title: 'Publish Notice Reminder',
+      description: 'Please publish the meeting notice in the newspaper.',
+    });
+    setShowOfflineReminder(true);
+  });
 
   const totalDuration = formData.agendaItems?.reduce((total, item) => total + (item.duration || 0), 0) || 0;
   const participantCount = formData.participants?.length || 0;
@@ -1216,49 +2094,83 @@ Date: ${format(new Date(), 'PPP')}
 
       {/* Meeting Summary */}
       <Card className="border rounded-lg">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+            <Label className="text-base font-semibold text-gray-900">Meeting Summary</Label>
+          </div>
+        </div>
         <CardContent className="pt-6">
-          <div className="space-y-4">
-            <Label className="text-base font-medium">Meeting Summary</Label>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Entity</Label>
-                  <p className="text-sm">{formData.entity || 'Not selected'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Meeting Class</Label>
-                  <p className="text-sm">{formData.meetingClass || 'Not selected'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Meeting Type</Label>
-                  <p className="text-sm">{formData.meetingType || 'Not selected'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Nature</Label>
-                  <p className="text-sm">{formData.meetingNature || 'Not selected'}</p>
+          <div className="bg-white border rounded-lg p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <div className="border-l-4 border-blue-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Meeting Details</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Entity:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.entity || 'Not selected'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Title:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.meetingTitle || '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Class:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.meetingClass || 'Not selected'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Type:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.meetingType || 'Not selected'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Nature:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.meetingNature || 'Not selected'}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Date & Time</Label>
-                  <p className="text-sm">
-                    {formData.meetingDate ? format(new Date(formData.meetingDate), 'PPP') : 'Not set'}
-                    {formData.meetingTime && ` at ${formData.meetingTime}`}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Participants</Label>
-                  <p className="text-sm">{participantCount} total ({votingParticipants} voting)</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Agenda Items</Label>
-                  <p className="text-sm">{formData.agendaItems?.length || 0} items ({totalDuration} min total)</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-gray-600">Quorum</Label>
-                  <p className="text-sm">{formData.quorum || 51}%</p>
+              <div className="space-y-4">
+                <div className="border-l-4 border-green-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Schedule & Logistics</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Number:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.meetingNumber ?? '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Date & Time:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">
+                        {formData.meetingDate ? format(new Date(formData.meetingDate), 'PPP') : 'Not set'}
+                        {formData.meetingTime && <br />}{formData.meetingTime && `at ${formData.meetingTime}`}
+                      </span>
+                    </div>
+                    {(formData.meetingNature === 'physical' || formData.meetingNature === 'hybrid') && (
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600 min-w-[100px]">Venue:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">{formData.venue || '—'}</span>
+                      </div>
+                    )}
+                    {(formData.meetingNature === 'hybrid' || formData.meetingNature === 'virtual') && (
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600 min-w-[100px]">Meeting Link:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">{formData.virtualMeetingOption === 'manual' ? (formData.meetingLink || '—') : 'Auto-generated'}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Participants:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{participantCount} total ({votingParticipants} voting)</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Agenda:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.agendaItems?.length || 0} items ({totalDuration} min)</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm font-medium text-gray-600 min-w-[100px]">Quorum:</span>
+                      <span className="text-sm font-semibold text-gray-900 text-right">{formData.quorum || 51}%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1268,97 +2180,241 @@ Date: ${format(new Date(), 'PPP')}
 
       {/* Office Bearers Summary */}
       <Card className="border rounded-lg">
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+            <Label className="text-base font-semibold text-gray-900">Office Bearers</Label>
+          </div>
+        </div>
         <CardContent className="pt-6">
-          <div className="space-y-4">
-            <Label className="text-base font-medium">Office Bearers</Label>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-600">Chairperson</Label>
-                <p className="text-sm">
-                  {formData.chairpersonSelection === 'during-meeting' 
-                    ? 'To be selected during meeting' 
-                    : formData.chairperson || 'Not selected'}
-                </p>
+          <div className="bg-white border rounded-lg p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="border-l-4 border-purple-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Key Positions</h4>
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Chairperson:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {formData.chairpersonSelection === 'during-meeting' 
+                            ? 'To be selected during meeting' 
+                            : formData.chairperson || 'Not selected'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Secretary:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {formData.secretarySelection === 'no-secretary' 
+                            ? 'No Secretary' 
+                            : formData.secretarySelection === 'during-meeting'
+                            ? 'To be selected during meeting'
+                            : formData.secretary || 'Not selected'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Scrutinizer:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {formData.scrutinizerSelection === 'no-scrutinizer' 
+                            ? 'No Scrutinizer' 
+                            : formData.scrutinizerSelection === 'during-meeting'
+                            ? 'To be selected during meeting'
+                            : formData.scrutinizer || 'Not selected'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-600">Secretary</Label>
-                <p className="text-sm">
-                  {formData.secretarySelection === 'no-secretary' 
-                    ? 'No Secretary' 
-                    : formData.secretarySelection === 'during-meeting'
-                    ? 'To be selected during meeting'
-                    : formData.secretary || 'Not selected'}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-600">Scrutinizer</Label>
-                <p className="text-sm">
-                  {formData.scrutinizerSelection === 'no-scrutinizer' 
-                    ? 'No Scrutinizer' 
-                    : formData.scrutinizerSelection === 'during-meeting'
-                    ? 'To be selected during meeting'
-                    : formData.scrutinizer || 'Not selected'}
-                </p>
+              
+              <div className="space-y-4">
+                <div className="border-l-4 border-orange-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Signature Configuration</h4>
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Method:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {formData.signatureMethod ? (formData.signatureMethod === 'physical' ? 'Physical Signature' : 'Digital / E-sign') : 'Not configured'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Additional Signatories:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {formData.additionalSignatories?.length || 0} {(formData.additionalSignatories?.length || 0) === 1 ? 'person' : 'people'}
+                        </span>
+                      </div>
+                    </div>
+                    {formData.additionalSignatories?.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-xs text-gray-500 mb-2">Signatories:</div>
+                        <div className="space-y-1">
+                          {formData.additionalSignatories.map((sig, idx) => (
+                            <div key={sig.id} className="text-xs bg-white rounded px-2 py-1 border">
+                              {idx + 1}. {sig.name} ({sig.role})
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Notice Content */}
+      {/* Notice Content (read-only) */}
       <Card className="border rounded-lg">
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-600 rounded-full"></div>
+            <Label className="text-base font-semibold text-gray-900">Meeting Notice</Label>
+          </div>
+        </div>
         <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-medium">Notice Content</Label>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <input 
-                    type="checkbox" 
-                    id="generate-ai-notice" 
-                    checked={generateAINotice}
-                    onChange={(e) => {
-                      setGenerateAINotice(e.target.checked);
-                      handleInputChange('generateAINotice', e.target.checked);
-                    }}
-                    className="rounded border-gray-300"
-                  />
-                  <Label htmlFor="generate-ai-notice">Use AI Generation</Label>
+          <div className="bg-white border rounded-lg p-6">
+            {formData.templateData ? (
+              <div className="space-y-6">
+                {/* Notice Header */}
+                <div className="text-center border-b pb-4">
+                  <div className="text-lg font-bold text-gray-900 mb-2">
+                    NOTICE OF {formData.meetingClass?.toUpperCase() || 'MEETING'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {formData.templateData.noticeNumber}
+                  </div>
                 </div>
-                {generateAINotice && (
-                  <Button onClick={generateAINoticeContent} size="sm">
-                    🤖 Generate Notice
-                  </Button>
-                )}
+
+                {/* Notice Body */}
+                <div className="space-y-4 text-sm leading-relaxed">
+                  <p className="text-gray-800">
+                    Notice is hereby given that the <strong>{formData.meetingClass || 'Meeting'}</strong> of{' '}
+                    <strong>{formData.templateData.entityName}</strong> will be held on{' '}
+                    <strong>{formData.templateData.meetingDate}</strong> at{' '}
+                    <strong>{formData.templateData.meetingTime}</strong>{' '}
+                    {formData.templateData.venue && (
+                      <>at <strong>{formData.templateData.venue}</strong></>
+                    )}.
+                  </p>
+
+                  {/* Agenda Section */}
+                  <div className="mt-6">
+                    <h4 className="font-semibold text-gray-900 mb-3 border-b border-gray-200 pb-1">AGENDA</h4>
+                    <div className="space-y-2">
+                      {formData.templateData.agendaItems?.map((item, index) => (
+                        <div key={item.id || index} className="flex items-start gap-2">
+                          <span className="font-medium text-gray-700 min-w-[20px]">{item.id || index + 1}.</span>
+                          <span className="text-gray-800">{item.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Special Note */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Special Note:</strong> Members are requested to attend the meeting punctually.
+                      The meeting will be conducted as per the applicable regulations.
+                    </p>
+                  </div>
+
+                  {/* Signature Section */}
+                  <div className="mt-6 pt-4 border-t">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-sm text-gray-600">By Order of the Board</p>
+                        <div className="mt-8 border-b border-gray-300 w-40"></div>
+                        <p className="text-sm font-medium text-gray-800 mt-1">Company Secretary</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600">Place: {formData.templateData.venue || '[Location]'}</p>
+                        <p className="text-sm text-gray-600">Date: {format(new Date(), 'PPP')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agenda Notes */}
+                  {formData.templateData.agendaNotes?.length > 0 && (
+                    <div className="mt-6 pt-4 border-t">
+                      <h4 className="font-semibold text-gray-900 mb-2">Notes:</h4>
+                      <div className="space-y-1">
+                        {formData.templateData.agendaNotes.map((note, index) => (
+                          <p key={index} className="text-xs text-gray-600">• {note}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            
-            <textarea 
-              className="w-full min-h-[300px] p-4 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-              placeholder="Enter the meeting notice content here..."
-              value={noticeContent}
-              onChange={(e) => {
-                setNoticeContent(e.target.value);
-                handleInputChange('noticeContent', e.target.value);
-              }}
-            />
-            
-            <div className="flex justify-end">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowNoticePreview(!showNoticePreview)}
-                size="sm"
-              >
-                {showNoticePreview ? 'Hide Preview' : 'Preview Notice'}
-              </Button>
-            </div>
-            
-            {showNoticePreview && (
-              <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                <Label className="text-sm font-medium text-gray-600">Notice Preview:</Label>
-                <div className="mt-2 whitespace-pre-wrap text-sm font-mono">
-                  {noticeContent || 'No content to preview'}
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No notice content provided.</p>
+                <p className="text-sm mt-1">Please configure the notice template in the Office Bearers step.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Agenda Summary */}
+      <Card className="border rounded-lg">
+        <div className="bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-amber-600 rounded-full"></div>
+            <Label className="text-base font-semibold text-gray-900">Meeting Agenda</Label>
+          </div>
+        </div>
+        <CardContent className="pt-6">
+          <div className="bg-white border rounded-lg p-6">
+            {(formData.agendaItems?.length || 0) === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No agenda items added.</p>
+                <p className="text-sm mt-1">Please add agenda items in the Agenda step.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="border-l-4 border-amber-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Agenda Items ({formData.agendaItems.length})</h4>
+                  <div className="space-y-3">
+                    {formData.agendaItems.map((item, idx) => (
+                      <div key={item.id ?? idx} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-start gap-2">
+                              <span className="font-semibold text-amber-600 min-w-[24px]">{idx + 1}.</span>
+                              <div>
+                                <p className="font-medium text-gray-900">{item.title || 'Untitled'}</p>
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right ml-4">
+                            {item.duration && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                {item.duration} min
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t bg-amber-50 rounded-lg p-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-medium text-gray-700">Total Estimated Duration:</span>
+                    <span className="font-semibold text-amber-700">{totalDuration} minutes</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1366,82 +2422,109 @@ Date: ${format(new Date(), 'PPP')}
         </CardContent>
       </Card>
 
-      {/* Signature Settings */}
+      {/* Additional Documents */}
       <Card className="border rounded-lg">
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-slate-600 rounded-full"></div>
+            <Label className="text-base font-semibold text-gray-900">Additional Documents</Label>
+          </div>
+        </div>
         <CardContent className="pt-6">
-          <div className="space-y-4">
-            <Label className="text-base font-medium">Signature of Notice</Label>
-            <p className="text-sm text-muted-foreground">Configure how the notice will be signed</p>
-            
-            <RadioGroup value={signatureMethod} onValueChange={setSignatureMethod}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="physical" id="physical-signature" />
-                <Label htmlFor="physical-signature">Physical Signature (Download, Sign & Upload)</Label>
+          <div className="bg-white border rounded-lg p-6">
+            {(formData.additionalDocuments?.length || 0) === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No additional documents uploaded.</p>
+                <p className="text-sm mt-1">Documents can be added in the Documents step.</p>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="digital" id="digital-signature" />
-                <Label htmlFor="digital-signature">Digital/E-sign (Third-party system)</Label>
-              </div>
-            </RadioGroup>
-            
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <Label className="text-base font-medium">Additional Signatories</Label>
-                <Button onClick={addSignatory} size="sm">
-                  + Add Signatory
-                </Button>
-              </div>
-              
-              {additionalSignatories.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No additional signatories added
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {additionalSignatories.map((signatory) => (
-                    <div key={signatory.id} className="p-3 border rounded-lg bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <Input 
-                          placeholder="Name"
-                          value={signatory.name}
-                          onChange={(e) => updateSignatory(signatory.id, 'name', e.target.value)}
-                        />
-                        <Input 
-                          placeholder="Email"
-                          type="email"
-                          value={signatory.email}
-                          onChange={(e) => updateSignatory(signatory.id, 'email', e.target.value)}
-                        />
-                        <div className="flex space-x-2">
-                          <Select 
-                            value={signatory.role} 
-                            onValueChange={(value) => updateSignatory(signatory.id, 'role', value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Director">Director</SelectItem>
-                              <SelectItem value="Secretary">Secretary</SelectItem>
-                              <SelectItem value="Chairperson">Chairperson</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => removeSignatory(signatory.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            Remove
-                          </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="border-l-4 border-slate-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Uploaded Documents ({formData.additionalDocuments.length})</h4>
+                  <div className="space-y-2">
+                    {formData.additionalDocuments.map((doc, idx) => (
+                      <div key={doc.id} className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                              <span className="text-xs font-medium text-slate-600">{idx + 1}</span>
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{doc.name}</p>
+                              {doc.type && (
+                                <p className="text-xs text-gray-500">{doc.type}</p>
+                              )}
+                            </div>
+                          </div>
+                          {doc.size && (
+                            <span className="text-sm text-gray-500">{doc.size}</span>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reminder Settings Summary */}
+      <Card className="border rounded-lg">
+        <div className="bg-gradient-to-r from-rose-50 to-pink-50 px-4 py-3 border-b">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-rose-600 rounded-full"></div>
+            <Label className="text-base font-semibold text-gray-900">Reminder Settings</Label>
+          </div>
+        </div>
+        <CardContent className="pt-6">
+          <div className="bg-white border rounded-lg p-6">
+            {!formData.reminderSettings ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No reminder configured.</p>
+                <p className="text-sm mt-1">Reminders can be set up in the Reminders step.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="border-l-4 border-rose-500 pl-4">
+                  <h4 className="font-semibold text-gray-900 mb-3">Reminder Configuration</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Status:</span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formData.reminderSettings.enabled ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Enabled</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Disabled</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Date:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {formData.reminderSettings.date ? format(new Date(formData.reminderSettings.date), 'PPP') : '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-600">Channels:</span>
+                        <span className="text-sm font-semibold text-gray-900 text-right">
+                          {[
+                            formData.reminderSettings.email && 'Email',
+                            formData.reminderSettings.sms && 'SMS',
+                          ].filter(Boolean).join(', ') || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1487,21 +2570,51 @@ Date: ${format(new Date(), 'PPP')}
                 <Label htmlFor="print-labels">Print delivery labels for participants</Label>
               </div>
               
-              {/* <div className="flex items-center space-x-2">
+              <div className="flex items-start space-x-2">
                 <input 
                   type="checkbox" 
                   id="offline-published" 
-                  checked={circulationOptions.offlinePublished}
-                  onChange={(e) => setCirculationOptions(prev => ({ ...prev, offlinePublished: e.target.checked }))}
-                  className="rounded border-gray-300"
+                  checked={offlineSelected}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setOfflineSelected(checked);
+                    setOfflineReminderActive(checked && !circulationOptions.offlinePublished);
+                    if (checked) {
+                      toast({ title: 'Offline publishing selected', description: 'We will remind you until you mark as Published.' });
+                    }
+                  }}
+                  className="mt-1 rounded border-gray-300"
                 />
-                <Label htmlFor="offline-published">Offline Published (Newspaper)</Label>
-              </div> */}
+                <div>
+                  <Label htmlFor="offline-published">Offline Published (Newspaper)</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enables automated reminders and popup notifications until you mark as Published.
+                    {circulationOptions.offlinePublished && ' (Published marked)'}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
       
+      {/* Offline Publishing Reminder Dialog */}
+      <ReminderDialog
+        open={showOfflineReminder}
+        onOpenChange={setShowOfflineReminder}
+        onRemindAgain={() => {
+          // Close dialog; interval will open it again until published
+          setShowOfflineReminder(false);
+          setOfflineReminderActive(true);
+        }}
+        onPublished={() => {
+          setShowOfflineReminder(false);
+          setOfflineReminderActive(false);
+          setCirculationOptions(prev => ({ ...prev, offlinePublished: true }));
+          toast({ title: 'Marked as Published', description: 'Offline publishing reminders have been stopped.' });
+        }}
+      />
+
       <div className="flex justify-end space-x-4 pt-4">
         <Button variant="outline" onClick={prevStep}>← Back</Button>
         <Button variant="outline" onClick={saveAsDraft}>
@@ -1655,7 +2768,7 @@ const CreateMeetingContent = () => {
 
 const CreateMeeting = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <CreateMeetingContent />
     </DashboardLayout>
   );

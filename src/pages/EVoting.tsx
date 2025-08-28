@@ -29,7 +29,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { votingService } from "@/services/votingService";
 import { VotingRequest, VotingStats, VotingActivity, VotingStatus } from "@/types/voting";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
 import {
   DropdownMenu,
@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const EVoting = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <EVotingModule />
     </DashboardLayout>
   );
@@ -86,6 +86,25 @@ const EVotingModule = () => {
     }
   };
 
+  // Date helpers to ensure safe formatting/Math on dates
+  const toValidDate = (value: string | number | Date) => {
+    if (value instanceof Date) return isValid(value) ? value : null;
+    if (typeof value === 'string') {
+      // Try ISO parse first
+      const iso = parseISO(value);
+      if (isValid(iso)) return iso;
+      const d = new Date(value);
+      return isValid(d) ? d : null;
+    }
+    const d = new Date(value);
+    return isValid(d) ? d : null;
+  };
+
+  const safeFormatDate = (value: string | number | Date, fmt: string) => {
+    const d = toValidDate(value);
+    return d ? format(d, fmt) : '—';
+  };
+
   const handleSearch = (value: string) => {
     setSearchTerm(value);
     // Debounce search in real implementation
@@ -125,7 +144,8 @@ const EVotingModule = () => {
   };
 
   const calculateTimeRemaining = (endDate: string) => {
-    const end = new Date(endDate);
+    const end = toValidDate(endDate);
+    if (!end) return "—";
     const now = new Date();
     const diff = end.getTime() - now.getTime();
     
@@ -304,7 +324,7 @@ const EVotingModule = () => {
                         {formatCurrency(request.amount)}
                       </span>
                       <span className="text-sm text-gray-500">
-                        Due: {format(new Date(request.dueDate), 'dd MMM yyyy')}
+                        Due: {safeFormatDate(request.dueDate, 'dd MMM yyyy')}
                       </span>
                     </div>
                     <p className="text-gray-600 mb-2">{request.entityName}</p>
@@ -384,7 +404,7 @@ const EVotingModule = () => {
                   <h4 className="font-medium">{activity.title}</h4>
                   <p className="text-sm text-gray-600">{activity.description}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {format(new Date(activity.timestamp), 'MMM dd, yyyy HH:mm')}
+                    {safeFormatDate(activity.timestamp, 'MMM dd, yyyy HH:mm')}
                   </p>
                 </div>
                 {activity.amount && (

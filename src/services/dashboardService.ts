@@ -16,6 +16,7 @@ import {
   PlatformMetrics
 } from '@/types/dashboard';
 import { UserRole } from '@/types/auth';
+import { ProfileService } from './profileService';
 import { 
   FileText, 
   Users, 
@@ -43,8 +44,8 @@ class DashboardService {
     return [
       {
         title: "Active Service Requests",
-        value: 8,
-        change: "+2 from last month",
+        value: 4,
+        change: "+1 from last month",
         icon: FileText,
         color: "text-info",
         trend: 'up'
@@ -367,31 +368,7 @@ class DashboardService {
     ];
   }
 
-  private generateMockSubscriptions(): Subscription[] {
-    return [
-      {
-        id: "SUB001",
-        moduleName: "Claims Management",
-        status: "Active",
-        endDate: "2024-12-31",
-        features: ["Unlimited Claims", "AI Verification", "Advanced Analytics"]
-      },
-      {
-        id: "SUB002",
-        moduleName: "Meeting Management",
-        status: "Active",
-        endDate: "2024-11-30",
-        features: ["Video Conferencing", "Recording", "Scheduling"]
-      },
-      {
-        id: "SUB003",
-        moduleName: "Resolution System",
-        status: "Trial",
-        endDate: "2024-02-15",
-        features: ["Basic Resolution", "Document Management"]
-      }
-    ];
-  }
+
 
   private generateMockWorkspaceModules(): WorkspaceModule[] {
     return [
@@ -462,13 +439,134 @@ class DashboardService {
     ];
   }
 
-  private generateMockProfileCompletion(): ProfileCompletion {
+  private generateMockProfileCompletion(userRole: UserRole): ProfileCompletion {
+    // Generate mock profile data based on user role
+    const mockProfile = this.generateMockProfileData(userRole) as any;
+    
+    // Use ProfileService to calculate actual completion
+    const completionStatus = ProfileService.calculateCompletionStatus(mockProfile, userRole);
+    
     return {
-      percentage: 85,
-      missingFields: ["Tax Information", "Banking Details"],
-      permanentNumber: "REG-2024-001234",
-      isCompleted: false
+      percentage: completionStatus.overallPercentage,
+      missingFields: completionStatus.missingMandatoryFields,
+      permanentNumber: completionStatus.canGetPermanentNumber ? 
+        ProfileService.generatePermanentNumber(mockProfile, userRole) : 
+        `TRN-${Date.now().toString().slice(-6)}`,
+      isCompleted: completionStatus.overallPercentage === 100
     };
+  }
+
+  private generateMockProfileData(userRole: UserRole): Record<string, any> {
+    // Generate realistic mock profile data based on user role
+    const baseProfile = {
+      userId: "mock-user-id",
+      name: "",
+      email: "",
+      contactNumber: "",
+      address: {
+        street: "",
+        city: "",
+        state: "",
+        pinCode: ""
+      },
+      identityDocument: {
+        type: "",
+        number: "",
+        uploadedFile: null
+      },
+      bankingDetails: []
+    };
+
+    switch (userRole) {
+      case UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER:
+        return {
+          ...baseProfile,
+          // 100% complete profile for Service Seeker Individual Partner
+          name: "John Doe",
+          email: "john@example.com",
+          contactNumber: "+91 9876543210",
+          address: {
+            street: "123 Main Street",
+            city: "Mumbai",
+            state: "Maharashtra",
+            pinCode: "400001"
+          },
+          identityDocument: {
+            type: "AADHAAR_CARD",
+            number: "1234-5678-9012",
+            uploadedFile: "mock-aadhaar.pdf"
+          },
+          panNumber: "ABCDE1234F",
+          tanNumber: "MUMM12345A",
+          gstNumber: "27ABCDE1234F1Z5",
+          bankingDetails: [{
+            beneficiaryName: "John Doe",
+            accountNumber: "1234567890",
+            ifscCode: "HDFC0000123",
+            bankName: "HDFC Bank",
+            accountType: "SAVINGS"
+          }]
+        };
+
+      case UserRole.SERVICE_SEEKER_ENTITY_ADMIN:
+        return {
+          ...baseProfile,
+          name: "Jane Smith",
+          email: "jane@company.com",
+          contactNumber: "+91 9876543210",
+          authorizedRepresentative: {
+            name: "",
+            email: "",
+            contactNumber: ""
+          },
+          resourceInfra: {
+            numberOfProfessionalStaff: undefined
+          }
+          // Missing: AR details, resource infrastructure, etc.
+        };
+
+      case UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER:
+        return {
+          ...baseProfile,
+          mobile: "+91 9876543210",
+          title: "Mr.",
+          qualifications: "",
+          membershipDetails: [],
+          servicesOffered: [],
+          workLocations: []
+          // Missing: qualifications, memberships, services, etc.
+        };
+
+      case UserRole.SERVICE_PROVIDER_ENTITY_ADMIN:
+        return {
+          ...baseProfile,
+          mobile: "+91 9876543210",
+          personType: "",
+          dateOfIncorporation: "",
+          incorporationCertificate: null,
+          authorizedRepresentative: {
+            name: "",
+            email: ""
+          },
+          qualifications: "",
+          membershipDetails: [],
+          servicesOffered: []
+          // Missing: company details, AR details, etc.
+        };
+
+      case UserRole.SERVICE_SEEKER_TEAM_MEMBER:
+      case UserRole.SERVICE_PROVIDER_TEAM_MEMBER:
+        return {
+          ...baseProfile,
+          name: "Team Member",
+          email: "member@company.com",
+          contactNumber: "+91 9876543210"
+          // Missing: identity document, address
+        };
+
+      default:
+        return baseProfile;
+    }
   }
 
   // Main method to get dashboard data based on user role
@@ -491,6 +589,8 @@ class DashboardService {
       case UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER:
         stats = this.generateServiceSeekerStats();
         serviceRequests = this.generateMockServiceRequests();
+        // Populate entities so Assigned Entities section has data for individuals, too
+        entities = this.generateMockEntities();
         break;
 
       case UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER:
@@ -511,6 +611,8 @@ class DashboardService {
       case UserRole.SERVICE_PROVIDER_TEAM_MEMBER:
         stats = this.generateTeamMemberStats();
         serviceRequests = this.generateMockServiceRequests().slice(0, 2);
+        // Provide entities so team members also see their assigned organizations
+        entities = this.generateMockEntities();
         break;
 
       default:
@@ -529,7 +631,7 @@ class DashboardService {
       workspaceModules: this.generateMockWorkspaceModules(),
       entities,
       recentActivity: this.generateMockRecentActivity(),
-      profileCompletion: this.generateMockProfileCompletion(),
+      profileCompletion: this.generateMockProfileCompletion(userRole),
       resourceSharingRequests,
       disputeTickets,
       platformMetrics
@@ -607,6 +709,46 @@ class DashboardService {
         createdDate: "2024-01-18",
         assignedTo: "Support Team B",
         estimatedResolution: "2024-01-24"
+      }
+    ];
+  }
+
+  private generateMockSubscriptions(): Subscription[] {
+    return [
+      {
+        id: "SUB001",
+        moduleName: "Claims Management",
+        status: "Active",
+        endDate: "2024-12-31",
+        features: ["Claim Creation", "Invitation Management", "Audit Logs", "Verification"]
+      },
+      {
+        id: "SUB002",
+        moduleName: "Meetings",
+        status: "Active",
+        endDate: "2024-11-30",
+        features: ["Meeting Scheduling", "Virtual Meetings", "Document Sharing", "Recording"]
+      },
+      {
+        id: "SUB003",
+        moduleName: "Entity Management",
+        status: "Active",
+        endDate: "2025-01-15",
+        features: ["Entity Creation", "Team Management", "Access Control", "Reporting"]
+      },
+      {
+        id: "SUB004",
+        moduleName: "Service Requests",
+        status: "Trial",
+        endDate: "2024-02-15",
+        features: ["Request Creation", "Bid Management", "Communication", "Basic Analytics"]
+      },
+      {
+        id: "SUB005",
+        moduleName: "Resolution System",
+        status: "Expired",
+        endDate: "2024-01-10",
+        features: ["EOI Management", "PRA Evaluation", "Plan Analysis"]
       }
     ];
   }

@@ -28,10 +28,12 @@ import { CreateWorkOrderRequest } from "@/types/workOrder";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
+import { getUserTypeFromRole } from "@/utils/userTypeUtils";
 
 const CreateWorkOrder = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const layoutUserType = getUserTypeFromRole(user?.role);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<CreateWorkOrderRequest>({
     clientEmail: '',
@@ -234,7 +236,7 @@ const CreateWorkOrder = () => {
   };
 
   return (
-    <DashboardLayout userType={user?.type || "service_provider"}>
+    <DashboardLayout userType={layoutUserType}>
       <div className="container mx-auto p-6">
         <div className="space-y-6">
           {/* Header */}

@@ -24,9 +24,10 @@ import {
   Clock
 } from 'lucide-react';
 
-import { PersonType, IdentityDocumentType, AccountType } from '@/types/profile';
+import { PersonType, IdentityDocumentType, AccountType, UserProfile } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/types/auth';
 import { ProfileStepNavigation, useProfileStepNavigation } from '../utils/profileStepNavigation';
 
 interface ServiceSeekerIndividualFormProps {
@@ -44,6 +45,7 @@ interface FormData {
   identityDocumentType: IdentityDocumentType | '';
   identityNumber: string;
   identityProof: File | null;
+  identityVerificationStatus: '' | 'pending' | 'verified' | 'rejected';
   
   // Contact Information (Mandatory)
   email: string;
@@ -92,21 +94,22 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
   const [currentSection, setCurrentSection] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    personType: '',
+    personType: PersonType.INDIVIDUAL,
     clientLogo: null,
-    name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
-    identityDocumentType: '',
-    identityNumber: '',
-    identityProof: null,
-    email: user?.email || '',
-    contactNumber: '',
+    name: (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '') || 'Demo User',
+    identityDocumentType: IdentityDocumentType.PAN,
+    identityNumber: 'ABCDE1234F',
+    identityProof: null, // not required for completion percentage
+    identityVerificationStatus: 'verified',
+    email: user?.email || 'demo@example.com',
+    contactNumber: '9876543210',
     address: {
-      street: '',
-      city: '',
-      state: '',
-      pinCode: ''
+      street: '221B Baker Street',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      pinCode: '400001'
     },
-    panNumber: '',
+    panNumber: 'ABCDE1234F',
     panCopy: null,
     tanNumber: '',
     tanCopy: null,
@@ -114,17 +117,17 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
     gstCopy: null,
     useSameAddress: true,
     billingAddress: {
-      street: '',
-      city: '',
-      state: '',
-      pinCode: ''
+      street: '221B Baker Street',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      pinCode: '400001'
     },
     bankingDetails: {
-      beneficiaryName: '',
-      accountNumber: '',
-      confirmAccountNumber: '',
-      accountType: '',
-      ifscCode: ''
+      beneficiaryName: (user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '') || 'Demo User',
+      accountNumber: '123456789012',
+      confirmAccountNumber: '123456789012',
+      accountType: AccountType.SAVINGS,
+      ifscCode: 'HDFC0001234'
     }
   });
 
@@ -166,26 +169,48 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
     }
   ];
 
+  // Allowed person types for Service Seeker Individual/Partner flow
+  const allowedPersonTypes: PersonType[] = [
+    PersonType.INDIVIDUAL,
+    PersonType.SOLE_PROPRIETOR,
+    PersonType.UNREGISTERED_PARTNERSHIP
+  ];
+
+  // If current value is not allowed (e.g., coming from a previous default), reset it
+  useEffect(() => {
+    if (formData.personType && !allowedPersonTypes.includes(formData.personType as PersonType)) {
+      setFormData(prev => ({ ...prev, personType: '' }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Calculate completion percentage
   const calculateCompletion = () => {
-    const mandatoryFields = [
-      formData.name,
-      formData.identityDocumentType,
-      formData.identityNumber,
-      formData.email,
-      formData.contactNumber,
-      formData.address.street,
-      formData.address.city,
-      formData.address.pinCode,
-      formData.bankingDetails.beneficiaryName,
-      formData.bankingDetails.accountNumber,
-      formData.bankingDetails.ifscCode
-    ];
+    // Convert formData to profile format for ProfileService
+    const profileData = {
+      userId: "current-user",
+      name: formData.name,
+      email: formData.email,
+      contactNumber: formData.contactNumber,
+      address: formData.address,
+      identityDocument: {
+        type: formData.identityDocumentType,
+        number: formData.identityNumber,
+        uploadedFile: formData.identityProof
+      },
+      bankingDetails: [formData.bankingDetails],
+      personType: formData.personType,
+      panNumber: formData.panNumber,
+      billingAddress: formData.billingAddress
+    };
+
+    // Use ProfileService to calculate completion
+    const completionStatus = ProfileService.calculateCompletionStatus(
+      profileData as unknown as UserProfile,
+      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER
+    );
     
-    const completedMandatory = mandatoryFields.filter(field => field && field.toString().trim() !== '').length;
-    const totalMandatory = mandatoryFields.length;
-    
-    return Math.round((completedMandatory / totalMandatory) * 100);
+    return completionStatus.overallPercentage;
   };
 
   const canGetPermanentNumber = () => {
@@ -244,6 +269,24 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
 
   const handleFileUpload = (field: string, file: File | null) => {
     setFormData(prev => ({ ...prev, [field]: file }));
+    // Trigger mock AI verification for identity proof uploads
+    if (field === 'identityProof') {
+      if (!file) {
+        setFormData(prev => ({ ...prev, identityVerificationStatus: '' }));
+        return;
+      }
+      setFormData(prev => ({ ...prev, identityVerificationStatus: 'pending' }));
+      // Simulate AI verification
+      setTimeout(() => {
+        const isValid = Math.random() > 0.2; // 80% pass rate for mock
+        setFormData(prev => ({ ...prev, identityVerificationStatus: isValid ? 'verified' : 'rejected' }));
+        if (isValid) {
+          toast.success('Identity document verified successfully.');
+        } else {
+          toast.error('Document verification failed. Please upload a clear and valid document.');
+        }
+      }, 1200);
+    }
   };
 
   const handleSameBillingAddress = (checked: boolean) => {
@@ -308,10 +351,9 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
               <SelectValue placeholder="Select person type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={PersonType.PUBLIC_LIMITED}>Public Limited</SelectItem>
-              <SelectItem value={PersonType.PRIVATE_LIMITED}>Private Limited</SelectItem>
-              <SelectItem value={PersonType.LIMITED_LIABILITY_PARTNERSHIP}>Limited Liability Partnership</SelectItem>
-              <SelectItem value={PersonType.REGISTERED_PARTNERSHIP}>Registered Partnership</SelectItem>
+              <SelectItem value={PersonType.INDIVIDUAL}>Individual</SelectItem>
+              <SelectItem value={PersonType.SOLE_PROPRIETOR}>Sole Proprietor</SelectItem>
+              <SelectItem value={PersonType.UNREGISTERED_PARTNERSHIP}>Partner (Unregistered Partnership)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -393,6 +435,15 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
           className="cursor-pointer"
           required
         />
+        {formData.identityVerificationStatus === 'pending' && (
+          <Badge variant="secondary" className="mt-1"><Clock className="h-3 w-3 mr-1" /> Verifying...</Badge>
+        )}
+        {formData.identityVerificationStatus === 'verified' && (
+          <Badge className="mt-1"><CheckCircle className="h-3 w-3 mr-1" /> Verified</Badge>
+        )}
+        {formData.identityVerificationStatus === 'rejected' && (
+          <Badge variant="destructive" className="mt-1"><AlertCircle className="h-3 w-3 mr-1" /> Verification Failed</Badge>
+        )}
         <p className="text-sm text-muted-foreground">
           Accepted formats: PDF, JPG, PNG (Max 5MB)
         </p>
@@ -708,51 +759,76 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
   const IconComponent = currentSectionData.icon;
   const completionPercentage = calculateCompletion();
 
+  const handleSkip = () => {
+    if (currentSection < sections.length - 1) {
+      setCurrentSection(currentSection + 1);
+    } else {
+      onSkip();
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Progress Header */}
-      <Card>
+      {/* Progress Header - Themed */}
+      <Card className="border border-border shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5 text-blue-600" />
+              <CardTitle className="flex items-center gap-2 text-[17px]">
+                <User className="h-5 w-5 text-primary" />
                 Service Seeker Profile Setup
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mt-0.5">
                 Complete your profile to access all platform features
               </CardDescription>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-blue-600">{completionPercentage}%</div>
-              <div className="text-sm text-muted-foreground">Complete</div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary">
+                <span className="font-semibold">{completionPercentage}%</span>
+                <span className="text-muted-foreground/80">Complete</span>
+              </div>
             </div>
           </div>
-          <Progress value={completionPercentage} className="mt-4" />
+          {/* Custom Progress Bar matching theme */}
+          <div className="mt-4 h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${completionPercentage}%` }}
+            />
+          </div>
         </CardHeader>
       </Card>
 
-      {/* Section Navigation */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        {sections.map((section, index) => {
-          const SectionIcon = section.icon;
-          const isActive = index === currentSection;
-          const isCompleted = index < currentSection;
-          
-          return (
-            <Button
-              key={section.id}
-              variant={isActive ? "default" : isCompleted ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setCurrentSection(index)}
-              className="flex flex-col h-auto p-3 gap-1"
-            >
-              <SectionIcon className="h-4 w-4" />
-              <span className="text-xs">{section.title}</span>
-              {section.required && <Badge variant="secondary" className="text-xs">Required</Badge>}
-            </Button>
-          );
-        })}
+      {/* Section Navigation - Themed Tabs */}
+      <div className="overflow-x-auto">
+        <div className="inline-flex w-full min-w-full items-center gap-2 rounded-xl bg-card p-2 border border-border">
+          {sections.map((section, index) => {
+            const SectionIcon = section.icon;
+            const isActive = index === currentSection;
+            const isCompleted = index < currentSection;
+            const base = 'whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all border';
+            const active = 'bg-primary text-primary-foreground border-primary shadow-md';
+            const completed = 'bg-primary/5 text-primary border-primary/20 hover:bg-primary/10';
+            const idle = 'bg-card text-muted-foreground border-border hover:bg-muted';
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => setCurrentSection(index)}
+                className={[base, isActive ? active : isCompleted ? completed : idle].join(' ')}
+              >
+                <SectionIcon className="h-4 w-4" />
+                <span>{section.title}</span>
+                {section.required && (
+                  <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    Required
+                  </span>
+                )}
+                {isCompleted && <CheckCircle className="h-3.5 w-3.5 text-primary ml-1" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Current Section Form */}
@@ -823,7 +899,7 @@ export const ServiceSeekerIndividualForm: React.FC<ServiceSeekerIndividualFormPr
           )}
         </div>
         
-        <Button variant="outline" onClick={onSkip}>
+        <Button variant="outline" onClick={handleSkip}>
           Skip for Now
         </Button>
       </div>

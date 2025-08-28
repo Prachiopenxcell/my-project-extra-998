@@ -1,4 +1,4 @@
-export type MeetingStatus = 'upcoming' | 'in-progress' | 'completed' | 'draft';
+export type MeetingStatus = 'upcoming' | 'in-progress' | 'concluded' | 'draft';
 
 export type MeetingType = 'board' | 'committee' | 'general' | 'special' | 'other';
 
@@ -114,7 +114,7 @@ export interface Meeting {
 export interface MeetingStats {
   upcoming: number;
   inProgress: number;
-  completed: number;
+  concluded: number;
   draft: number;
 }
 

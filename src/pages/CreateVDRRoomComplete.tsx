@@ -195,7 +195,7 @@ const CreateVDRRoomComplete = () => {
   };
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-4">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">

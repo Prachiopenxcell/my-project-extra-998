@@ -90,8 +90,8 @@ import AllClaimsList from "./pages/AllClaimsList";
 // Service Request and Bid Submission Module
 import ServiceRequests from "./pages/ServiceRequests";
 import ServiceRequestDetails from "@/pages/ServiceRequestDetails";
-import ServiceRequestBidDetails from "@/pages/ServiceRequestBidDetails";
 import EditServiceRequest from "@/pages/EditServiceRequest";
+import BidsListing from "./pages/BidsListing";
 import BidDetails from "./pages/BidDetails";
 import EditBid from "./pages/EditBid";
 import ProfessionalInvitation from "./pages/ProfessionalInvitation";
@@ -100,6 +100,8 @@ import ProfessionalInvitation from "./pages/ProfessionalInvitation";
 import WorkOrders from "./pages/WorkOrders";
 import WorkOrderDetails from "./pages/WorkOrderDetails";
 import CreateWorkOrder from "./pages/CreateWorkOrder";
+import WorkOrderProformaSummary from "./pages/WorkOrderProformaSummary";
+import BidAcceptanceSummary from "./pages/BidAcceptanceSummary";
 
 // Feedback Module
 import Feedback from "./pages/Feedback";
@@ -156,7 +158,12 @@ function App() {
         <SubscriptionProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Homepage />} />
@@ -562,7 +569,21 @@ function App() {
                       UserRole.SERVICE_SEEKER_TEAM_MEMBER
                     ]}
                   >
-                    <ServiceRequestBidDetails />
+                    <ServiceRequestDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/bids" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                  >
+                    <BidsListing />
                   </ProtectedRoute>
                 }
               />
@@ -577,6 +598,20 @@ function App() {
                     ]}
                   >
                     <ProfessionalInvitation />
+                  </ProtectedRoute>
+                }
+              />
+              <Route 
+                path="/service-requests/:serviceRequestId/bid-summary" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                  >
+                    <BidAcceptanceSummary />
                   </ProtectedRoute>
                 }
               />
@@ -652,6 +687,23 @@ function App() {
                     fallbackPath="/login?redirect=/work-orders"
                   >
                     <WorkOrderDetails />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Work Order Proforma Summary & Payment - Service Seekers Only */}
+              <Route 
+                path="/work-orders/:id/summary" 
+                element={
+                  <ProtectedRoute 
+                    requiredRole={[
+                      UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER,
+                      UserRole.SERVICE_SEEKER_ENTITY_ADMIN,
+                      UserRole.SERVICE_SEEKER_TEAM_MEMBER
+                    ]}
+                    fallbackPath="/login?redirect=/work-orders"
+                  >
+                    <WorkOrderProformaSummary />
                   </ProtectedRoute>
                 }
               />

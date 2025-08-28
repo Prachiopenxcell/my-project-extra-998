@@ -99,7 +99,7 @@ const DocumentStorageEnhanced = () => {
   const totalPages = 3;
 
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <div className="container mx-auto p-6">
         {/* Header Section */}
         <div className="flex justify-between items-start mb-8">

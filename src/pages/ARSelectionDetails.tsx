@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ARSelectionDetails = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <ARSelectionDetailsModule />
     </DashboardLayout>
   );
@@ -261,7 +261,7 @@ const ARSelectionDetailsModule = () => {
       )}
 
       <div className="mt-8 text-sm text-muted-foreground border-t pt-4">
-        John Doe - Service Provider - ID: REG-636169
+        John Doe - Service Provider - ID: TRN-636169
       </div>
     </div>
   );

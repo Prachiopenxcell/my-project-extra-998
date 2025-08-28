@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, 
@@ -170,6 +171,8 @@ export default function ComprehensiveRegistration() {
     emailOTP: '',
     mobileOTP: ''
   });
+  
+  const [showLegalDialog, setShowLegalDialog] = useState(false);
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -739,7 +742,14 @@ export default function ComprehensiveRegistration() {
             <Checkbox
               id="acceptTerms"
               checked={formData.acceptTerms}
-              onCheckedChange={(checked) => handleInputChange('acceptTerms', checked as boolean)}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  // Open dialog first; we'll check the box on Agree
+                  setShowLegalDialog(true);
+                } else {
+                  handleInputChange('acceptTerms', false);
+                }
+              }}
               disabled={isSubmitting}
             />
             <div className="grid gap-1.5 leading-none">
@@ -748,13 +758,21 @@ export default function ComprehensiveRegistration() {
                 className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 I accept the{' '}
-                <Link to="/terms" className="text-slate-600 hover:text-slate-700 underline">
+                <button
+                  type="button"
+                  onClick={() => setShowLegalDialog(true)}
+                  className="text-slate-600 hover:text-slate-700 underline"
+                >
                   Terms & Conditions
-                </Link>{' '}
+                </button>{' '}
                 and{' '}
-                <Link to="/privacy" className="text-slate-600 hover:text-slate-700 underline">
+                <button
+                  type="button"
+                  onClick={() => setShowLegalDialog(true)}
+                  className="text-slate-600 hover:text-slate-700 underline"
+                >
                   Privacy Policy
-                </Link>{' '}
+                </button>{' '}
                 *
               </Label>
               {errors.acceptTerms && (
@@ -762,6 +780,51 @@ export default function ComprehensiveRegistration() {
               )}
             </div>
           </div>
+          
+          <Dialog open={showLegalDialog} onOpenChange={setShowLegalDialog}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Confirm Terms & Privacy Review</DialogTitle>
+                <DialogDescription>
+                  Please confirm you have already read and understood the Terms & Conditions and the Privacy Policy. Click Agree to proceed.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                <p className="text-sm text-gray-600">
+                  You can view the full documents here:
+                  {' '}<Link to="/terms" className="text-slate-600 underline" target="_blank" rel="noreferrer">Terms & Conditions</Link>
+                  {' '}and{' '}
+                  <Link to="/privacy" className="text-slate-600 underline" target="_blank" rel="noreferrer">Privacy Policy</Link>.
+                </p>
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Links open in a new tab in case you want to recheck. Return here and click Agree to continue.
+                  </AlertDescription>
+                </Alert>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowLegalDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    handleInputChange('acceptTerms', true);
+                    setShowLegalDialog(false);
+                  }}
+                >
+                  Agree
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           
           <Alert>
             <Info className="h-4 w-4" />

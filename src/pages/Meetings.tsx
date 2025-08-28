@@ -26,7 +26,11 @@ import {
   ChevronsRight,
   Bell,
   CalendarDays,
-  CalendarClock
+  CalendarClock,
+  Mail,
+  RefreshCcw,
+  Repeat,
+  FileSignature
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -40,7 +44,7 @@ import { toast } from "@/components/ui/use-toast";
 
 const Meetings = () => {
   return (
-    <DashboardLayout userType="service_provider">
+    <DashboardLayout>
       <MeetingsModule />
     </DashboardLayout>
   );
@@ -57,7 +61,7 @@ const MeetingsModule = () => {
   const [activeTab, setActiveTab] = useState<string>("upcoming");
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [filteredMeetings, setFilteredMeetings] = useState<Meeting[]>([]);
-  const [meetingStats, setMeetingStats] = useState<MeetingStats>({ upcoming: 0, inProgress: 0, completed: 0, draft: 0 });
+  const [meetingStats, setMeetingStats] = useState<MeetingStats>({ upcoming: 0, inProgress: 0, concluded: 0, draft: 0 });
   const [activities, setActivities] = useState<MeetingActivity[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -80,8 +84,8 @@ const MeetingsModule = () => {
       case "inProgress":
         filtered = filtered.filter(meeting => meeting.status === "in-progress");
         break;
-      case "completed":
-        filtered = filtered.filter(meeting => meeting.status === "completed");
+      case "concluded":
+        filtered = filtered.filter(meeting => meeting.status === "concluded");
         break;
       case "drafts":
         filtered = filtered.filter(meeting => meeting.status === "draft");
@@ -98,7 +102,7 @@ const MeetingsModule = () => {
       const statusMap: Record<string, MeetingStatus> = {
         "upcoming": "upcoming",
         "inProgress": "in-progress",
-        "completed": "completed",
+        "concluded": "concluded",
         "draft": "draft"
       };
       filtered = filtered.filter(meeting => meeting.status === statusMap[status]);
@@ -182,6 +186,40 @@ const MeetingsModule = () => {
     navigate(`/edit-meeting/${meetingId}`);
   };
   
+  // Navigate to edit circulation details
+/*   const handleEditCirculation = (meetingId: string) => {
+    // Placeholder route for editing circulation details
+    navigate(`/meetings/${meetingId}/circulation/edit`);
+  }; */
+  
+  // Recirculate meeting notice
+  const handleRecirculateNotice = (meetingId: string) => {
+    // In a real app, call API to re-send meeting notice to participants
+    toast({
+      title: "Notice Recirculated",
+      description: `Meeting notice for ID ${meetingId} has been re-circulated to all participants.`,
+    });
+  };
+  
+  // Recirculate the meeting (schedule/circulation re-run)
+  const handleRecirculateMeeting = (meetingId: string) => {
+    // In a real app, call API to re-run circulation or re-schedule logic
+    toast({
+      title: "Meeting Recirculated",
+      description: `Meeting ID ${meetingId} has been re-circulated.`,
+    });
+  };
+  
+  // Generate minutes from recordings and start draft/mail cycle
+  const handleGenerateMinutes = (meetingId: string) => {
+    // In a real app, navigate to minutes generation workflow or trigger backend job
+    navigate(`/meetings/${meetingId}/minutes/create`);
+    toast({
+      title: "Generate Minutes",
+      description: "Minutes generation initiated. Draft cycle and mail circulation will follow.",
+    });
+  };
+  
   // Get meeting actions based on status
   const getMeetingActions = (meeting: Meeting): MeetingAction[] => {
     switch (meeting.status) {
@@ -189,21 +227,29 @@ const MeetingsModule = () => {
         return [
           { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (id: string) => navigate(`/meetings/${id}`) },
           { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (id: string) => handleEditMeeting(id) },
+          { label: "Edit Circulation", icon: <FileSignature className="h-4 w-4" />, onClick: (id: string) => console.log(id) },
+          { label: "Recirculate Notice", icon: <Mail className="h-4 w-4" />, onClick: (id: string) => handleRecirculateNotice(id) },
           { label: "Cancel", icon: <Trash2 className="h-4 w-4" />, onClick: (id: string) => handleCancelMeeting(id) }
         ];
       case "in-progress":
         return [
           { label: "Join", icon: <Video className="h-4 w-4" />, onClick: (id: string) => handleJoinMeeting(id) },
-          { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (id: string) => navigate(`/meetings/${id}`) }
+          { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (id: string) => navigate(`/meetings/${id}`) },
+          { label: "Edit Circulation", icon: <FileSignature className="h-4 w-4" />, onClick: (id: string) => console.log(id) },
+          { label: "Recirculate Notice", icon: <Mail className="h-4 w-4" />, onClick: (id: string) => handleRecirculateNotice(id) }
         ];
-      case "completed":
+      case "concluded":
         return [
           { label: "View", icon: <FileText className="h-4 w-4" />, onClick: (id: string) => navigate(`/meetings/${id}`) },
-          { label: "Recording", icon: <Video className="h-4 w-4" />, onClick: (id: string) => alert("Viewing recording...") }
+          { label: "Recording", icon: <Video className="h-4 w-4" />, onClick: (id: string) => alert("Viewing recording...") },
+          { label: "Generate Minutes", icon: <FileText className="h-4 w-4" />, onClick: (id: string) => handleGenerateMinutes(id) },
+          { label: "Recirculate Minutes", icon: <Repeat className="h-4 w-4" />, onClick: (id: string) => handleRecirculateMeeting(id) },
+          /* { label: "Recirculate Notice", icon: <Mail className="h-4 w-4" />, onClick: (id: string) => handleRecirculateNotice(id) } */
         ];
       case "draft":
         return [
           { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (id: string) => handleEditMeeting(id) },
+          { label: "Edit Circulation", icon: <FileSignature className="h-4 w-4" />, onClick: (id: string) => console.log(id) },
           { label: "Publish", icon: <CheckCircle className="h-4 w-4" />, onClick: (id: string) => handlePublishMeeting(id) },
           { label: "Delete", icon: <Trash2 className="h-4 w-4" />, onClick: (id: string) => handleDeleteMeeting(id) }
         ];
@@ -308,11 +354,11 @@ const MeetingsModule = () => {
             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-medium py-1">In Progress</Badge>
           </div>
         );
-      case "completed":
+      case "concluded":
         return (
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 font-medium py-1">Completed</Badge>
+            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 font-medium py-1">Concluded</Badge>
           </div>
         );
       case "draft":
@@ -437,7 +483,7 @@ const MeetingsModule = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
               <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
-              Completed Meetings
+              Concluded Meetings
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -448,11 +494,11 @@ const MeetingsModule = () => {
               </div>
             ) : (
               <>
-                <div className="text-2xl font-bold">{meetingStats.completed}</div>
+                <div className="text-2xl font-bold">{meetingStats.concluded}</div>
                 <p className="text-xs text-muted-foreground">
-                  {meetings.filter(m => m.status === "completed").length > 0 ? 
-                    `Last: ${meetings.find(m => m.status === "completed")?.title.substring(0, 20)}${meetings.find(m => m.status === "completed")?.title.length > 20 ? '...' : ''}` : 
-                    "No completed meetings"}
+                  {meetings.filter(m => m.status === "concluded").length > 0 ? 
+                    `Last: ${meetings.find(m => m.status === "concluded")?.title.substring(0, 20)}${meetings.find(m => m.status === "concluded")?.title.length > 20 ? '...' : ''}` : 
+                    "No concluded meetings"}
                 </p>
               </>
             )}
@@ -506,7 +552,7 @@ const MeetingsModule = () => {
             <TabsList>
               <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
               <TabsTrigger value="inProgress">In Progress</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsTrigger value="concluded">Concluded</TabsTrigger>
               <TabsTrigger value="drafts">Drafts</TabsTrigger>
             </TabsList>
             
@@ -535,7 +581,7 @@ const MeetingsModule = () => {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="upcoming">Upcoming</SelectItem>
                     <SelectItem value="inProgress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="concluded">Concluded</SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
                   </SelectContent>
                 </Select>
@@ -588,7 +634,7 @@ const MeetingsModule = () => {
                     </tr>
                   ) : (
                     filteredMeetings.map((meeting) => (
-                      <tr key={meeting.id} className="border-b hover:bg-muted/50 transition-colors duration-200">
+                      <tr key={meeting.id} className="border-b /50 transition-colors duration-200">
                         <td className="p-3 pl-4">
                           <div className="font-medium">{meeting.title}</div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
@@ -629,12 +675,19 @@ const MeetingsModule = () => {
                                 key={index} 
                                 size="sm"
                                 variant="ghost"
-                                className="flex items-center gap-1 p-2 hover:bg-muted transition-colors"
+                                className="group flex items-center gap-1 p-2  transition-colors"
                                 onClick={() => action.onClick && action.onClick(meeting.id)}
                                 title={action.label}
                               >
                                 {action.icon}
-                                <span className="sr-only">{action.label}</span>
+                                {action.label === "Join" ? (
+                                  <>
+                                    <span className="sr-only">Join</span>
+                                    <span className="ml-1 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-150">Start</span>
+                                  </>
+                                ) : (
+                                  <span className="sr-only">{action.label}</span>
+                                )}
                               </Button>
                             ))}
                           </div>
@@ -678,7 +731,7 @@ const MeetingsModule = () => {
                     </tr>
                   ) : (
                     filteredMeetings.map((meeting) => (
-                      <tr key={meeting.id} className="border-b hover:bg-muted/50 transition-colors duration-200">
+                      <tr key={meeting.id} className="border-b /50 transition-colors duration-200">
                         <td className="p-3 pl-4">
                           <div className="font-medium">{meeting.title}</div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
@@ -719,12 +772,19 @@ const MeetingsModule = () => {
                                 key={index} 
                                 size="sm"
                                 variant="ghost"
-                                className="flex items-center gap-1 p-2 hover:bg-muted transition-colors"
+                                className="group flex items-center gap-1 p-2  transition-colors"
                                 onClick={() => action.onClick && action.onClick(meeting.id)}
                                 title={action.label}
                               >
                                 {action.icon}
-                                <span className="sr-only">{action.label}</span>
+                                {action.label === "Join" ? (
+                                  <>
+                                    <span className="sr-only">Join</span>
+                                    <span className="ml-1 text-sm font-medium  duration-150 ">Start Meeting</span>
+                                  </>
+                                ) : (
+                                  <span className="sr-only">{action.label}</span>
+                                )}
                               </Button>
                             ))}
                           </div>
@@ -737,7 +797,7 @@ const MeetingsModule = () => {
             </div>
           </TabsContent>
           
-          <TabsContent value="completed" className="mt-0">
+          <TabsContent value="concluded" className="mt-0">
             <div className="border rounded-md">
               <table className="w-full">
                 <thead>
@@ -768,7 +828,7 @@ const MeetingsModule = () => {
                     </tr>
                   ) : (
                     filteredMeetings.map((meeting) => (
-                      <tr key={meeting.id} className="border-b hover:bg-muted/50 transition-colors duration-200">
+                      <tr key={meeting.id} className="border-b /50 transition-colors duration-200">
                         <td className="p-3 pl-4">
                           <div className="font-medium">{meeting.title}</div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
@@ -809,7 +869,7 @@ const MeetingsModule = () => {
                                 key={index} 
                                 size="sm"
                                 variant="ghost"
-                                className="flex items-center gap-1 p-2 hover:bg-muted transition-colors"
+                                className="flex items-center gap-1 p-2  transition-colors"
                                 onClick={() => action.onClick && action.onClick(meeting.id)}
                                 title={action.label}
                               >
@@ -858,7 +918,7 @@ const MeetingsModule = () => {
                     </tr>
                   ) : (
                     filteredMeetings.map((meeting) => (
-                      <tr key={meeting.id} className="border-b hover:bg-muted/50 transition-colors duration-200">
+                      <tr key={meeting.id} className="border-b /50 transition-colors duration-200">
                         <td className="p-3 pl-4">
                           <div className="font-medium">{meeting.title}</div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
@@ -899,7 +959,7 @@ const MeetingsModule = () => {
                                 key={index} 
                                 size="sm"
                                 variant="ghost"
-                                className="flex items-center gap-1 p-2 hover:bg-muted transition-colors"
+                                className="flex items-center gap-1 p-2  transition-colors"
                                 onClick={() => action.onClick && action.onClick(meeting.id)}
                                 title={action.label}
                               >
