@@ -41,19 +41,26 @@ const EntityAndMeetingDetails = ({ formData, setFormData, nextStep, saveChanges 
         <div className="space-y-4">
           <div>
             <Label htmlFor="entity">Entity:</Label>
-            <Select 
-              value={formData.entity || ""} 
-              onValueChange={(value) => handleSelectChange("entity", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select entity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="acme">Acme Corporation</SelectItem>
-                <SelectItem value="globex">Globex Industries</SelectItem>
-                <SelectItem value="initech">Initech LLC</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Select 
+                  value={formData.entity || ""} 
+                  onValueChange={(value) => handleSelectChange("entity", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select entity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="acme">Acme Corporation</SelectItem>
+                    <SelectItem value="globex">Globex Industries</SelectItem>
+                    <SelectItem value="initech">Initech LLC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => window.location.assign('/create-entity')}>
+                Create Entity
+              </Button>
+            </div>
           </div>
 
           <div>

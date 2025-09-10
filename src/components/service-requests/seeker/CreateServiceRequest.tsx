@@ -1137,29 +1137,49 @@ const CreateServiceRequest = () => {
         cat.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
       ).join(", ");
       
-      const aiScope = `Based on your selection of ${selectedProfessionals} services for ${selectedServices}, here is the recommended scope of work:
+      const aiScope = `Scope of Work – Incorporation of a Private Limited Company
 
-1. Initial Assessment & Documentation Review
-   - Review existing company documents and compliance status
-   - Identify gaps and requirements for the selected services
-   - Prepare timeline and milestone plan
+- Pre-Incorporation Advisory
+  - Advising on the suitable type of entity (Private Limited, LLP, OPC, etc.) based on client’s business requirements.
+  - Guidance on capital structure, shareholding pattern, and management roles.
+  - Advising on minimum requirements (directors, shareholders, registered office, etc.).
 
-2. Service Execution
-   - Execute the selected services as per regulatory requirements
-   - Ensure compliance with all applicable laws and regulations
-   - Maintain proper documentation and records
+- Name Approval
+  - Conducting name availability search on MCA portal and Trademark Registry.
+  - Filing RUN (Reserve Unique Name) / SPICe+ Part A form with MCA.
+  - Liaising with MCA for approval of proposed name.
 
-3. Deliverables & Compliance
-   - Provide all required filings and documentation
-   - Submit necessary forms to regulatory authorities
-   - Ensure timely completion within statutory deadlines
+- Documentation & Drafting
+  - Drafting Charter Documents:
+    - Memorandum of Association (MoA).
+    - Articles of Association (AoA).
+  - Drafting consent letters, declarations, and affidavits:
+    - DIR-2 (Director’s consent).
+    - INC-9 (Declaration by subscribers and first directors).
+  - Preparation of board/ subscriber resolutions where applicable.
+  - Collection and verification of KYC documents of directors and shareholders.
 
-4. Post-Service Support
-   - Provide status updates and confirmation of completion
-   - Assist with any follow-up requirements
-   - Maintain records for future reference
+- Digital Signatures & DIN
+  - Assistance in obtaining Digital Signature Certificates (DSC) for directors.
+  - Application for Director Identification Number (DIN) (if not already allotted).
 
-This scope ensures comprehensive coverage of your requirements while maintaining regulatory compliance.`;
+- Filing of Incorporation Forms
+  - Filing of SPICe+ Part B (INC-32) along with linked forms:
+    - eMoA (INC-33) & eAoA (INC-34).
+    - AGILE-PRO-S (for PAN, TAN, GST, ESIC, EPFO, Bank Account).
+  - Uploading all supporting documents with MCA.
+  - Payment of requisite ROC filing fees & stamp duty.
+
+- Liaisoning & Approvals
+  - Coordination with Registrar of Companies (ROC) for scrutiny of forms.
+  - Replying to resubmission / clarification queries raised by ROC.
+  - Obtaining Certificate of Incorporation (COI) with Corporate Identification Number (CIN).
+
+- Post-Incorporation Compliances
+  - Obtaining PAN & TAN of the Company.
+  - Assisting in opening bank account in the company’s name.
+  - Filing of INC-20A (Declaration of commencement of business).
+  - Advisory on first board meeting, appointment of first auditor (ADT-1), and statutory registers.`;
       
       setAiGeneratedScope(aiScope);
       setFormData(prev => ({
@@ -1237,11 +1257,16 @@ This scope ensures comprehensive coverage of your requirements while maintaining
     setIsGeneratingAttachments(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      const suggestions = new Set<string>();
-      suggestions.add("Notice of Meeting (with agenda & notes to agenda)");
-      suggestions.add("List of Invitees (directors, members, auditors, special invitees)");
-      suggestions.add("Proof of Dispatch of Notice (email, hand delivery, or post records)");
-      setAiPrerequisiteAttachments(Array.from(suggestions));
+      const suggestions = [
+        "PAN & Aadhaar of all Directors/Shareholders",
+        "Passport (if NRI/Foreign National)",
+        "Proof of Address (Utility bill/Bank statement – not older than 2 months)",
+        "Proof of Registered Office (Electricity Bill/Tax receipt/Lease Deed)",
+        "NOC from owner (if rented premises)",
+        "Passport-size photograph of each Director/Shareholder",
+        "DSC of all Directors"
+      ];
+      setAiPrerequisiteAttachments(suggestions);
       toast({ title: "Suggestions Ready", description: "Recommended prerequisite documents have been listed." });
     } catch (e) {
       toast({ title: "Generation Failed", description: "Could not generate document suggestions. Please try again.", variant: "destructive" });
@@ -1945,21 +1970,17 @@ This scope ensures comprehensive coverage of your requirements while maintaining
                   {isGeneratingAttachments ? "Generating..." : "Generate Suggestions"}
                 </Button>
               </div>
-              
               {aiPrerequisiteAttachments.length > 0 && (
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Recommended Documents:</h4>
-                  <ul className="space-y-1">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">List of documents generated by AI</h4>
+                  <ul className="space-y-2">
                     {aiPrerequisiteAttachments.map((attachment, index) => (
-                      <li key={index} className="text-sm text-blue-800 flex items-center">
-                        <FileText className="h-3 w-3 mr-2" />
+                      <li key={index} className="text-sm text-blue-900 flex items-center">
+                        <Checkbox className="mr-2" />
                         {attachment}
                       </li>
                     ))}
                   </ul>
-                  <p className="text-xs text-blue-600 mt-2">
-                    These are AI-generated suggestions based on your scope of work. You may upload these or other relevant documents.
-                  </p>
                 </div>
               )}
             </div>

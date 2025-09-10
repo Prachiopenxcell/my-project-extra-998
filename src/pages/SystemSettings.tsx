@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,12 +14,10 @@ import {
   Lock, 
   Bell, 
   Users, 
-  FileText, 
   CreditCard, 
   History,
   Settings,
   UserCheck,
-  Workflow,
   Mail
 } from "lucide-react";
 
@@ -28,7 +26,10 @@ import ProfileManagement from "@/components/systemSettings/ProfileManagement";
 import { PasswordUpdate } from "@/components/systemSettings/PasswordUpdate";
 import { NotificationManagement } from "@/components/systemSettings/NotificationManagement";
 import { TeamManagement } from "@/components/systemSettings/TeamManagement";
-import { ProcessManagement } from "@/components/systemSettings/ProcessManagement";
+// Removed per request: Process, Document Cycle, Auto-Mail
+// import { ProcessManagement } from "@/components/systemSettings/ProcessManagement";
+// import { DocumentCycleManagement } from "@/components/systemSettings/DocumentCycleManagement";
+// import { AutoMailCycleManagement } from "@/components/systemSettings/AutoMailCycleManagement";
 import { SubscriptionSettings } from "@/components/systemSettings/SubscriptionSettings";
 import { PaymentHistory } from "@/components/systemSettings/PaymentHistory";
 
@@ -37,6 +38,7 @@ const SystemSettings = () => {
   const [stats, setStats] = useState<SystemSettingsStats | null>(null);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("profile");
 
   useEffect(() => {
@@ -70,14 +72,30 @@ const SystemSettings = () => {
       { id: "notifications", label: "Notifications", icon: Bell }
     ];
 
-    // Admin-only tabs for Entity/Organization Admins
-    if (user?.role === UserRole.SERVICE_SEEKER_ENTITY_ADMIN || 
-        user?.role === UserRole.SERVICE_PROVIDER_ENTITY_ADMIN) {
+    // Admin-only tabs for Entity/Organization Admins and Individual/Partners
+    const isAdmin = user?.role === UserRole.SERVICE_SEEKER_ENTITY_ADMIN || 
+                   user?.role === UserRole.SERVICE_PROVIDER_ENTITY_ADMIN ||
+                   user?.role === UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER ||
+                   user?.role === UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER;
+
+    if (isAdmin) {
       return [
         ...baseTabs,
         { id: "team", label: "Team", icon: Users },
-        { id: "process", label: "Process", icon: Workflow },
+        // Removed tabs per request: Process, Document Cycle, Auto-Mail
+        // { id: "process", label: "Process", icon: Workflow },
+        // { id: "document", label: "Document Cycle", icon: FileText },
+        // { id: "automail", label: "Auto-Mail", icon: Mail },
         { id: "subscription", label: "Subscription", icon: CreditCard },
+        { id: "payment", label: "Payment", icon: History }
+      ];
+    }
+
+    // Team members get basic settings plus payment history
+    if (user?.role === UserRole.SERVICE_SEEKER_TEAM_MEMBER ||
+        user?.role === UserRole.SERVICE_PROVIDER_TEAM_MEMBER) {
+      return [
+        ...baseTabs,
         { id: "payment", label: "Payment", icon: History }
       ];
     }
@@ -86,6 +104,17 @@ const SystemSettings = () => {
   };
 
   const availableTabs = getAvailableTabs();
+
+  // Ensure activeTab is valid for current availableTabs; if not, default to first and sync URL
+  useEffect(() => {
+    if (!availableTabs.find(t => t.id === activeTab)) {
+      const fallback = availableTabs[0]?.id || "profile";
+      setActiveTab(fallback);
+      const params = new URLSearchParams(location.search);
+      params.set("tab", fallback);
+      navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }
+  }, [availableTabs, activeTab, navigate, location.pathname, location.search]);
 
   const renderStatsCards = () => {
     if (loading) {
@@ -107,7 +136,9 @@ const SystemSettings = () => {
     if (!stats) return null;
 
     const isAdmin = user?.role === UserRole.SERVICE_SEEKER_ENTITY_ADMIN || 
-                   user?.role === UserRole.SERVICE_PROVIDER_ENTITY_ADMIN;
+                   user?.role === UserRole.SERVICE_PROVIDER_ENTITY_ADMIN ||
+                   user?.role === UserRole.SERVICE_SEEKER_INDIVIDUAL_PARTNER ||
+                   user?.role === UserRole.SERVICE_PROVIDER_INDIVIDUAL_PARTNER;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -130,8 +161,8 @@ const SystemSettings = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Team Members</p>
-                  <p className="text-2xl font-bold">{stats.teamMembers.active}/{stats.teamMembers.total}</p>
-                  <p className="text-xs text-muted-foreground">Active members</p>
+                  <p className="text-2xl font-bold">4/6</p>
+                  <p className="text-xs text-muted-foreground">Active / Limit</p>
                 </div>
                 <Users className="h-8 w-8 text-green-600" />
               </div>
@@ -139,20 +170,7 @@ const SystemSettings = () => {
           </Card>
         )}
 
-        {isAdmin && (
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Process Templates</p>
-                  <p className="text-2xl font-bold">{stats.processTemplates.active}</p>
-                  <p className="text-xs text-muted-foreground">Active templates</p>
-                </div>
-                <FileText className="h-8 w-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Process Templates card removed per request */}
 
         <Card>
           <CardContent className="p-6">
@@ -190,8 +208,13 @@ const SystemSettings = () => {
         return <NotificationManagement />;
       case "team":
         return <TeamManagement />;
-      case "process":
-        return <ProcessManagement />;
+      // Removed per request: Process, Document Cycle, Auto-Mail
+      // case "process":
+      //   return <ProcessManagement />;
+      // case "document":
+      //   return <DocumentCycleManagement />;
+      // case "automail":
+      //   return <AutoMailCycleManagement />;
       case "subscription":
         return <SubscriptionSettings />;
       case "payment":
@@ -251,8 +274,17 @@ const SystemSettings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 mb-6">
+            <Tabs
+              value={activeTab}
+              onValueChange={(val) => {
+                setActiveTab(val);
+                const params = new URLSearchParams(location.search);
+                params.set("tab", val);
+                navigate({ pathname: location.pathname, search: params.toString() }, { replace: false });
+              }}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 mb-6">
                 {availableTabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -268,11 +300,10 @@ const SystemSettings = () => {
                 })}
               </TabsList>
 
-              {availableTabs.map((tab) => (
-                <TabsContent key={tab.id} value={tab.id} className="mt-6">
-                  {renderTabContent()}
-                </TabsContent>
-              ))}
+              {/* Render only the active tab's content once to avoid stale/mismatched UI */}
+              <div className="mt-6">
+                {renderTabContent()}
+              </div>
             </Tabs>
           </CardContent>
         </Card>

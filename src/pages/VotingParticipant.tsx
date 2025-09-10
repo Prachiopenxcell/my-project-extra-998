@@ -19,6 +19,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { votingService } from "@/services/votingService";
 import { VotingRequest, Resolution, VoteChoice } from "@/types/voting";
+import { statusToPhase } from "@/utils/votingStatus";
 import { format } from "date-fns";
 import { toast } from "@/components/ui/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -207,6 +208,7 @@ const VotingParticipantModule = () => {
   }
 
   const stats = getParticipationStats();
+  const phase = statusToPhase(votingRequest.status);
 
   return (
     <div className="container mx-auto p-4">
@@ -376,10 +378,12 @@ const VotingParticipantModule = () => {
               <Clock className="h-4 w-4 mr-2" />
               Request Extension
             </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Download Voting Summary
-            </Button>
+            {phase === 'concluded' && (
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Download Voting Summary
+              </Button>
+            )}
             <Button variant="outline">
               <Bell className="h-4 w-4 mr-2" />
               Set Reminder
@@ -417,24 +421,32 @@ const VotingParticipantModule = () => {
                 <Progress value={stats.participation} className="h-2 mt-2" />
               </CardContent>
             </Card>
-            
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-lg font-semibold">Resolution 1</div>
-                <div className="text-sm text-gray-600">{stats.resolution1}% in favor</div>
-                <div className="text-xs text-gray-500">(needs 51%)</div>
-                <Progress value={stats.resolution1} className="h-2 mt-2" />
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-lg font-semibold">Resolution 2</div>
-                <div className="text-sm text-gray-600">{stats.resolution2}% in favor</div>
-                <div className="text-xs text-gray-500">(needs 66%)</div>
-                <Progress value={stats.resolution2} className="h-2 mt-2" />
-              </CardContent>
-            </Card>
+            {phase === 'concluded' ? (
+              <>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-lg font-semibold">Resolution 1</div>
+                    <div className="text-sm text-gray-600">{stats.resolution1}% in favor</div>
+                    <div className="text-xs text-gray-500">(needs 51%)</div>
+                    <Progress value={stats.resolution1} className="h-2 mt-2" />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-lg font-semibold">Resolution 2</div>
+                    <div className="text-sm text-gray-600">{stats.resolution2}% in favor</div>
+                    <div className="text-xs text-gray-500">(needs 66%)</div>
+                    <Progress value={stats.resolution2} className="h-2 mt-2" />
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card className="md:col-span-2">
+                <CardContent className="p-4 text-center text-sm text-gray-600">
+                  Detailed in-favor/against breakdown will be available after voting concludes.
+                </CardContent>
+              </Card>
+            )}
           </div>
         </CardContent>
       </Card>

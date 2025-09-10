@@ -150,15 +150,14 @@ export const NotificationPreferencesComponent = ({ onClose }: NotificationPrefer
               <Mail className="h-5 w-5 text-green-600" />
               <div>
                 <Label className="text-sm font-medium">Email Notifications</Label>
-                <p className="text-xs text-gray-600">Receive notifications via email</p>
+                <p className="text-xs text-gray-600">Require email for important actions and updates</p>
               </div>
             </div>
             <Switch
-              checked={preferences.emailEnabled}
-              onCheckedChange={(checked) => updatePreference('emailEnabled', checked)}
+              checked={!!preferences.emailRequired}
+              onCheckedChange={(checked) => updatePreference('emailRequired', checked)}
             />
           </div>
-
           <Separator />
 
           <div className="flex items-center justify-between">

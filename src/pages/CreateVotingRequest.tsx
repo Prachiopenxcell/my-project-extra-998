@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { votingService } from "@/services/votingService";
-import { CreateVotingRequest, MeetingType, VotingParticipant, Resolution } from "@/types/voting";
+import { CreateVotingRequest, MeetingType } from "@/types/voting";
 import { toast } from "@/components/ui/use-toast";
 import { Badge } from "@/components/ui/badge";
 
@@ -78,13 +78,70 @@ const CreateVotingRequestForm = () => {
   });
 
   const [equalShareVoting, setEqualShareVoting] = useState(false);
-  const [participantListVisible, setParticipantListVisible] = useState(false);
+  // Tri-state: yes | no | as_per_law
+  const [participantListVisibility, setParticipantListVisibility] = useState<'yes'|'no'|'as_per_law'>('no');
+  // Time selections bound to state
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('17:00');
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  // Bulk upload ref
+  const bulkInputRef = useRef<HTMLInputElement | null>(null);
+  // MoM upload ref/state
+  const momInputRef = useRef<HTMLInputElement | null>(null);
+  const [momProcessing, setMomProcessing] = useState(false);
+  // Existing setup options
+  const [existingOptions, setExistingOptions] = useState<{id:string; title:string}[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+
+  useEffect(() => {
+    // Bind time selects into ISO strings when dates present
+    if (formData.startDate) {
+      const date = formData.startDate.split('T')[0] || formData.startDate;
+      handleInputChange("startDate", `${date}T${startTime}:00`);
+    }
+    if (formData.endDate) {
+      const date = formData.endDate.split('T')[0] || formData.endDate;
+      handleInputChange("endDate", `${date}T${endTime}:00`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startTime, endTime]);
 
   const handleInputChange = (field: keyof CreateVotingRequest, value: string | boolean | MeetingType) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleParticipantChange = (index: number, field: keyof VotingParticipant, value: string | number) => {
+  const handleMoMUploadClick = () => {
+    momInputRef.current?.click();
+  };
+
+  const handleMoMUpload = async (file: File | null) => {
+    if (!file) return;
+    try {
+      setMomProcessing(true);
+      const extracted = await votingService.extractResolutionsFromMoM(file);
+      if (!extracted || extracted.length === 0) {
+        toast({ title: "No resolutions found", description: "Could not detect resolution items in the uploaded MoM." });
+        return;
+      }
+      // Map to Resolution type used in formData
+      const mapped: CreateVotingRequest['resolutions'] = extracted.map((r) => ({
+        title: r.title,
+        description: r.description,
+        minimumPassPercentage: r.minimumPassPercentage ?? 51,
+        calculationBase: r.calculationBase,
+      }));
+      setFormData(prev => ({ ...prev, resolutions: mapped }));
+      toast({ title: "Resolutions extracted", description: `Added ${mapped.length} resolution(s) from MoM` });
+    } catch (e) {
+      toast({ title: "Extraction failed", description: "We couldn't parse the MoM. Try a simpler .txt or ensure headings like 'Resolved that'.", variant: "destructive" });
+    } finally {
+      setMomProcessing(false);
+    }
+  };
+
+  type NewParticipant = CreateVotingRequest['participants'][number];
+  const handleParticipantChange = (index: number, field: keyof NewParticipant, value: string | number) => {
     const updatedParticipants = [...formData.participants];
     updatedParticipants[index] = { ...updatedParticipants[index], [field]: value };
     setFormData(prev => ({ ...prev, participants: updatedParticipants }));
@@ -107,7 +164,8 @@ const CreateVotingRequestForm = () => {
     }));
   };
 
-  const handleResolutionChange = (index: number, field: keyof Resolution, value: string | number) => {
+  type NewResolution = CreateVotingRequest['resolutions'][number];
+  const handleResolutionChange = (index: number, field: keyof NewResolution, value: string | number) => {
     const updatedResolutions = [...formData.resolutions];
     updatedResolutions[index] = { ...updatedResolutions[index], [field]: value };
     setFormData(prev => ({ ...prev, resolutions: updatedResolutions }));
@@ -147,6 +205,68 @@ const CreateVotingRequestForm = () => {
     }
   };
 
+  const handleUseExistingSetup = async () => {
+    try {
+      setLoadingExisting(true);
+      // fetch existing requests for selection if not loaded
+      if (existingOptions.length === 0) {
+        const list = await votingService.getVotingRequests();
+        setExistingOptions(list.map(l => ({ id: l.id, title: `${l.title} (${l.id})` })));
+      }
+      // Simple behavior: pick the most recent request automatically (could render a Select for choice)
+      const list = await votingService.getVotingRequests();
+      if (list.length) {
+        const latest = list[0];
+        const participants: NewParticipant[] = latest.participants.map(p => ({
+          name: p.name,
+          email: p.email,
+          mobile: p.mobile,
+          votingShare: p.votingShare ?? 0,
+        }));
+        setFormData(prev => ({ ...prev, participants }));
+        toast({ title: "Participants loaded", description: `Loaded ${participants.length} from ${latest.id}` });
+      } else {
+        toast({ title: "No existing data", description: "No previous voting requests found" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to load existing setup", variant: "destructive" });
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+
+  const handleBulkUploadClick = () => {
+    bulkInputRef.current?.click();
+  };
+
+  const parseCsv = (text: string): NewParticipant[] => {
+    // Expect headers: name,email,mobile,votingShare
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return [];
+    const startIdx = lines[0].toLowerCase().includes('name') ? 1 : 0;
+    const rows = lines.slice(startIdx);
+    return rows.map(line => {
+      const [name, email, mobile, share] = line.split(',').map(s => s?.trim() ?? '');
+      return { name, email, mobile, votingShare: Number(share || 0) } as NewParticipant;
+    }).filter(p => p.name || p.email || p.mobile);
+  };
+
+  const handleBulkUpload = async (file: File | null) => {
+    if (!file) return;
+    try {
+      const txt = await file.text();
+      const parsed = parseCsv(txt);
+      if (parsed.length === 0) {
+        toast({ title: "No rows found", description: "CSV appears empty" });
+        return;
+      }
+      setFormData(prev => ({ ...prev, participants: parsed }));
+      toast({ title: "Bulk upload complete", description: `Imported ${parsed.length} participants` });
+    } catch {
+      toast({ title: "Upload failed", description: "Could not parse CSV", variant: "destructive" });
+    }
+  };
+
   const handleSaveDraft = async () => {
     try {
       setLoading(true);
@@ -172,10 +292,9 @@ const CreateVotingRequestForm = () => {
       setLoading(true);
       const request = await votingService.createVotingRequest(formData);
       await votingService.updateVotingRequest(request.id, { status: "scheduled" });
-      toast({
-        title: "Success",
-        description: "Voting request published successfully",
-      });
+      // Notify participants with non-zero share (simulated)
+      const notifiees = formData.participants.filter(p => (p.votingShare ?? 0) > 0).length;
+      toast({ title: "Published", description: `Notified ${notifiees} participant(s) with non-zero share` });
       navigate("/voting");
     } catch (error) {
       toast({
@@ -186,6 +305,15 @@ const CreateVotingRequestForm = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openPreview = () => {
+    // Basic validation
+    if (!formData.entityName || !formData.title) {
+      toast({ title: "Missing details", description: "Please enter Title and Entity Name before preview" });
+      return;
+    }
+    setPreviewOpen(true);
   };
 
   const totalVotingShare = formData.participants.reduce((sum, p) => sum + p.votingShare, 0);
@@ -203,9 +331,9 @@ const CreateVotingRequestForm = () => {
             <Save className="mr-2 h-4 w-4" />
             Save Draft
           </Button>
-          <Button size="sm" className="h-9" onClick={handlePublish} disabled={loading}>
+          <Button size="sm" className="h-9" onClick={openPreview} disabled={loading}>
             <Send className="mr-2 h-4 w-4" />
-            Publish
+            Preview & Publish
           </Button>
         </div>
       </div>
@@ -228,14 +356,25 @@ const CreateVotingRequestForm = () => {
                   <SelectItem value="annual_meeting">Annual Meeting</SelectItem>
                   <SelectItem value="special_meeting">Special Meeting</SelectItem>
                   <SelectItem value="committee_meeting">Committee Meeting</SelectItem>
+                  <SelectItem value="csr">CSR</SelectItem>
+                  <SelectItem value="nrc">NRC</SelectItem>
+                  <SelectItem value="audit_committee">Audit Committee</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label htmlFor="momFile">Upload MoM</Label>
               <div className="flex items-center gap-2">
-                <Input type="file" accept=".pdf,.doc,.docx" className="flex-1" />
-                <Button variant="outline" size="sm">
+                <input
+                  ref={momInputRef}
+                  id="momFile"
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  className="hidden"
+                  onChange={(e) => handleMoMUpload(e.target.files?.[0] || null)}
+                />
+                <Input readOnly value={momInputRef.current?.files?.[0]?.name || ''} placeholder="Select MoM file (.pdf, .docx, .txt)" className="flex-1" />
+                <Button variant="outline" size="sm" onClick={handleMoMUploadClick} disabled={momProcessing}>
                   <Upload className="h-4 w-4" />
                 </Button>
               </div>
@@ -245,16 +384,23 @@ const CreateVotingRequestForm = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="entityName">Entity Name</Label>
-              <Select value={formData.entityName} onValueChange={(value) => handleInputChange("entityName", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select entity" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Acme Corporation">Acme Corporation</SelectItem>
-                  <SelectItem value="Tech Solutions Inc.">Tech Solutions Inc.</SelectItem>
-                  <SelectItem value="Healthcare Ltd">Healthcare Ltd</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Select value={formData.entityName} onValueChange={(value) => handleInputChange("entityName", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select entity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Acme Corporation">Acme Corporation</SelectItem>
+                      <SelectItem value="Tech Solutions Inc.">Tech Solutions Inc.</SelectItem>
+                      <SelectItem value="Healthcare Ltd">Healthcare Ltd</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                  Create Entity
+                </Button>
+              </div>
             </div>
             <div>
               <Label htmlFor="meetingNumber">Meeting Number</Label>
@@ -288,19 +434,28 @@ const CreateVotingRequestForm = () => {
               />
               <Label htmlFor="equalShare">Equal Share Voting</Label>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="participantVisible"
-                checked={participantListVisible}
-                onCheckedChange={(checked) => setParticipantListVisible(!!checked)}
-              />
-              <Label htmlFor="participantVisible">Participant List Visible</Label>
-            </div>
-            <Button variant="outline" size="sm">
+            <Select value={participantListVisibility} onValueChange={(v: 'yes'|'no'|'as_per_law') => setParticipantListVisibility(v)}>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+                <SelectItem value="as_per_law">As per Law</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handleUseExistingSetup} disabled={loadingExisting}>
               <Users className="h-4 w-4 mr-2" />
               Use Existing Setup
             </Button>
-            <Button variant="outline" size="sm">
+            <input
+              ref={bulkInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => handleBulkUpload(e.target.files?.[0] || null)}
+            />
+            <Button variant="outline" size="sm" onClick={handleBulkUploadClick}>
               <Upload className="h-4 w-4 mr-2" />
               Bulk Upload
             </Button>
@@ -388,7 +543,7 @@ const CreateVotingRequestForm = () => {
             </div>
             <div>
               <Label htmlFor="startTime">Time</Label>
-              <Select defaultValue="09:00">
+              <Select value={startTime} onValueChange={(v: string) => setStartTime(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -411,7 +566,7 @@ const CreateVotingRequestForm = () => {
             </div>
             <div>
               <Label htmlFor="endTime">Time</Label>
-              <Select defaultValue="17:00">
+              <Select value={endTime} onValueChange={(v: string) => setEndTime(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -450,8 +605,10 @@ const CreateVotingRequestForm = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Resolutions
+            Resolutions 
+            
           </CardTitle>
+          <span className="text-xs text-muted-foreground block">Auto generated By AI</span>
         </CardHeader>
         <CardContent className="space-y-6">
           {formData.resolutions.map((resolution, index) => (
@@ -527,16 +684,7 @@ const CreateVotingRequestForm = () => {
             </div>
           ))}
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={addResolution}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Resolution
-            </Button>
-            <Button variant="outline">
-              <Bot className="h-4 w-4 mr-2" />
-              Auto-generate from MoM
-            </Button>
-          </div>
+          
         </CardContent>
       </Card>
 
@@ -670,7 +818,7 @@ const CreateVotingRequestForm = () => {
       {/* Actions */}
       <Card className="mb-6">
         <CardContent className="flex justify-center gap-4 py-6">
-          <Button variant="outline">
+          <Button variant="outline" onClick={openPreview}>
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
@@ -690,6 +838,75 @@ const CreateVotingRequestForm = () => {
           </Button>
         </CardContent>
       </Card>
+      {/* Preview Overlay */}
+      {previewOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Preview Voting Request</h3>
+                <p className="text-sm text-muted-foreground">Review details before publishing</p>
+              </div>
+              <Button variant="ghost" onClick={() => setPreviewOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Entity Name</Label>
+                  <p className="mt-1 font-medium">{formData.entityName || '—'}</p>
+                </div>
+                <div>
+                  <Label>Meeting Type</Label>
+                  <p className="mt-1 font-medium">{formData.meetingType.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <Label>Start & End</Label>
+                  <p className="mt-1 font-medium">{formData.startDate || '—'} → {formData.endDate || '—'}</p>
+                </div>
+                <div>
+                  <Label>Discreet Voting</Label>
+                  <p className="mt-1 font-medium">{formData.discreteVoting ? 'Yes' : 'No'}</p>
+                </div>
+                <div>
+                  <Label>Participant List Visibility</Label>
+                  <p className="mt-1 font-medium">{participantListVisibility === 'as_per_law' ? 'As per Law' : participantListVisibility === 'yes' ? 'Yes' : 'No'}</p>
+                </div>
+              </div>
+              <div>
+                <Label>Resolutions</Label>
+                <ul className="mt-2 list-disc pl-5 space-y-1">
+                  {formData.resolutions.map((r, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{r.title}</span> — {r.minimumPassPercentage}% on {r.calculationBase === 'total_vote' ? 'Total Vote' : 'Votes Present'}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <Label>Voter List</Label>
+                <div className="mt-2 border rounded">
+                  <div className="grid grid-cols-4 gap-2 p-2 bg-gray-50 text-sm font-medium">
+                    <div>Name</div><div>Email</div><div>Mobile</div><div>Share %</div>
+                  </div>
+                  {formData.participants.map((p, i) => (
+                    <div key={i} className="grid grid-cols-4 gap-2 p-2 border-t text-sm">
+                      <div>{p.name}</div><div>{p.email}</div><div>{p.mobile}</div><div>{p.votingShare}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPreviewOpen(false)}>Edit</Button>
+              <Button onClick={() => { setPreviewOpen(false); handlePublish(); }} disabled={loading}>
+                <Send className="h-4 w-4 mr-2" /> Publish
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

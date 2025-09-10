@@ -30,6 +30,13 @@ import {
 
 const founders = [
   {
+    name: 'Manish Sukhani',
+    role: 'Founder & Managing Director',
+    background: 'Serial entrepreneur and industry leader with deep expertise in building compliant, secure, and scalable digital platforms for professional services.',
+    image: 'https://via.placeholder.com/150x150/3b82f6/ffffff?text=MS',
+    expertise: ['Strategy', 'Product Leadership', 'Governance & Compliance']
+  },
+  {
     name: 'Dr. Sarah Mitchell',
     role: 'CEO & Co-Founder',
     background: 'Former Partner at Global Legal Solutions with 15+ years in corporate law and compliance',
@@ -42,13 +49,6 @@ const founders = [
     background: 'Ex-Google Senior Engineer with expertise in AI, blockchain, and enterprise software',
     image: 'https://via.placeholder.com/150x150/3b82f6/ffffff?text=SM',
     expertise: ['AI/ML', 'Blockchain Technology', 'Enterprise Architecture']
-  },
-  {
-    name: 'David Rodriguez',
-    role: 'COO & Co-Founder',
-    background: 'Former McKinsey Principal specializing in professional services and operational excellence',
-    image: 'https://via.placeholder.com/150x150/3b82f6/ffffff?text=SM',
-    expertise: ['Operations Strategy', 'Process Optimization', 'Business Development']
   }
 ];
 
@@ -472,12 +472,13 @@ export default function AboutUs() {
             <CardContent className="text-center space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-600">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">Headquarters</h4>
+                  <h4 className="font-semibold text-gray-900 mb-2">Office Address</h4>
                   <div className="flex items-center justify-center space-x-1 mb-1">
                     <MapPin className="h-4 w-4" />
-                    <span>San Francisco, CA</span>
+                    <span>B 213, Orchard Road Mall</span>
                   </div>
-                  <p>123 Tech Street, Suite 100<br />San Francisco, CA 94105</p>
+                  <p>Royal Palms, Aarey Colony
+                  Goregaon (East)<br /> Mumbai, Maharashtra, INDIA 400065</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Contact</h4>

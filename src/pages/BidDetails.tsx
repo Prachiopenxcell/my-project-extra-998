@@ -460,6 +460,14 @@ const BidDetails = () => {
                           <span className="font-medium">₹{(bid.financials?.professionalFee ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
+                          <span className="text-gray-600">Platform Fee</span>
+                          <span className="font-medium">₹{(bid.financials?.platformFee ?? 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">GST</span>
+                          <span className="font-medium">₹{(bid.financials?.gst ?? 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
                           <span className="text-gray-600">Regulatory Payouts</span>
                           <span className="font-medium">₹{(bid.financials?.reimbursements?.regulatoryStatutoryPayouts ?? 0).toLocaleString()}</span>
                         </div>

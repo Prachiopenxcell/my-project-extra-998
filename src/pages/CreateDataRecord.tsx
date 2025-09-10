@@ -472,27 +472,34 @@ const CreateDataRecord = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label className="text-base font-medium mb-4 block">Select Entity</Label>
-                  <Select value={selectedEntity?.id || ''} onValueChange={handleEntitySelect}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Choose an entity from Entity Master list" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableEntities.map((entity) => (
-                        <SelectItem key={entity.id} value={entity.id}>
-                          <div className="flex items-center gap-3">
-                            <Building className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">{entity.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {entity.type} • CIN: {entity.cin} • Status: {entity.status}
+                  <Label className="text-base font-medium mb-2 block">Select Entity</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Select value={selectedEntity?.id || ''} onValueChange={handleEntitySelect}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Choose an entity from Entity Master list" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableEntities.map((entity) => (
+                            <SelectItem key={entity.id} value={entity.id}>
+                              <div className="flex items-center gap-3">
+                                <Building className="h-4 w-4" />
+                                <div>
+                                  <div className="font-medium">{entity.name}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {entity.type} • CIN: {entity.cin} • Status: {entity.status}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                      Create Entity
+                    </Button>
+                  </div>
                 </div>
 
                 {selectedEntity && (

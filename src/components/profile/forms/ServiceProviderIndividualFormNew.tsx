@@ -36,7 +36,7 @@ import {
   Languages,
   Settings
 } from 'lucide-react';
-import { IdentityDocumentType, AccountType, ServiceLevel, ServiceSector, ServiceIndustry, LanguageProficiency, MembershipVerificationStatus } from '@/types/profile';
+import { IdentityDocumentType, AccountType, ServiceLevel, ServiceSector, ServiceIndustry, LanguageProficiency, MembershipVerificationStatus, PersonType } from '@/types/profile';
 import { ProfileService } from '@/services/profileService';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
@@ -52,6 +52,7 @@ interface FormData {
   name: string;
   companyName: string;
   companyLogo: File | null;
+  personType: PersonType | '';
   
   // User Details (Mandatory for permanent reference number)
   email: string;
@@ -192,6 +193,7 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
     name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
     companyName: '',
     companyLogo: null,
+    personType: PersonType.INDIVIDUAL,
     
     // User Details
     email: user?.email || '',
@@ -448,35 +450,53 @@ export const ServiceProviderIndividualFormNew: React.FC<ServiceProviderIndividua
                 Personal Details
               </CardTitle>
               <CardDescription>
-                Basic personal and company information
+                Basic personal and Trade information
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="title">Title *</Label>
-                  <Select value={formData.title} onValueChange={(value) => handleInputChange('title', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select title" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Mr.">Mr.</SelectItem>
-                      <SelectItem value="Mrs.">Mrs.</SelectItem>
-                      <SelectItem value="Ms.">Ms.</SelectItem>
-                      <SelectItem value="Dr.">Dr.</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              </div>
+            <div className="grid grid-cols-12 gap-4">
+  {/* Title - 2 columns */}
+  <div className="col-span-2">
+    <Label htmlFor="title">Title *</Label>
+    <Select value={formData.title} onValueChange={(value) => handleInputChange('title', value)}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select title" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="Mr.">Mr.</SelectItem>
+        <SelectItem value="Mrs.">Mrs.</SelectItem>
+        <SelectItem value="Ms.">Ms.</SelectItem>
+        <SelectItem value="Dr.">Dr.</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+  
+  {/* Full Name - 4 columns */}
+  <div className="col-span-4">
+    <Label htmlFor="name">Full Name *</Label>
+    <Input
+      id="name"
+      value={formData.name}
+      onChange={(e) => handleInputChange('name', e.target.value)}
+      placeholder="Enter your full name"
+    />
+  </div>
+  
+  {/* Person Type - 6 columns */}
+  <div className="col-span-6">
+    <Label htmlFor="personType">Person Type</Label>
+    <Select value={formData.personType} onValueChange={(value) => handleInputChange('personType', value)}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select person type" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={PersonType.INDIVIDUAL}>Individual</SelectItem>
+        <SelectItem value={PersonType.SOLE_PROPRIETOR}>Sole Proprietor</SelectItem>
+        <SelectItem value={PersonType.UNREGISTERED_PARTNERSHIP}>Partner (Unregistered Partnership)</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+</div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

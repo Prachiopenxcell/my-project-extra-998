@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +55,7 @@ interface ResolutionPlan {
 const ResolutionDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -161,12 +162,33 @@ const ResolutionDashboard = () => {
   };
 
   const handleUploadResolutionPlan = () => {
-    navigate('/resolution/upload-plan');
+    // Open file explorer to upload a resolution plan file
+    fileInputRef.current?.click();
+  };
+
+  const handlePlanFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      toast({
+        title: 'Resolution Plan Selected',
+        description: `${file.name} ready to upload.`
+      });
+      // Reset input so selecting the same file again will trigger onChange
+      e.target.value = '';
+    }
   };
 
   return (
     <DashboardLayout>
       <div className="container mx-auto p-6">
+        {/* Hidden file input for uploading resolution plans */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.xlsx,.xls,.zip"
+          className="hidden"
+          onChange={handlePlanFileSelected}
+        />
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -303,7 +325,7 @@ const ResolutionDashboard = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          Due: {new Date(eoi.lastDateToSubmit).toLocaleDateString()}
+                          Last date to submit EOI: {new Date(eoi.lastDateToSubmit).toLocaleDateString()}
                         </div>
                         <div className="flex items-center gap-1">
                           <Users className="h-3 w-3" />

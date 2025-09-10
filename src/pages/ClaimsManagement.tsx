@@ -214,16 +214,21 @@ const ClaimsManagement = () => {
             <p className="text-gray-600 mt-1">Manage money claim processes and submissions</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select Entity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="entity-1">ABC Corporation Ltd</SelectItem>
-                <SelectItem value="entity-2">XYZ Industries Ltd</SelectItem>
-                <SelectItem value="entity-3">PQR Services Ltd</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select Entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entity-1">ABC Corporation Ltd</SelectItem>
+                  <SelectItem value="entity-2">XYZ Industries Ltd</SelectItem>
+                  <SelectItem value="entity-3">PQR Services Ltd</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                Create Entity
+              </Button>
+            </div>
             <Button onClick={handleCreateInvitation}>
               <Plus className="w-4 h-4 mr-2" />
               Create Claim Invitation

@@ -27,17 +27,18 @@ import {
   X
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { complianceService } from "@/services/complianceService";
+import {
+  ComplianceRequirement as ComplianceRequirementType,
+  ComplianceEntity as ComplianceEntityType,
+  ComplianceGuideline,
+  ComplianceReminder,
+  ReminderChannel,
+  CustomLawTemplate,
+} from "@/types/compliance";
 
-interface ComplianceRequirement {
-  id: string;
-  title: string;
-  authority: string;
-  category: 'core' | 'sectoral' | 'size-based' | 'jurisdiction';
-  description: string;
-  frequency: string;
-  selected: boolean;
-  autoDetected: boolean;
-}
+// Use centralized types for requirements
+type ComplianceRequirement = ComplianceRequirementType;
 
 interface CustomRequirement {
   title: string;
@@ -51,13 +52,20 @@ interface CustomRequirement {
   assignedTo: string;
   status: string;
   remarksLinks: string;
+  guidelines: ComplianceGuideline[];
+  reminders: ComplianceReminder[];
+  saveAsTemplate?: boolean;
 }
 
 const ComplianceChecklistGeneration = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const selectedEntities = location.state?.selectedEntities || [];
+  const selectedEntities = (location.state?.selectedEntities || []) as ComplianceEntityType[];
+  const selectedEntity: ComplianceEntityType | undefined = selectedEntities[0];
+
+  // Templates storage
+  const [templates, setTemplates] = useState<CustomLawTemplate[]>([]);
   
   // Jurisdiction-based mapping state
   const [selectedJurisdiction, setSelectedJurisdiction] = useState('');
@@ -208,101 +216,7 @@ const ComplianceChecklistGeneration = () => {
     ]
   };
 
-  const [requirements, setRequirements] = useState<ComplianceRequirement[]>([
-    // Core Legal Requirements (National Level)
-    {
-      id: "1",
-      title: "Income Tax Act, 1961 - Annual Returns, TDS, Advance Tax",
-      authority: "Income Tax Department",
-      category: "core",
-      description: "Annual income tax returns, TDS compliance, advance tax payments",
-      frequency: "Annual/Quarterly/Monthly",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "2", 
-      title: "GST Act, 2017 - Monthly Returns, Annual Return",
-      authority: "GST Department",
-      category: "core",
-      description: "GSTR-1, GSTR-3B monthly returns and annual GSTR-9",
-      frequency: "Monthly/Annual",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "3",
-      title: "Companies Act, 2013 - ROC Filings, Board Meetings",
-      authority: "Ministry of Corporate Affairs",
-      category: "core", 
-      description: "Annual filings, board resolutions, compliance certificates",
-      frequency: "Annual/Quarterly",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "4",
-      title: "Labour Laws - PF, ESI, Professional Tax",
-      authority: "Labour Department",
-      category: "core",
-      description: "Provident Fund, ESI, Professional Tax compliance",
-      frequency: "Monthly",
-      selected: true,
-      autoDetected: true
-    },
-    // Sectoral Requirements
-    {
-      id: "6",
-      title: "SEZ regulations (if applicable)",
-      authority: "SEZ Authority",
-      category: "sectoral",
-      description: "Special Economic Zone compliance requirements",
-      frequency: "Quarterly",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "7",
-      title: "Software Export obligations",
-      authority: "STPI/SEZ",
-      category: "sectoral", 
-      description: "Software export documentation and reporting",
-      frequency: "Monthly",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "8",
-      title: "Data Protection compliance",
-      authority: "IT Ministry",
-      category: "sectoral",
-      description: "Data privacy and protection compliance",
-      frequency: "Annual",
-      selected: true,
-      autoDetected: true
-    },
-    // Size-based Requirements
-    {
-      id: "9",
-      title: "Contract Labour Act compliance",
-      authority: "Labour Department",
-      category: "size-based",
-      description: "Contract labour registration and compliance",
-      frequency: "Annual",
-      selected: true,
-      autoDetected: true
-    },
-    {
-      id: "10",
-      title: "Gratuity Act provisions",
-      authority: "Labour Department", 
-      category: "size-based",
-      description: "Gratuity payment and compliance requirements",
-      frequency: "Annual",
-      selected: true,
-      autoDetected: true
-    }
-  ]);
+  const [requirements, setRequirements] = useState<ComplianceRequirement[]>([]);
 
   const [customRequirement, setCustomRequirement] = useState<CustomRequirement>({
     title: '',
@@ -315,8 +229,25 @@ const ComplianceChecklistGeneration = () => {
     formFormat: '',
     assignedTo: '',
     status: 'pending',
-    remarksLinks: ''
+    remarksLinks: '',
+    guidelines: [],
+    reminders: [],
+    saveAsTemplate: true,
   });
+
+  // Load initial requirements via service
+  useEffect(() => {
+    const mapped = complianceService.autoMapRequirements({ entity: selectedEntity || {
+      id: 'unknown', name: 'Unknown', type: 'Entity', location: 'Mumbai', sector: 'IT'
+    }});
+    setRequirements(mapped);
+    setTemplates(complianceService.getCustomLawTemplates());
+    // Auto-apply jurisdiction when entity present
+    if (selectedEntity?.location) {
+      autoDetectJurisdictionFromEntity();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -426,10 +357,28 @@ const ComplianceChecklistGeneration = () => {
         description: `Custom requirement: ${customRequirement.title}`,
         frequency: customRequirement.frequency,
         selected: true,
-        autoDetected: false
+        autoDetected: false,
+        guidelines: customRequirement.guidelines,
+        reminders: customRequirement.reminders,
       };
       
       setRequirements(prev => [...prev, newRequirement]);
+
+      // Optionally persist as reusable template
+      if (customRequirement.saveAsTemplate) {
+        const tpl = complianceService.saveCustomLawTemplate({
+          title: customRequirement.title,
+          authority: customRequirement.authority,
+          frequency: customRequirement.frequency,
+          description: customRequirement.details,
+          documents: [],
+          guidelines: customRequirement.guidelines,
+          reminders: customRequirement.reminders,
+        });
+        setTemplates(prev => [...prev, tpl]);
+        toast({ title: 'Custom Law Saved', description: 'Saved as reusable template for future entities.' });
+      }
+
       setCustomRequirement({
         title: "",
         authority: "",
@@ -441,7 +390,10 @@ const ComplianceChecklistGeneration = () => {
         formFormat: '',
         assignedTo: '',
         status: 'pending',
-        remarksLinks: ''
+        remarksLinks: '',
+        guidelines: [],
+        reminders: [],
+        saveAsTemplate: true,
       });
       setShowCustomForm(false);
     }
@@ -588,6 +540,47 @@ const ComplianceChecklistGeneration = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Saved templates list */}
+              {templates.length > 0 && !showCustomForm && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold mb-2">Saved Custom Laws</h4>
+                  <div className="space-y-2">
+                    {templates.map((tpl) => (
+                      <div key={tpl.id} className="flex items-center justify-between p-3 border rounded">
+                        <div>
+                          <p className="font-medium">{tpl.title}</p>
+                          <p className="text-xs text-gray-600">{tpl.authority} • {tpl.frequency}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newRequirement: ComplianceRequirement = {
+                                id: `custom-${Date.now()}`,
+                                title: tpl.title,
+                                authority: tpl.authority,
+                                category: 'core',
+                                description: tpl.description || `Custom requirement: ${tpl.title}`,
+                                frequency: tpl.frequency,
+                                selected: true,
+                                autoDetected: false,
+                                guidelines: tpl.guidelines,
+                                reminders: tpl.reminders,
+                              };
+                              setRequirements(prev => [...prev, newRequirement]);
+                              toast({ title: 'Added from Template', description: 'Custom law was added to the checklist.' });
+                            }}
+                          >
+                            Add to Checklist
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {!showCustomForm ? (
                 <div className="text-center py-8">
                   <p className="text-gray-600 mb-4">Add specialized requirements</p>
@@ -725,6 +718,152 @@ const ComplianceChecklistGeneration = () => {
                       placeholder="Enter additional remarks, notes, or relevant links"
                       rows={2}
                     />
+                  </div>
+
+                  {/* Guidelines builder */}
+                  <div className="border rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Guidelines</label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCustomRequirement(prev => ({
+                          ...prev,
+                          guidelines: [
+                            ...prev.guidelines,
+                            { id: `gl-${Date.now()}`, title: 'New Guideline', createdAt: new Date().toISOString() } as ComplianceGuideline,
+                          ],
+                        }))}
+                      >
+                        Add Guideline
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {customRequirement.guidelines.map((g, idx) => (
+                        <div key={g.id} className="flex items-center gap-2">
+                          <Input
+                            value={g.title}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomRequirement(prev => ({
+                                ...prev,
+                                guidelines: prev.guidelines.map((x, i) => i === idx ? { ...x, title: val } : x),
+                              }));
+                            }}
+                            placeholder="Guideline title"
+                          />
+                          <Button
+                            variant="ghost"
+                            onClick={() => setCustomRequirement(prev => ({
+                              ...prev,
+                              guidelines: prev.guidelines.filter((_, i) => i !== idx),
+                            }))}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reminders builder */}
+                  <div className="border rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Alerts & Reminders</label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCustomRequirement(prev => ({
+                          ...prev,
+                          reminders: [
+                            ...prev.reminders,
+                            { id: `rm-${Date.now()}`, title: 'Reminder', daysBeforeDue: 7, frequency: 'once', channels: ['in-app'], active: true },
+                          ],
+                        }))}
+                      >
+                        Add Reminder
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {customRequirement.reminders.map((r, idx) => (
+                        <div key={r.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
+                          <Input
+                            value={r.title}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomRequirement(prev => ({
+                                ...prev,
+                                reminders: prev.reminders.map((x, i) => i === idx ? { ...x, title: val } : x),
+                              }));
+                            }}
+                            placeholder="Reminder title"
+                          />
+                          <Input
+                            type="number"
+                            value={r.daysBeforeDue}
+                            onChange={(e) => {
+                              const val = Number(e.target.value || 0);
+                              setCustomRequirement(prev => ({
+                                ...prev,
+                                reminders: prev.reminders.map((x, i) => i === idx ? { ...x, daysBeforeDue: val } : x),
+                              }));
+                            }}
+                            placeholder="Days before due"
+                          />
+                          <Select
+                            value={r.frequency}
+                            onValueChange={(v) => setCustomRequirement(prev => ({
+                              ...prev,
+                              reminders: prev.reminders.map((x, i) => i === idx ? { ...x, frequency: v as ComplianceReminder['frequency'] } : x),
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Frequency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="once">Once</SelectItem>
+                              <SelectItem value="repeat-weekly">Repeat Weekly</SelectItem>
+                              <SelectItem value="repeat-daily">Repeat Daily</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={(r.channels[0] || 'in-app') as ReminderChannel}
+                            onValueChange={(v) => setCustomRequirement(prev => ({
+                              ...prev,
+                              reminders: prev.reminders.map((x, i) => i === idx ? { ...x, channels: [v as ReminderChannel] } : x),
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Channel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="in-app">In-App</SelectItem>
+                              <SelectItem value="email">Email</SelectItem>
+                              <SelectItem value="sms">SMS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center justify-end">
+                            <Button
+                              variant="ghost"
+                              onClick={() => setCustomRequirement(prev => ({
+                                ...prev,
+                                reminders: prev.reminders.filter((_, i) => i !== idx),
+                              }))}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={!!customRequirement.saveAsTemplate}
+                      onCheckedChange={(v) => setCustomRequirement(prev => ({ ...prev, saveAsTemplate: v === true }))}
+                    />
+                    <span className="text-sm text-gray-700">Save as reusable template</span>
                   </div>
 
                   <div>

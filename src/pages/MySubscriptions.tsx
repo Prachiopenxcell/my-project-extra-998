@@ -127,6 +127,11 @@ const MySubscriptions = () => {
     }
   };
 
+  // Confirm action from cancel dialog
+  const handleCancelConfirm = () => {
+    handleCancelSubscription();
+  };
+
   const handleDownloadInvoice = (subscriptionId: string, invoiceId: string) => {
     // Handle invoice download
     console.log('Downloading invoice:', invoiceId, 'for subscription:', subscriptionId);
@@ -334,7 +339,8 @@ const MySubscriptions = () => {
                   </CardContent>
                 </Card>
               ) : (
-                filterSubscriptions(tabValue).map((subscription) => {
+                <div className="space-y-4">
+                {filterSubscriptions(tabValue).map((subscription) => {
                   const daysUntilExpiry = getDaysUntilExpiry(subscription.endDate);
                   
                   return (
@@ -368,82 +374,133 @@ const MySubscriptions = () => {
                       </CardHeader>
                       
                       <CardContent className="space-y-4">
-                        {/* Subscription Details */}
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <div>
-                            <Label className="text-sm font-medium">Start Date</Label>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(subscription.startDate)}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">End Date</Label>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(subscription.endDate)}
-                              {subscription.status === 'active' && daysUntilExpiry <= 30 && (
-                                <span className="ml-2 text-yellow-600 font-medium">
-                                  ({daysUntilExpiry} days left)
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-sm font-medium">Next Billing</Label>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(subscription.nextBillingDate)}
-                            </p>
-                          </div>
-                        </div>
+                        <Tabs defaultValue="overview" className="w-full">
+                          <TabsList className="grid w-full grid-cols-2 md:w-auto md:inline-grid">
+                            <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="usage">Usage</TabsTrigger>
+                          </TabsList>
 
-                        {/* Auto-Renewal Toggle */}
-                        {subscription.status === 'active' && permissions?.canUpgradeDowngrade && (
-                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <Label className="text-sm font-medium">Auto-Renewal</Label>
-                              <p className="text-sm text-muted-foreground">
-                                Automatically renew this subscription
-                              </p>
+                          <TabsContent value="overview" className="space-y-4">
+                            {/* Subscription Details */}
+                            <div className="grid gap-4 md:grid-cols-3">
+                              <div>
+                                <Label className="text-sm font-medium">Start Date</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  {formatDate(subscription.startDate)}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">End Date</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  {formatDate(subscription.endDate)}
+                                  {subscription.status === 'active' && daysUntilExpiry <= 30 && (
+                                    <span className="ml-2 text-yellow-600 font-medium">
+                                      ({daysUntilExpiry} days left)
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Next Billing</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  {formatDate(subscription.nextBillingDate)}
+                                </p>
+                              </div>
                             </div>
-                            <Switch
-                              checked={subscription.autoRenewal}
-                              onCheckedChange={(checked) => 
-                                handleToggleAutoRenewal(subscription.id, checked)
-                              }
-                            />
-                          </div>
-                        )}
 
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 flex-wrap">
-                          <Button variant="outline" size="sm">
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                          
-                          {subscription.status === 'active' && permissions?.canUpgradeDowngrade && (
-                            <>
+                            {/* Auto-Renewal Toggle */}
+                            {subscription.status === 'active' && permissions?.canUpgradeDowngrade && (
+                              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                  <Label className="text-sm font-medium">Auto-Renewal</Label>
+                                  <p className="text-sm text-muted-foreground">
+                                    Automatically renew this subscription
+                                  </p>
+                                </div>
+                                <Switch
+                                  checked={subscription.autoRenewal}
+                                  onCheckedChange={(checked) => 
+                                    handleToggleAutoRenewal(subscription.id, checked)
+                                  }
+                                />
+                              </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 flex-wrap">
                               <Button variant="outline" size="sm">
-                                <ArrowUpCircle className="w-4 h-4 mr-2" />
-                                Upgrade
+                                <Eye className="w-4 h-4 mr-2" />
+                                View Details
                               </Button>
-                              <Button variant="outline" size="sm">
-                                <ArrowDownCircle className="w-4 h-4 mr-2" />
-                                Downgrade
-                              </Button>
-                            </>
-                          )}
-                          
-                          {(subscription.status === 'expired' || subscription.status === 'cancelled') && 
-                           permissions?.canPurchase && (
-                            <Button variant="default" size="sm" onClick={() => handleRenewSubscription(subscription.id)}>
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              Renew
-                            </Button>
-                          )}
-                        </div>
+                              
+                              {subscription.status === 'active' && permissions?.canUpgradeDowngrade && (
+                                <>
+                                  <Button variant="outline" size="sm">
+                                    <ArrowUpCircle className="w-4 h-4 mr-2" />
+                                    Upgrade
+                                  </Button>
+                                  <Button variant="outline" size="sm">
+                                    <ArrowDownCircle className="w-4 h-4 mr-2" />
+                                    Downgrade
+                                  </Button>
+                                </>
+                              )}
+                              
+                              {(subscription.status === 'expired' || subscription.status === 'cancelled') && 
+                              permissions?.canPurchase && (
+                                <Button variant="default" size="sm" onClick={() => handleRenewSubscription(subscription.id)}>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Renew
+                                </Button>
+                              )}
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="usage" className="space-y-4">
+                            <div>
+                              <h4 className="text-sm font-semibold">Usage Metrics</h4>
+                              <p className="text-sm text-muted-foreground">Monitor your current usage against plan limits</p>
+                            </div>
+
+                            {(subscription.teamMemberNames?.length || subscription.activeEntityNames?.length) ? (
+                              <div className="grid gap-6 md:grid-cols-2">
+                                {subscription.teamMemberNames?.length ? (
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-sm font-medium">Team Members</Label>
+                                      <span className="text-xs text-muted-foreground">{subscription.teamMemberNames.length} users</span>
+                                    </div>
+                                    <ul className="mt-2 list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                      {subscription.teamMemberNames.map((name, idx) => (
+                                        <li key={idx}>{name}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
+
+                                {subscription.activeEntityNames?.length ? (
+                                  <div>
+                                    <div className="flex items-center justify-between">
+                                      <Label className="text-sm font-medium">Active Entities</Label>
+                                      <span className="text-xs text-muted-foreground">{subscription.activeEntityNames.length} entities</span>
+                                    </div>
+                                    <ul className="mt-2 list-disc list-inside text-sm text-muted-foreground space-y-1">
+                                      {subscription.activeEntityNames.map((name, idx) => (
+                                        <li key={idx}>{name}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">No usage details available.</p>
+                            )}
+                          </TabsContent>
+                        </Tabs>
                       </CardContent>
                     </Card>
-                  ))}
+                  );
+                })}
                 </div>
               )}
             </TabsContent>
@@ -485,13 +542,6 @@ const MySubscriptions = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-                    </Card>
-                  );
-                })
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
       </div>
     </DashboardLayout>
   );

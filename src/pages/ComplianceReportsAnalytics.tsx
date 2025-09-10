@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -60,42 +61,66 @@ interface ComplianceCategory {
   percentage: number;
 }
 
+interface EntityWiseRow {
+  entity: string;
+  total: number;
+  completed: number;
+  overdue: number;
+  onTimePercent: number;
+  aiImpact: string;
+  aiSteps: string;
+}
+
+interface LawWiseRow {
+  law: string;
+  authority: string;
+  frequency: string;
+  total: number;
+  completed: number;
+  overdue: number;
+  aiImpact: string;
+  aiSteps: string;
+}
+
+interface MissedRow {
+  entity: string;
+  title: string;
+  authority: string;
+  dueDate: string;
+  daysOverdue: number;
+  impactFlag: 'High' | 'Medium' | 'Low';
+  aiImpact: string;
+  aiSteps: string;
+}
+
 const ComplianceReportsAnalytics = () => {
   const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("this-quarter");
   const [selectedEntity, setSelectedEntity] = useState("all");
   const [reportType, setReportType] = useState("summary");
+  // Track active sub-tab in Reports section so the top Export button can export the right table
+  const [activeReportTab, setActiveReportTab] = useState<'entity-wise' | 'law-wise' | 'missed'>('entity-wise');
 
-  // Mock data - replace with actual API calls
-  const [metrics, setMetrics] = useState<ComplianceMetric[]>([
-    {
-      label: "Overall Compliance Rate",
-      value: 87,
-      change: 5.2,
-      trend: 'up',
-      color: 'text-green-600'
-    },
-    {
-      label: "On-Time Submissions",
-      value: 92,
-      change: 3.1,
-      trend: 'up',
-      color: 'text-blue-600'
-    },
-    {
-      label: "Overdue Items",
-      value: 8,
-      change: -2.3,
-      trend: 'down',
-      color: 'text-red-600'
-    },
-    {
-      label: "Average Processing Time",
-      value: 4.2,
-      change: -0.8,
-      trend: 'down',
-      color: 'text-orange-600'
-    }
+  const toReportTab = (v: string): 'entity-wise' | 'law-wise' | 'missed' => {
+    if (v === 'law-wise') return 'law-wise';
+    if (v === 'missed') return 'missed';
+    return 'entity-wise';
+  };
+
+  // Removed dashboard metric cards to avoid dashboard-like look in Reports
+
+  // Mock tables for Reports tab
+  const [entityWiseRows] = useState<EntityWiseRow[]>([
+    { entity: 'ABC Corp Ltd', total: 24, completed: 22, overdue: 2, onTimePercent: 91, aiImpact: 'Strong compliance posture; occasional delays.', aiSteps: 'Automate GST reminders; add pre-deadline checks.' },
+    { entity: 'XYZ Partnership', total: 18, completed: 18, overdue: 0, onTimePercent: 94, aiImpact: 'Excellent on-time record.', aiSteps: 'Maintain current workflow; introduce quarterly audit.' },
+  ]);
+  const [lawWiseRows] = useState<LawWiseRow[]>([
+    { law: 'GST Act, 2017', authority: 'GST Department', frequency: 'Monthly', total: 12, completed: 11, overdue: 1, aiImpact: 'Late filings increase penalty risk.', aiSteps: 'Set 7-day pre-due reminders; add document checklist.' },
+    { law: 'Income Tax TDS', authority: 'Income Tax Dept', frequency: 'Quarterly', total: 4, completed: 4, overdue: 0, aiImpact: 'Stable; no gaps detected.', aiSteps: 'Keep current cadence; add exception alerts on payroll run.' },
+  ]);
+  const [missedRows] = useState<MissedRow[]>([
+    { entity: 'ABC Corp Ltd', title: 'GSTR-9 Annual Return', authority: 'GST Department', dueDate: '31 Dec 2024', daysOverdue: 15, impactFlag: 'High', aiImpact: 'Penalty and interest likely.', aiSteps: 'Escalate to tax lead; compile turnover recon; file within 24h.' },
+    { entity: 'Tech Innovations', title: 'PF Monthly Return', authority: 'EPFO', dueDate: '15 Jan 2025', daysOverdue: 3, impactFlag: 'Medium', aiImpact: 'Interest accrual started.', aiSteps: 'Finalize wage sheet; immediate ECR filing.' },
   ]);
 
   const [entityPerformance, setEntityPerformance] = useState<EntityPerformance[]>([
@@ -202,8 +227,86 @@ const ComplianceReportsAnalytics = () => {
   };
 
   const handleExportReport = () => {
-    // Implementation for exporting reports
-    console.log('Exporting report...');
+    // Export the currently selected report tab as CSV
+    if (activeReportTab === 'entity-wise') return downloadExcel('entity');
+    if (activeReportTab === 'law-wise') return downloadExcel('law');
+    return downloadExcel('missed');
+  };
+
+  // Utilities: CSV builder and download
+  const arrayToCsv = (headers: string[], rows: (string | number)[][]) => {
+    const escape = (v: string | number) => {
+      const s = String(v ?? '');
+      if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+    const csvHeader = headers.map(escape).join(',');
+    const csvRows = rows.map(r => r.map(escape).join(',')).join('\n');
+    return csvHeader + '\n' + csvRows;
+  };
+
+  const downloadBlob = (content: string, filename: string, type = 'text/csv;charset=utf-8;') => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadExcel = (report: 'entity' | 'law' | 'missed') => {
+    if (report === 'entity') {
+      const headers = ['Entity', 'Total', 'Completed', 'Overdue', 'On-Time %', 'AI Impact', 'AI Steps/Solution'];
+      const rows = entityWiseRows.map(r => [
+        r.entity,
+        r.total,
+        r.completed,
+        r.overdue,
+        r.onTimePercent + '%',
+        r.aiImpact,
+        r.aiSteps,
+      ]);
+      const csv = arrayToCsv(headers, rows);
+      downloadBlob(csv, `entity-wise-compliance-${Date.now()}.csv`);
+      return;
+    }
+    if (report === 'law') {
+      const headers = ['Law/Regulation', 'Authority', 'Frequency', 'Total', 'Completed', 'Overdue', 'AI Impact', 'AI Steps/Solution'];
+      const rows = lawWiseRows.map(r => [
+        r.law,
+        r.authority,
+        r.frequency,
+        r.total,
+        r.completed,
+        r.overdue,
+        r.aiImpact,
+        r.aiSteps,
+      ]);
+      const csv = arrayToCsv(headers, rows);
+      downloadBlob(csv, `law-wise-compliance-${Date.now()}.csv`);
+      return;
+    }
+    // missed
+    const headers = ['Entity', 'Compliance', 'Authority', 'Due Date', 'Days Overdue', 'Impact Flag', 'AI Impact', 'AI Steps/Solution'];
+    const rows = missedRows.map(r => [
+      r.entity,
+      r.title,
+      r.authority,
+      r.dueDate,
+      r.daysOverdue,
+      r.impactFlag,
+      r.aiImpact,
+      r.aiSteps,
+    ]);
+    const csv = arrayToCsv(headers, rows);
+    downloadBlob(csv, `missed-compliances-${Date.now()}.csv`);
+  };
+
+  const downloadDoc = (report: 'entity' | 'law' | 'missed') => {
+    console.log(`Downloading ${report} report as Document...`);
   };
 
   const handleScheduleReport = () => {
@@ -240,43 +343,16 @@ const ComplianceReportsAnalytics = () => {
           </div>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {metrics.map((metric, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{metric.label}</p>
-                    <p className={`text-3xl font-bold ${metric.color}`}>
-                      {metric.value}{metric.label.includes('Rate') || metric.label.includes('Submissions') ? '%' : metric.label.includes('Time') ? ' days' : ''}
-                    </p>
-                    <div className="flex items-center mt-1">
-                      {getTrendIcon(metric.trend)}
-                      <span className={`text-sm ml-1 ${metric.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {metric.change > 0 ? '+' : ''}{metric.change}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    {index === 0 && <BarChart3 className="w-6 h-6 text-blue-600" />}
-                    {index === 1 && <CheckCircle className="w-6 h-6 text-blue-600" />}
-                    {index === 2 && <AlertTriangle className="w-6 h-6 text-blue-600" />}
-                    {index === 3 && <Clock className="w-6 h-6 text-blue-600" />}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Removed Key Metrics cards */}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="mb-8">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="entities">Entity Performance</TabsTrigger>
             <TabsTrigger value="categories">By Category</TabsTrigger>
             <TabsTrigger value="trends">Trends & Insights</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -549,6 +625,142 @@ const ComplianceReportsAnalytics = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+        </Tabs>
+        {/* Reports Tab */}
+        <Tabs value={activeReportTab} onValueChange={(v) => setActiveReportTab(toReportTab(v))} className="mb-8">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="entity-wise">Entity-wise Status</TabsTrigger>
+            <TabsTrigger value="law-wise">Law-wise Summary</TabsTrigger>
+            <TabsTrigger value="missed">Missed Compliances</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="entity-wise" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Entity-wise Compliance Status</h3>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => downloadExcel('entity')}>
+                  <Download className="w-4 h-4 mr-2" /> Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => downloadDoc('entity')}>
+                  <FileText className="w-4 h-4 mr-2" /> Document
+                </Button>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Overdue</TableHead>
+                  <TableHead>On-Time %</TableHead>
+                  <TableHead>AI Impact</TableHead>
+                  <TableHead>AI Steps/Solution</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entityWiseRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{row.entity}</TableCell>
+                    <TableCell>{row.total}</TableCell>
+                    <TableCell className="text-green-600">{row.completed}</TableCell>
+                    <TableCell className="text-red-600">{row.overdue}</TableCell>
+                    <TableCell>{row.onTimePercent}%</TableCell>
+                    <TableCell className="text-gray-700">{row.aiImpact}</TableCell>
+                    <TableCell className="text-gray-700">{row.aiSteps}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
+
+          <TabsContent value="law-wise" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Law-wise Compliance Summary</h3>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => downloadExcel('law')}>
+                  <Download className="w-4 h-4 mr-2" /> Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => downloadDoc('law')}>
+                  <FileText className="w-4 h-4 mr-2" /> Document
+                </Button>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Law/Regulation</TableHead>
+                  <TableHead>Authority</TableHead>
+                  <TableHead>Frequency</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Overdue</TableHead>
+                  <TableHead>AI Impact</TableHead>
+                  <TableHead>AI Steps/Solution</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lawWiseRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{row.law}</TableCell>
+                    <TableCell>{row.authority}</TableCell>
+                    <TableCell>{row.frequency}</TableCell>
+                    <TableCell>{row.total}</TableCell>
+                    <TableCell className="text-green-600">{row.completed}</TableCell>
+                    <TableCell className="text-red-600">{row.overdue}</TableCell>
+                    <TableCell className="text-gray-700">{row.aiImpact}</TableCell>
+                    <TableCell className="text-gray-700">{row.aiSteps}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
+
+          <TabsContent value="missed" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Missed Compliance Report</h3>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => downloadExcel('missed')}>
+                  <Download className="w-4 h-4 mr-2" /> Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => downloadDoc('missed')}>
+                  <FileText className="w-4 h-4 mr-2" /> Document
+                </Button>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>Compliance</TableHead>
+                  <TableHead>Authority</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Days Overdue</TableHead>
+                  <TableHead>Impact Flag</TableHead>
+                  <TableHead>AI Impact</TableHead>
+                  <TableHead>AI Steps/Solution</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {missedRows.map((row, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{row.entity}</TableCell>
+                    <TableCell>{row.title}</TableCell>
+                    <TableCell>{row.authority}</TableCell>
+                    <TableCell>{row.dueDate}</TableCell>
+                    <TableCell className="text-red-600">{row.daysOverdue}</TableCell>
+                    <TableCell>
+                      <span className={row.impactFlag === 'High' ? 'text-red-600 font-medium' : row.impactFlag === 'Medium' ? 'text-orange-600 font-medium' : 'text-green-600 font-medium'}>
+                        {row.impactFlag}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-gray-700">{row.aiImpact}</TableCell>
+                    <TableCell className="text-gray-700">{row.aiSteps}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </TabsContent>
         </Tabs>
       </div>

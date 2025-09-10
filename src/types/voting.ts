@@ -115,3 +115,15 @@ export interface VotingFilters {
   };
   search?: string;
 }
+
+// Standardized public-facing phases for UI: Upcoming, Ongoing, Concluded, Cancelled
+// This does not break existing VotingStatus uses; map via utils.
+export type VotingPhase = 'upcoming' | 'ongoing' | 'concluded' | 'cancelled';
+
+// Optional: standardized stats while keeping legacy fields in VotingStats
+export interface VotingStatsStandardized {
+  upcoming: number;
+  ongoing: number;
+  concluded: number;
+  cancelled: number;
+}

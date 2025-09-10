@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,11 +29,7 @@ const PaymentHistory = () => {
   const [filters, setFilters] = useState<SystemSettingsFilters>({});
   const [dateRange, setDateRange] = useState("last_12_months");
 
-  useEffect(() => {
-    loadPaymentHistory();
-  }, [filters, dateRange]);
-
-  const loadPaymentHistory = async () => {
+  const loadPaymentHistory = useCallback(async () => {
     try {
       const response = await systemSettingsService.getPaymentHistory(filters);
       setPayments(response.data);
@@ -47,20 +43,25 @@ const PaymentHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadPaymentHistory();
+  }, [loadPaymentHistory]);
 
   const handleExportCSV = () => {
     // Mock CSV export
     const csvContent = [
-      ['Date', 'Service Title', 'Details', 'Amount', 'Status', 'Payment Method', 'Transaction ID'],
+      ['Date', 'Service Title', 'Module', 'Storage Purchased', 'Team Members Added', 'Amount Paid', 'Paid On', 'Status'],
       ...payments.map(payment => [
         format(payment.date, 'yyyy-MM-dd'),
         payment.serviceTitle,
-        payment.details,
+        payment.serviceDetails?.moduleName || '-',
+        payment.serviceDetails?.storagePurchasedGB ? `${payment.serviceDetails.storagePurchasedGB} GB` : '-',
+        payment.serviceDetails?.teamMembersAdded ?? '-',
         payment.amount.toString(),
-        payment.status,
-        payment.paymentMethod,
-        payment.transactionId
+        payment.paidDate ? payment.paidDate.toLocaleDateString() : payment.date.toLocaleDateString(),
+        payment.status
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -222,76 +223,67 @@ const PaymentHistory = () => {
                     <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
                   </div>
                   <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="space-y-4">
-              {payments.map((payment) => (
-                <div key={payment.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="font-medium text-sm text-muted-foreground">
-                          {format(payment.date, 'MMM dd, yyyy')}
-                        </span>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[220px]">Service Title</TableHead>
+                    <TableHead className="min-w-[160px]">Module</TableHead>
+                    <TableHead className="hidden md:table-cell min-w-[160px]">Storage Purchased</TableHead>
+                    <TableHead className="hidden lg:table-cell min-w-[180px]">Team Members Added</TableHead>
+                    <TableHead className="text-right min-w-[140px]">Amount Paid</TableHead>
+                    <TableHead className="text-right min-w-[140px]">Paid On</TableHead>
+                    <TableHead className="text-center min-w-[120px]">Status</TableHead>
+                    <TableHead className="text-right min-w-[120px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell className="font-medium">{payment.serviceTitle}</TableCell>
+                      <TableCell>{payment.serviceDetails?.moduleName || '-'}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {payment.serviceDetails?.storagePurchasedGB ? `${payment.serviceDetails.storagePurchasedGB} GB` : '-'}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {payment.serviceDetails?.teamMembersAdded ?? '-'}
+                      </TableCell>
+                      <TableCell className="font-medium text-right">
+                        ${payment.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {payment.paidDate ? payment.paidDate.toLocaleDateString() : payment.date.toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-center">
                         {getStatusBadge(payment.status)}
-                      </div>
-                      
-                      <h3 className="font-semibold text-lg mb-1">{payment.serviceTitle}</h3>
-                      
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {payment.details.split('•').map((detail, index) => (
-                          detail.trim() && (
-                            <div key={index} className="flex items-center gap-1">
-                              {index > 0 && <span>•</span>}
-                              <span>{detail.trim()}</span>
-                            </div>
-                          )
-                        ))}
-                      </div>
-                      
-                      <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <CreditCard className="h-3 w-3" />
-                          <span>{getPaymentMethodLabel(payment.paymentMethod)}</span>
-                        </div>
-                        <div>
-                          <span>Transaction ID: {payment.transactionId}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right ml-4">
-                      <p className="text-xl font-bold">${payment.amount.toFixed(2)}</p>
-                      <div className="flex gap-2 mt-2">
-                        {payment.invoiceUrl && (
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
                           <Button
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => downloadInvoice(payment)}
+                            title="Download invoice"
+                            aria-label={`Download invoice for ${payment.serviceTitle}`}
                           >
-                            <FileText className="h-3 w-3 mr-1" />
-                            Invoice
+                            <Download className="h-4 w-4" />
                           </Button>
-                        )}
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-3 w-3 mr-1" />
-                          Details
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {payments.length === 0 && !loading && (
-                <div className="text-center py-8">
-                  <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No payment history found</p>
-                </div>
-              )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {payments.length === 0 && !loading && (
+            <div className="text-center py-8">
+              <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No payment history found</p>
             </div>
           )}
         </CardContent>

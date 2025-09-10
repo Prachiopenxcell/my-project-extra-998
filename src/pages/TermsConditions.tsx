@@ -183,7 +183,8 @@ export default function TermsConditions() {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Important Legal Information</h3>
                 <p className="text-gray-600 mb-4">
-                  These Terms and Conditions govern your use of the 998-P Platform and constitute a legally binding agreement between you and 998-P Platform Inc.
+                  These Terms and Conditions govern your use of the 998-P Platform and constitute a legally binding agreement between
+                  <span className="font-medium"> Service Seeker/Service Provider Name: ____________________ and 998-P Platform Inc.</span>
                 </p>
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                   <div className="flex items-center space-x-1">

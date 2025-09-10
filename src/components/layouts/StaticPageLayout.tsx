@@ -39,7 +39,7 @@ export default function StaticPageLayout({
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" max-w-screen-2xl  mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-2">
               <Link to="/" className="flex items-center space-x-2">
@@ -57,6 +57,7 @@ export default function StaticPageLayout({
               <Link to="/contact" className="text-gray-700 hover:text-slate-700 font-medium">Contact Us</Link>
               <Link to="/articles" className="text-gray-700 hover:text-slate-700 font-medium">Articles</Link>
               <Link to="/faq" className="text-gray-700 hover:text-slate-700 font-medium">FAQ</Link>
+              <Link to="/user-faq" className="text-gray-700 hover:text-slate-700 font-medium">User FAQ</Link>
               
               {/* Direct Login Button */}
               <Button variant="outline" asChild className="flex items-center space-x-2">
@@ -102,6 +103,7 @@ export default function StaticPageLayout({
                 <Link to="/contact" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Contact Us</Link>
                 <Link to="/articles" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">Articles</Link>
                 <Link to="/faq" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">FAQ</Link>
+                <Link to="/user-faq" className="text-gray-700 hover:text-slate-700 font-medium px-4 py-2">User FAQ</Link>
                 
                 <div className="border-t border-gray-200 pt-4">
                   <Link
@@ -137,7 +139,7 @@ export default function StaticPageLayout({
             </div>
           </div>
           
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
+          <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
             <div className="text-center">
               {/* Hero Icon */}
               {HeroIcon && (
@@ -176,7 +178,7 @@ export default function StaticPageLayout({
         /* Basic Page Header */
         (title || description) && (
           <div className="bg-white border-b">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               {title && (
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">{title}</h1>
               )}
@@ -189,13 +191,13 @@ export default function StaticPageLayout({
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center space-x-2 mb-4">
@@ -216,6 +218,7 @@ export default function StaticPageLayout({
                 <li><Link to="/modules-subscription" className="hover:text-white">Modules & Subscription Plans</Link></li>
                 <li><Link to="/articles" className="hover:text-white">Resources</Link></li>
                 <li><Link to="/faq" className="hover:text-white">FAQ</Link></li>
+                <li><Link to="/user-faq" className="hover:text-white">User FAQ</Link></li>
                 <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
               </ul>
             </div>

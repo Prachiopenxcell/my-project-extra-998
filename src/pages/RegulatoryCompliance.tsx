@@ -133,6 +133,49 @@ const RegulatoryCompliance = () => {
       entity: "Tech Innovations",
       time: "1d ago",
       type: "completed"
+    },
+    // Added more mock items to avoid empty white space
+    {
+      id: "4",
+      title: "TDS (26Q) return filed",
+      entity: "StartUp Ventures",
+      time: "1d ago",
+      type: "filed"
+    },
+    {
+      id: "5",
+      title: "PF challan generated",
+      entity: "ABC Corp",
+      time: "2d ago",
+      type: "completed"
+    },
+    {
+      id: "6",
+      title: "MCA DIR-3 KYC deadline reminder",
+      entity: "Tech Innovations",
+      time: "2d ago",
+      type: "reminder"
+    },
+    {
+      id: "7",
+      title: "Professional Tax return filed",
+      entity: "XYZ Partnership",
+      time: "3d ago",
+      type: "filed"
+    },
+    {
+      id: "8",
+      title: "Advance Income Tax paid (Q2)",
+      entity: "ABC Corp",
+      time: "3d ago",
+      type: "completed"
+    },
+    {
+      id: "9",
+      title: "ESI contribution payment reminder",
+      entity: "StartUp Ventures",
+      time: "4d ago",
+      type: "reminder"
     }
   ]);
 
@@ -153,6 +196,31 @@ const RegulatoryCompliance = () => {
       id: "3",
       title: "Recommend early filing for upcoming GST deadlines",
       description: "Beat the rush and avoid last-minute issues",
+      priority: "low"
+    },
+    // Income Tax specific mock insights
+    {
+      id: "4",
+      title: "Advance Income Tax installment due on 15 Sep",
+      description: "Estimated liability ₹3,20,000 for FY 2025–26; pay 45% cumulative to avoid interest under sections 234B/234C.",
+      priority: "high"
+    },
+    {
+      id: "5",
+      title: "TDS return filing delay may attract late fee",
+      description: "Form 26Q pending for Q1; late fee ₹200/day under section 234E and potential penalty under 271H if not filed within time.",
+      priority: "high"
+    },
+    {
+      id: "6",
+      title: "Interest exposure under 234B/234C detected",
+      description: "Cashflow variance suggests shortfall in advance tax; consider top‑up payment to reduce interest outgo next cycle.",
+      priority: "medium"
+    },
+    {
+      id: "7",
+      title: "PAN–Aadhaar linkage penalty risk",
+      description: "One director record shows unlinked PAN; verify status to avoid notices and a ₹1,000 penalty.",
       priority: "low"
     }
   ]);
@@ -384,7 +452,7 @@ const RegulatoryCompliance = () => {
                 <Eye className="w-4 h-4 mr-2" />
                 View All Entities
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => navigate('/compliance/reports')}>
                 <FileText className="w-4 h-4 mr-2" />
                 Generate Entity Report
               </Button>

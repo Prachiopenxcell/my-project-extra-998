@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,10 @@ import {
   Pencil,
   CalendarDays,
   FileText,
-  MoreHorizontal
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
@@ -27,54 +30,176 @@ const ARFacilitators = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortOrder, setSortOrder] = useState("latest");
+  const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPageInProgress, setCurrentPageInProgress] = useState<number>(1);
+  const [currentPageCompleted, setCurrentPageCompleted] = useState<number>(1);
 
-  const selectionProcesses = {
+  type ProcessStatus = "Nomination Initiated" | "Sent EOI" | "Consent Received" | "On Hold" | "AR Selected";
+  // Updated types as per new requirement
+  type ProcessType = "IBBI CIRP" | "IBBI Liquidation" | "SEBI" | "IBBI Insolvency";
+
+  interface SelectionProcessItem {
+    id: string;
+    initiationDate: string; // YYYY-MM-DD
+    cocName: string;
+    category: string; // e.g., Financial Creditors-Secured
+    type: ProcessType;
+    status: ProcessStatus;
+  }
+
+  const getDetailsPath = (row: SelectionProcessItem) => {
+    // Map statuses to unified wizard steps
+    switch (row.status) {
+      case "Nomination Initiated":
+        return `/ar-selection-process?id=${row.id}&step=4`;
+      case "Sent EOI":
+        // Step 6: General Summary (Call EOI)
+        return `/ar-selection-process?id=${row.id}&step=6`;
+      case "Consent Received":
+        // Step 7: Initiate Consent Request
+        return `/ar-selection-process?id=${row.id}&step=7`;
+      case "On Hold":
+        return `/ar-selection-process?id=${row.id}&step=1`;
+      case "AR Selected":
+      default:
+        return `/ar-selection-details?id=${row.id}`;
+    }
+  };
+
+  const goToDetails = (row: SelectionProcessItem) => {
+    const path = getDetailsPath(row);
+    navigate(path);
+  };
+
+  const selectionProcesses: {
+    inProgress: SelectionProcessItem[];
+    completed: SelectionProcessItem[];
+    selectedARs: Array<{ id: string; name: string; entity: string; class: string; appointed: string }>;
+  } = {
     inProgress: [
       {
         id: "1",
-        entity: "ABC Manufacturing Ltd",
-        type: "CIRP",
-        stage: "Call EOI",
-        created: "2024-01-15",
-        deadline: "2024-02-15"
+        initiationDate: "2024-01-15",
+        cocName: "ABC Manufacturing Ltd",
+        category: "Financial Creditors-Secured",
+        type: "IBBI CIRP",
+        status: "Sent EOI",
       },
       {
         id: "2",
-        entity: "DEF Industries Ltd",
-        type: "Liquidation",
-        stage: "Consent Request",
-        created: "2024-01-12",
-        deadline: "2024-02-12"
+        initiationDate: "2024-01-12",
+        cocName: "DEF Industries Ltd",
+        category: "Financial Creditors-Unsecured",
+        type: "IBBI Liquidation",
+        status: "Consent Received",
       },
       {
         id: "4",
-        entity: "GHI Corp Ltd",
-        type: "CIRP",
-        stage: "Selection Details",
-        created: "2024-01-08",
-        deadline: "2024-02-08"
-      }
+        initiationDate: "2024-01-08",
+        cocName: "GHI Corp Ltd",
+        category: "Operational Creditors",
+        type: "SEBI",
+        status: "Nomination Initiated",
+      },
+      {
+        id: "5",
+        initiationDate: "2024-01-06",
+        cocName: "JKL Ventures Pvt Ltd",
+        category: "Bondholders-Secured",
+        type: "IBBI Insolvency",
+        status: "On Hold",
+      },
+      {
+        id: "6",
+        initiationDate: "2024-01-03",
+        cocName: "MNO Textiles Ltd",
+        category: "Financial Creditors-Secured",
+        type: "IBBI CIRP",
+        status: "Sent EOI",
+      },
     ],
     completed: [
       {
         id: "3",
-        entity: "XYZ Services Pvt Ltd",
-        type: "Liquidation",
-        stage: "AR Selected",
-        created: "2024-01-10",
-        completed: "2024-01-30"
-      }
+        initiationDate: "2024-01-10",
+        cocName: "XYZ Services Pvt Ltd",
+        category: "Financial Creditors-Unsecured",
+        type: "IBBI Liquidation",
+        status: "AR Selected",
+      },
+      {
+        id: "7",
+        initiationDate: "2023-12-28",
+        cocName: "PQR Holdings Ltd",
+        category: "Operational Creditors",
+        type: "SEBI",
+        status: "AR Selected",
+      },
     ],
     selectedARs: [
-      {
-        id: "1",
-        name: "John Smith",
-        entity: "ABC Manufacturing Ltd",
-        class: "Financial Creditors-Secured",
-        appointed: "2024-01-25"
-      }
+      { id: "1", name: "John Smith", entity: "ABC Manufacturing Ltd", class: "Financial Creditors-Secured", appointed: "2024-01-25" },
+      { id: "2", name: "Priya Sharma", entity: "DEF Industries Ltd", class: "Financial Creditors-Unsecured", appointed: "2024-01-22" },
+      { id: "3", name: "Rajesh Kumar", entity: "XYZ Services Pvt Ltd", class: "Operational Creditors", appointed: "2023-12-31" },
+      { id: "4", name: "Amit Patel", entity: "GHI Corp Ltd", class: "Bondholders-Secured", appointed: "2024-01-10" },
+      { id: "5", name: "Sunita Verma", entity: "JKL Ventures Pvt Ltd", class: "Financial Creditors-Secured", appointed: "2024-01-05" },
+      { id: "6", name: "Neha Gupta", entity: "MNO Textiles Ltd", class: "Financial Creditors-Unsecured", appointed: "2024-01-12" },
+      { id: "7", name: "Deepak Mehta", entity: "PQR Holdings Ltd", class: "Operational Creditors", appointed: "2023-12-28" },
+      { id: "8", name: "Karan Shah", entity: "RST Chemicals Pvt Ltd", class: "Bondholders-Secured", appointed: "2023-12-20" }
     ]
+  };
+
+  // Derived, filtered, sorted, and paginated lists
+  const statusOptions: ProcessStatus[] = [
+    "Nomination Initiated",
+    "Sent EOI",
+    "Consent Received",
+    "On Hold",
+    "AR Selected",
+  ];
+
+  const filterAndSort = useCallback((items: SelectionProcessItem[]) => {
+    let result = items.filter((it) => {
+      const matchesSearch = searchQuery.trim()
+        ? (
+            it.cocName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            it.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            it.type.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : true;
+      const matchesType = typeFilter === "all" ? true : it.type === (typeFilter as ProcessType);
+      const matchesStatus = statusFilter === "all" ? true : it.status === (statusFilter as ProcessStatus);
+      return matchesSearch && matchesType && matchesStatus;
+    });
+
+    result = result.sort((a, b) => {
+      const aDate = new Date(a.initiationDate).getTime();
+      const bDate = new Date(b.initiationDate).getTime();
+      return sortOrder === "latest" ? bDate - aDate : aDate - bDate;
+    });
+
+    return result;
+  }, [searchQuery, typeFilter, statusFilter, sortOrder]);
+
+  const filteredInProgress = useMemo(() => filterAndSort(selectionProcesses.inProgress), [filterAndSort, selectionProcesses.inProgress]);
+  const filteredCompleted = useMemo(() => filterAndSort(selectionProcesses.completed), [filterAndSort, selectionProcesses.completed]);
+
+  const totalPagesInProgress = Math.max(1, Math.ceil(filteredInProgress.length / pageSize));
+  const totalPagesCompleted = Math.max(1, Math.ceil(filteredCompleted.length / pageSize));
+
+  const paginatedInProgress = useMemo(() => {
+    const start = (currentPageInProgress - 1) * pageSize;
+    return filteredInProgress.slice(start, start + pageSize);
+  }, [filteredInProgress, currentPageInProgress, pageSize]);
+
+  const paginatedCompleted = useMemo(() => {
+    const start = (currentPageCompleted - 1) * pageSize;
+    return filteredCompleted.slice(start, start + pageSize);
+  }, [filteredCompleted, currentPageCompleted, pageSize]);
+
+  const resetPagination = () => {
+    setCurrentPageInProgress(1);
+    setCurrentPageCompleted(1);
   };
 
   const getStatusBadge = (status: string) => {
@@ -195,16 +320,74 @@ const ARFacilitators = () => {
 
         {/* My AR Processes Section */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">SELECTION PROCESS MANAGEMENT</h2>
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input 
-                placeholder="Search processes..." 
-                className="pl-8 w-64"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">SELECTION PROCESS MANAGEMENT</h2>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input 
+                  placeholder="Search by Entity, Category, Type..." 
+                  className="pl-8 w-80"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); resetPagination(); }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Filter: Type</span>
+                <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); resetPagination(); }}>
+                  <SelectTrigger className="w-36 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="IBBI CIRP">IBBI CIRP</SelectItem>
+                    <SelectItem value="IBBI Liquidation">IBBI Liquidation</SelectItem>
+                    <SelectItem value="SEBI">SEBI</SelectItem>
+                    <SelectItem value="IBBI Insolvency">IBBI Insolvency</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Filter: Status</span>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPagination(); }}>
+                  <SelectTrigger className="w-48 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {statusOptions.map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Sort</span>
+                <Select value={sortOrder} onValueChange={(v) => { setSortOrder(v as "latest" | "oldest"); resetPagination(); }}>
+                  <SelectTrigger className="w-44 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">Latest listed at top</SelectItem>
+                    <SelectItem value="oldest">Oldest listed at top</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-sm text-muted-foreground">Counts on list</span>
+                <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); resetPagination(); }}>
+                  <SelectTrigger className="w-28 h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -212,99 +395,172 @@ const ARFacilitators = () => {
             <div className="flex justify-between items-center mb-4">
               <TabsList className="grid w-auto grid-cols-3">
                 <TabsTrigger value="inProgress" className="text-sm">
-                  In Progress (3)
+                  In Progress ({filteredInProgress.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed" className="text-sm">
-                  Completed (12)
+                  Completed ({filteredCompleted.length})
                 </TabsTrigger>
                 <TabsTrigger value="selectedARs" className="text-sm">
                   Selected ARs (8)
                 </TabsTrigger>
               </TabsList>
               
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Filter:</span>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-32 h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="CIRP">CIRP</SelectItem>
-                    <SelectItem value="Liquidation">Liquidation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* right side kept for future actions */}
             </div>
 
             <TabsContent value="inProgress" className="space-y-4">
-              {selectionProcesses.inProgress.map((process) => (
-                <Card key={process.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-lg">{process.entity}</h3>
-                          <Badge variant="outline">{process.type}</Badge>
-                          {getStatusBadge("in-progress")}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                          <div>
-                            <span className="font-medium">Stage:</span>
-                            <p>{process.stage}</p>
-                          </div>
-                          <div>
-                            <span className="font-medium">Created:</span>
-                            <p>{new Date(process.created).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => {
-                          // Navigate based on current stage
-                          if (process.stage === "Call EOI") {
-                            navigate('/ar-call-eoi');
-                          } else if (process.stage === "Consent Request") {
-                            navigate('/ar-consent-request');
-                          } else if (process.stage === "Selection Details") {
-                            navigate('/ar-selection-details');
-                          } else {
-                            navigate('/ar-selection-process');
-                          }
-                        }}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => navigate('/ar-selection-process')}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </div>
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-0">
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-gray-600">
+                        <tr>
+                          <th className="text-left font-medium p-3">Request Initiation Date</th>
+                          <th className="text-left font-medium p-3">Entity Name</th>
+                          <th className="text-left font-medium p-3">Category</th>
+                          <th className="text-left font-medium p-3">Type</th>
+                          <th className="text-left font-medium p-3">Status</th>
+                          <th className="text-right font-medium p-3">View Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedInProgress.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b hover:bg-gray-50 cursor-pointer"
+                            onClick={() => goToDetails(row)}
+                          >
+                            <td className="p-3">{new Date(row.initiationDate).toLocaleDateString()}</td>
+                            <td className="p-3">{row.cocName}</td>
+                            <td className="p-3">{row.category}</td>
+                            <td className="p-3"><Badge variant="outline">{row.type}</Badge></td>
+                            <td className="p-3">
+                              <Badge variant="outline">{row.status}</Badge>
+                            </td>
+                            <td className="p-3 text-right">
+                              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); goToDetails(row); }}>
+                                <Eye className="h-4 w-4 mr-1" /> View
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {paginatedInProgress.length === 0 && (
+                          <tr>
+                            <td className="p-6 text-center text-muted-foreground" colSpan={6}>No results</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between p-3">
+                    <div className="text-xs text-muted-foreground">
+                      Page {currentPageInProgress} of {totalPagesInProgress}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageInProgress(1)} disabled={currentPageInProgress === 1}>
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageInProgress(Math.max(1, currentPageInProgress - 1))} disabled={currentPageInProgress === 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      {Array.from({ length: totalPagesInProgress }).slice(0, 5).map((_, idx) => {
+                        const page = idx + 1; // simple first 5 pages view
+                        return (
+                          <Button key={page} variant={currentPageInProgress === page ? "default" : "outline"} size="sm" onClick={() => setCurrentPageInProgress(page)}>
+                            {page}
+                          </Button>
+                        );
+                      })}
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageInProgress(Math.min(totalPagesInProgress, currentPageInProgress - 1 + 2))} disabled={currentPageInProgress === totalPagesInProgress}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageInProgress(totalPagesInProgress)} disabled={currentPageInProgress === totalPagesInProgress}>
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="completed" className="space-y-4">
-              {selectionProcesses.completed.map((process) => (
-                <Card key={process.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-lg">{process.entity}</h3>
-                          <Badge variant="outline">{process.type}</Badge>
-                          {getStatusBadge("completed")}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-0">
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-gray-600">
+                        <tr>
+                          <th className="text-left font-medium p-3">Request Initiation Date</th>
+                          <th className="text-left font-medium p-3">Entity Name</th>
+                          <th className="text-left font-medium p-3">Category</th>
+                          <th className="text-left font-medium p-3">Regulatory Provision</th>
+                          <th className="text-left font-medium p-3">Type</th>
+                          <th className="text-left font-medium p-3">Status</th>
+                          <th className="text-right font-medium p-3">View Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedCompleted.map((row) => (
+                          <tr
+                            key={row.id}
+                            className="border-b hover:bg-gray-50 cursor-pointer"
+                            onClick={() => navigate(`/ar-selection-details?id=${row.id}&completed=1`)}
+                          >
+                            <td className="p-3">{new Date(row.initiationDate).toLocaleDateString()}</td>
+                            <td className="p-3">{row.cocName}</td>
+                            <td className="p-3">{row.category}</td>
+                            <td className="p-3"><Badge variant="outline">{row.type}</Badge></td>
+                            <td className="p-3">
+                              <Badge variant="outline">{row.status}</Badge>
+                            </td>
+                            <td className="p-3 text-right">
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/ar-selection-details?id=${row.id}&completed=1`)}>
+                                <Eye className="h-4 w-4 mr-1" /> View
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {paginatedCompleted.length === 0 && (
+                          <tr>
+                            <td className="p-6 text-center text-muted-foreground" colSpan={6}>No results</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between p-3">
+                    <div className="text-xs text-muted-foreground">
+                      Page {currentPageCompleted} of {totalPagesCompleted}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageCompleted(1)} disabled={currentPageCompleted === 1}>
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageCompleted(Math.max(1, currentPageCompleted - 1))} disabled={currentPageCompleted === 1}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      {Array.from({ length: totalPagesCompleted }).slice(0, 5).map((_, idx) => {
+                        const page = idx + 1;
+                        return (
+                          <Button key={page} variant={currentPageCompleted === page ? "default" : "outline"} size="sm" onClick={() => setCurrentPageCompleted(page)}>
+                            {page}
+                          </Button>
+                        );
+                      })}
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageCompleted(Math.min(totalPagesCompleted, currentPageCompleted - 1 + 2))} disabled={currentPageCompleted === totalPagesCompleted}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setCurrentPageCompleted(totalPagesCompleted)} disabled={currentPageCompleted === totalPagesCompleted}>
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="selectedARs" className="space-y-4">
@@ -319,6 +575,14 @@ const ARFacilitators = () => {
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
                           <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                Nominated
+                              </Badge>
+                             
+                            </div>
+                          </div>
+                          <div>
                             <span className="font-medium">Entity:</span>
                             <p>{ar.entity}</p>
                           </div>
@@ -329,7 +593,7 @@ const ARFacilitators = () => {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => navigate('/ar-details')}>
                           <Eye className="h-4 w-4" />
                         </Button>
                       </div>
@@ -350,27 +614,33 @@ const ARFacilitators = () => {
               Manage Fee Structure
             </Button>
           </div>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-muted-foreground">Class Name</span>
-                  <span className="text-sm font-medium text-muted-foreground">Eligible Members</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Financial Creditors-Secured</span>
-                  <span className="font-medium text-primary">1,487 creditors</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
-                <Button variant="outline" size="sm" onClick={() => navigate('/ar-fee-structure')}>
-                  <FileText className="h-4 w-4" />
-                </Button>
-                <Button size="sm">
-                  Appoint
-                </Button>
-              </div>
+          <div className="space-y-3">
+            {/* Header Row */}
+            <div className="grid grid-cols-12 px-4 py-2 text-xs text-muted-foreground">
+              <div className="col-span-6">Class Name</div>
+              <div className="col-span-3">Eligible Members</div>
+              <div className="col-span-3 text-right">Actions</div>
             </div>
+            {/* Data Rows */}
+            {[
+              { id: 'FC_SEC', className: 'Financial Creditors-Secured', eligible: '1,487 creditors' },
+              { id: 'FC_UNSEC', className: 'Financial Creditors-Unsecured', eligible: '2,304 creditors' },
+              { id: 'OC', className: 'Operational Creditors', eligible: '865 creditors' },
+              { id: 'BOND_SEC', className: 'Bondholders-Secured', eligible: '432 creditors' },
+            ].map((row) => (
+              <div key={row.id} className="grid grid-cols-12 items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="col-span-6 font-medium">{row.className}</div>
+                <div className="col-span-3 font-medium text-primary">{row.eligible}</div>
+                <div className="col-span-3 flex items-center gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => navigate('/ar-details')}>
+                    View Appointment
+                  </Button>
+                  <Button variant="default" size="sm" onClick={() => navigate('/ar-fee-structure')}>
+                    Appoint
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

@@ -180,6 +180,15 @@ function App() {
                
               {/* Static Pages */}
               <Route path="/faq" element={<FAQ />} />
+              {/* Personalized User FAQ - Authenticated users */}
+              <Route 
+                path="/user-faq" 
+                element={
+                  <ProtectedRoute accessLevel={AccessLevel.AUTHENTICATED}>
+                    <UserFAQ />
+                  </ProtectedRoute>
+                } 
+              />
               <Route path="/contact" element={<ContactUs />} />
               <Route path="/modules-subscription" element={<ModulesSubscription />} />
               <Route path="/articles" element={<Articles />} />

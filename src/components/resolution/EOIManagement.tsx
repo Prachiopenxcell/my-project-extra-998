@@ -94,7 +94,11 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
   const [showEditMemberDialog, setShowEditMemberDialog] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<COCMember | null>(null);
   const [newMember, setNewMember] = useState({ name: "", email: "", role: "Member" });
-  const [cocMembersList, setCocMembersList] = useState<COCMember[]>([]);
+  const [cocMembersList, setCocMembersList] = useState<COCMember[]>([
+    { id: "1", name: "Mr. Rajesh Kumar", email: "rajesh.k@email.com", role: "Chairman" },
+    { id: "2", name: "Ms. Priya Sharma", email: "priya.s@email.com", role: "Member" },
+    { id: "3", name: "Mr. Amit Patel", email: "amit.p@email.com", role: "Member" }
+  ]);
   
   // New state for detailed EOI views
   const [showEOIDetailView, setShowEOIDetailView] = useState(false);
@@ -104,6 +108,9 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
   // New state for COC member detail view
   const [showCOCMemberDetailView, setShowCOCMemberDetailView] = useState(false);
   const [selectedCOCMember, setSelectedCOCMember] = useState<COCMember | null>(null);
+  // Upload List of Creditors (Excel)
+  const [creditorsFile, setCreditorsFile] = useState<File | null>(null);
+  const [creditorsSaving, setCreditorsSaving] = useState(false);
 
   // Use external state if provided, otherwise use internal state
   const showCreateForm = externalShowCreateForm !== undefined ? externalShowCreateForm : internalShowCreateForm;
@@ -139,14 +146,51 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
     }
   ];
 
-  // Initialize COC members if empty
-  if (cocMembersList.length === 0) {
-    setCocMembersList([
-      { id: "1", name: "Mr. Rajesh Kumar", email: "rajesh.k@email.com", role: "Chairman" },
-      { id: "2", name: "Ms. Priya Sharma", email: "priya.s@email.com", role: "Member" },
-      { id: "3", name: "Mr. Amit Patel", email: "amit.p@email.com", role: "Member" }
-    ]);
-  }
+  // Mock data initialized above in useState to avoid side-effects during render
+
+  // Handlers: Upload List of Creditors
+  const handleCreditorsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setCreditorsFile(file);
+    if (file) {
+      toast({ title: 'File selected', description: `${file.name} ready to save.` });
+    }
+  };
+
+  const handleSaveCreditors = async () => {
+    if (!creditorsFile) {
+      toast({ title: 'No file selected', description: 'Please choose an Excel file first.' });
+      return;
+    }
+    setCreditorsSaving(true);
+    try {
+      // Simulate upload/save
+      await new Promise((r) => setTimeout(r, 800));
+      toast({ title: 'Saved', description: 'List of creditors file saved successfully.' });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to save the file. Please try again.' });
+    } finally {
+      setCreditorsSaving(false);
+    }
+  };
+
+  const handleSubmitCreditors = async () => {
+    if (!creditorsFile) {
+      toast({ title: 'No file selected', description: 'Please choose an Excel file first.' });
+      return;
+    }
+    setCreditorsSaving(true);
+    try {
+      // Simulate submit
+      await new Promise((r) => setTimeout(r, 800));
+      toast({ title: 'Submitted', description: 'List of creditors submitted successfully.' });
+      setCreditorsFile(null);
+    } catch (err) {
+      toast({ title: 'Error', description: 'Submission failed. Please try again.' });
+    } finally {
+      setCreditorsSaving(false);
+    }
+  };
 
   const handleAddMember = () => {
     if (newMember.name && newMember.email) {
@@ -156,6 +200,7 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
         email: newMember.email,
         role: newMember.role
       };
+
       setCocMembersList([...cocMembersList, member]);
       setNewMember({ name: "", email: "", role: "Member" });
       setShowAddMemberDialog(false);
@@ -372,6 +417,38 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
               <span className="text-sm text-muted-foreground">Progress: 50%</span>
             </div>
             <Progress value={50} className="w-full" />
+          </CardContent>
+        </Card>
+
+        {/* Upload List of Creditors (Excel) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Step 2A: Upload List of Creditors (Excel)
+              </CardTitle>
+              <Button variant="outline" size="sm" asChild>
+                <a href="#" onClick={(e) => { e.preventDefault(); toast({ title: 'Template', description: 'Template download to be wired.' }); }}>Download Template</a>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Choose Excel file (.xlsx, .xls)</label>
+              <Input type="file" accept=".xlsx,.xls" onChange={handleCreditorsFileChange} />
+              {creditorsFile && (
+                <p className="text-sm text-muted-foreground">Selected: {creditorsFile.name}</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveCreditors} disabled={creditorsSaving}>
+                {creditorsSaving ? 'Saving...' : 'Save'}
+              </Button>
+              <Button variant="secondary" onClick={handleSubmitCreditors} disabled={creditorsSaving}>
+                {creditorsSaving ? 'Submitting...' : 'Submit'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

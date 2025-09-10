@@ -89,6 +89,7 @@ interface Reply {
   userVote?: 'up' | 'down';
   isAccepted?: boolean;
   attachments?: Attachment[];
+  isAnonymous?: boolean;
 }
 
 interface Attachment {
@@ -146,6 +147,8 @@ const GuidanceAndReferenceModule = () => {
   // Inline reply state per post
   const [inlineReplyOpen, setInlineReplyOpen] = useState<Record<string, boolean>>({});
   const [inlineReplyContent, setInlineReplyContent] = useState<Record<string, string>>({});
+  const [inlineReplyAnonymous, setInlineReplyAnonymous] = useState<Record<string, boolean>>({});
+  const [replyAnonymous, setReplyAnonymous] = useState<boolean>(true);
   const [userContributions, setUserContributions] = useState<UserContributions>({
     askedPosts: [],
     repliesProvided: [],
@@ -439,11 +442,13 @@ const GuidanceAndReferenceModule = () => {
       createdAt: new Date(),
       upvotes: 0,
       downvotes: 0,
+      isAnonymous: inlineReplyAnonymous[postId] ?? true,
     };
     setReplies((prev) => [...prev, newReply]);
     setPosts((prev) => prev.map(p => p.id === postId ? { ...p, replies: p.replies + 1 } : p));
     setInlineReplyContent((prev) => ({ ...prev, [postId]: '' }));
     setInlineReplyOpen((prev) => ({ ...prev, [postId]: false }));
+    setInlineReplyAnonymous((prev) => ({ ...prev, [postId]: true }));
     toast({ title: 'Success', description: 'Reply posted successfully' });
   };
 
@@ -468,9 +473,11 @@ const GuidanceAndReferenceModule = () => {
       const matchesStatus = filterStatus === "all" || post.status === filterStatus;
       const matchesCategory = filterCategory === "all" || post.category === filterCategory;
       
-      // Date range filter
-      const matchesDateRange = !dateRange.from || !dateRange.to || 
-        (post.createdAt >= dateRange.from && post.createdAt <= dateRange.to);
+      // Date range filter (independent from/to)
+      const matchesDateRange = (
+        (!dateRange.from || post.createdAt >= dateRange.from) &&
+        (!dateRange.to || post.createdAt <= dateRange.to)
+      );
       
       return matchesSearch && matchesType && matchesStatus && matchesCategory && matchesDateRange;
     });
@@ -680,7 +687,8 @@ const GuidanceAndReferenceModule = () => {
       createdAt: new Date(),
       upvotes: 0,
       downvotes: 0,
-      attachments: mockReplyAttachments.length > 0 ? mockReplyAttachments : undefined
+      attachments: mockReplyAttachments.length > 0 ? mockReplyAttachments : undefined,
+      isAnonymous: replyAnonymous,
     };
 
     setReplies([...replies, newReply]);
@@ -744,6 +752,16 @@ const GuidanceAndReferenceModule = () => {
   
   // Get replies for selected post
   const postReplies = selectedPost ? replies.filter(reply => reply.postId === selectedPost.id) : [];
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setFilterType("all");
+    setFilterStatus("all");
+    setFilterCategory("all");
+    setDateRange({ from: null, to: null });
+    setSortBy("recent");
+  };
 
   return (
     <DashboardLayout userType="service_provider">
@@ -960,59 +978,193 @@ const GuidanceAndReferenceModule = () => {
               {/* Filters and Search */}
               <Card>
                 <CardContent className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div>
+                  {/* Top row: compact filters */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                    <div className="md:col-span-2">
                       <Input
                         placeholder="Search posts..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full"
+                        className="w-full h-9 text-sm"
                       />
                     </div>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="query">Queries</SelectItem>
-                        <SelectItem value="reference">References</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="answered">Answered</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterCategory} onValueChange={setFilterCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        {professionalCategories.map(category => (
-                          <SelectItem key={category} value={category}>{category}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="recent">Latest Request at Top</SelectItem>
-                        <SelectItem value="oldest">Oldest Request at Top</SelectItem>
-                        <SelectItem value="popular">Most Popular</SelectItem>
-                        <SelectItem value="replies">Most Replies</SelectItem>
-                        <SelectItem value="views">Most Views</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="md:col-span-2">
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="query">Queries</SelectItem>
+                          <SelectItem value="reference">References</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="answered">Answered</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Select value={filterCategory} onValueChange={setFilterCategory}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Categories</SelectItem>
+                          {professionalCategories.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Date Range Group */}
+                    <div className="md:col-span-3">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setDateRange((prev) => ({ ...prev, from: v ? startOfDay(new Date(v)) : null }));
+                          }}
+                          className="h-9 text-sm"
+                        />
+                        <span className="text-gray-400">to</span>
+                        <Input
+                          type="date"
+                          value={dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setDateRange((prev) => ({ ...prev, to: v ? endOfDay(new Date(v)) : null }));
+                          }}
+                          className="h-9 text-sm"
+                        />
+                        {(dateRange.from || dateRange.to) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => setDateRange({ from: null, to: null })}
+                          >
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Sorting and Clear All */}
+                    <div className="md:col-span-2 flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 hidden md:inline-flex"
+                        onClick={clearAllFilters}
+                      >
+                        Reset
+                      </Button>
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="recent">Latest Request at Top</SelectItem>
+                          <SelectItem value="oldest">Oldest Request at Top</SelectItem>
+                          <SelectItem value="popular">Most Popular</SelectItem>
+                          <SelectItem value="replies">Most Replies</SelectItem>
+                          <SelectItem value="views">Most Views</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Quick date presets */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-gray-500">Quick dates:</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const today = new Date();
+                        setDateRange({ from: startOfDay(today), to: endOfDay(today) });
+                      }}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const to = new Date();
+                        const from = subDays(new Date(), 6); // last 7 days including today
+                        setDateRange({ from: startOfDay(from), to: endOfDay(to) });
+                      }}
+                    >
+                      Last 7 days
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        const to = new Date();
+                        const from = subDays(new Date(), 29); // last 30 days
+                        setDateRange({ from: startOfDay(from), to: endOfDay(to) });
+                      }}
+                    >
+                      Last 30 days
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={clearAllFilters}
+                    >
+                      Clear All
+                    </Button>
+                  </div>
+
+                  {/* Active filter chips */}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {searchTerm && (
+                      <Badge variant="secondary" className="text-xs">
+                        Search: {searchTerm}
+                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setSearchTerm('')} />
+                      </Badge>
+                    )}
+                    {filterType !== 'all' && (
+                      <Badge variant="secondary" className="text-xs">
+                        Type: {filterType}
+                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterType('all')} />
+                      </Badge>
+                    )}
+                    {filterStatus !== 'all' && (
+                      <Badge variant="secondary" className="text-xs">
+                        Status: {filterStatus}
+                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterStatus('all')} />
+                      </Badge>
+                    )}
+                    {filterCategory !== 'all' && (
+                      <Badge variant="secondary" className="text-xs">
+                        Category: {filterCategory}
+                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setFilterCategory('all')} />
+                      </Badge>
+                    )}
+                    {(!!dateRange.from || !!dateRange.to) && (
+                      <Badge variant="secondary" className="text-xs">
+                        Date: {dateRange.from ? format(dateRange.from, 'dd MMM yyyy') : '—'} → {dateRange.to ? format(dateRange.to, 'dd MMM yyyy') : '—'}
+                        <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setDateRange({ from: null, to: null })} />
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1039,7 +1191,7 @@ const GuidanceAndReferenceModule = () => {
                                     onClick={() => handleUpdateStatus(post.id, 'answered')}
                                   >
                                     <CheckCircle className="h-3 w-3 mr-1" />
-                                    Mark Answered
+                                    Resolved
                                   </Button>
                                 )}
                                 {post.status !== 'closed' ? (
@@ -1086,7 +1238,7 @@ const GuidanceAndReferenceModule = () => {
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <span className="flex items-center gap-1">
                             <User className="h-4 w-4" />
-                            {post.author}
+                            Posted By: Anonymized username
                           </span>
                           <span className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
@@ -1156,7 +1308,15 @@ const GuidanceAndReferenceModule = () => {
                             placeholder="Write a quick reply..."
                             rows={3}
                           />
-                          <div className="mt-2 flex items-center gap-2">
+                          <div className="mt-2 flex items-center gap-4">
+                            <label className="flex items-center gap-2 text-sm text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={inlineReplyAnonymous[post.id] ?? true}
+                                onChange={(e) => setInlineReplyAnonymous((prev) => ({ ...prev, [post.id]: e.target.checked }))}
+                              />
+                              Post as Anonymous
+                            </label>
                             <Button
                               size="sm"
                               className="bg-blue-600 hover:bg-blue-700"
@@ -1357,7 +1517,7 @@ const GuidanceAndReferenceModule = () => {
                                         onClick={() => handleUpdateStatus(post.id, 'answered')}
                                       >
                                         <CheckCircle className="h-3 w-3 mr-1" />
-                                        Mark Answered
+                                        Resolved
                                       </Button>
                                     )}
                                     {post.status !== 'closed' ? (
@@ -1493,7 +1653,7 @@ const GuidanceAndReferenceModule = () => {
                                 <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
                                   <span className="flex items-center gap-1">
                                     <User className="h-4 w-4" />
-                                    {post.author}
+                                    Posted By: Anonymized username
                                   </span>
                                   <span className="flex items-center gap-1">
                                     <Calendar className="h-4 w-4" />
@@ -1720,7 +1880,7 @@ const GuidanceAndReferenceModule = () => {
                             onClick={() => handleUpdateStatus(selectedPost.id, 'answered')}
                           >
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Mark Answered
+                            Resolved
                           </Button>
                         )}
                         {selectedPost.status !== 'closed' ? (
@@ -1763,7 +1923,7 @@ const GuidanceAndReferenceModule = () => {
                 <div className="flex items-center gap-6 text-sm text-gray-500 border-b pb-4">
                   <span className="flex items-center gap-1">
                     <User className="h-4 w-4" />
-                    {selectedPost.author} ({selectedPost.authorRole})
+                    Posted By: Anonymized username
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
@@ -1884,6 +2044,16 @@ const GuidanceAndReferenceModule = () => {
                           placeholder="Share your knowledge and help others..."
                           rows={4}
                         />
+                        <div>
+                          <label className="flex items-center gap-2 text-sm text-gray-600">
+                            <input
+                              type="checkbox"
+                              checked={replyAnonymous}
+                              onChange={(e) => setReplyAnonymous(e.target.checked)}
+                            />
+                            Post as Anonymous
+                          </label>
+                        </div>
                         
                         {/* Reply File Upload */}
                         <div>
@@ -1954,7 +2124,7 @@ const GuidanceAndReferenceModule = () => {
                                 <div className="flex items-center gap-3">
                                   <div className="flex items-center gap-2">
                                     <User className="h-4 w-4 text-gray-500" />
-                                    <span className="font-medium text-sm">{reply.author}</span>
+                                    <span className="font-medium text-sm">{reply.isAnonymous ? 'Anonymous' : reply.author}</span>
                                     <span className="text-xs text-gray-500">({reply.authorRole})</span>
                                   </div>
                                   {reply.isAccepted && (

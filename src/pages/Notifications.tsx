@@ -43,6 +43,7 @@ import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 
 const Notifications = () => {
   const { user } = useAuth();
@@ -58,6 +59,7 @@ const Notifications = () => {
 
 const NotificationModule = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,8 @@ const NotificationModule = () => {
   const [filters, setFilters] = useState<NotificationFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  const [showPreferences, setShowPreferences] = useState(false);
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   // Load notifications
   const loadNotifications = useCallback(async () => {
@@ -102,6 +105,17 @@ const NotificationModule = () => {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  // Sync date range inputs to filters
+  useEffect(() => {
+    if (!dateFrom && !dateTo) {
+      setFilters(prev => ({ ...prev, dateRange: undefined }));
+      return;
+    }
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`) : new Date(0);
+    const to = dateTo ? new Date(`${dateTo}T23:59:59`) : new Date();
+    setFilters(prev => ({ ...prev, dateRange: { from, to } }));
+  }, [dateFrom, dateTo]);
 
   // Handle notification actions
   const handleMarkAsRead = async (notificationId: string) => {
@@ -242,9 +256,10 @@ const NotificationModule = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* Preferences navigates to settings tab */}
           <Button
             variant="outline"
-            onClick={() => setShowPreferences(true)}
+            onClick={() => navigate('/settings?tab=notifications')}
             className="flex items-center gap-2"
           >
             <Settings className="h-4 w-4" />
@@ -372,6 +387,32 @@ const NotificationModule = () => {
                   <SelectItem value={NotificationPriority.LOW}>Low</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Date range filter */}
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-[150px]"
+                />
+                <span className="text-gray-500">to</span>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-[150px]"
+                />
+                {(dateFrom || dateTo) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setDateFrom(""); setDateTo(""); }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
 
               {stats && stats.unread > 0 && (
                 <Button

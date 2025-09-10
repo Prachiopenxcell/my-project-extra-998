@@ -37,6 +37,9 @@ export interface UserSubscription {
     entitiesUsed: number;
     apiCalls: number;
   };
+  // For detailed display in MySubscriptions
+  teamMemberNames?: string[];
+  activeEntityNames?: string[];
   paymentMethod?: string;
   trialEndsAt?: Date;
   cancelledAt?: Date;
@@ -253,43 +256,58 @@ export interface DueBill {
 class SubscriptionService {
   // Generate individual module subscription plans
   private generateIndividualPlans(): SubscriptionPlan[] {
-    return PROFESSIONAL_MODULES.map(module => ({
-      id: module.id,
-      name: module.name,
-      title: module.title,
-      subscriptionType: 'module-only' as SubscriptionType,
-      category: 'module' as const,
-      type: 'individual' as const,
-      pricing: {
-        monthly: module.pricing.monthly,
-        annual: module.pricing.annual,
-        oneTime: module.pricing.oneTime
-      },
-      currency: 'INR',
-      popular: module.popular,
-      recommended: module.recommended,
-      description: module.description,
-      shortDescription: module.shortDescription,
-      features: module.features,
-      benefits: module.benefits,
-      limitations: module.limitations,
-      inclusions: module.features,
-      exclusions: module.limitations || [],
-      targetUsers: module.targetUsers,
-      integrations: module.integrations,
-      maxUsers: module.maxUsers,
-      storage: module.storage,
-      support: module.support,
-      trial: true,
-      trialDays: module.trialDays,
-      status: module.status,
-      requirements: module.requirements,
-      icon: module.icon,
-      href: module.href,
-      validity: '12 months',
-      cancellationPolicy: 'Cancel anytime',
-      refundPolicy: 'Prorated refund available'
-    }));
+    // Only expose the exact modules approved for individual subscriptions
+    const allowedTitles = new Set<string>([
+      'Entity Management',
+      'Meeting Management',
+      'E-Voting System',
+      'Claims Management',
+      'Litigation Management',
+      'Virtual Data Room',
+      'Regulatory Compliance',
+      'AR & Facilitators',
+      'Timeline Management'
+    ]);
+
+    return PROFESSIONAL_MODULES
+      .filter(module => allowedTitles.has(module.title))
+      .map(module => ({
+        id: module.id,
+        name: module.name,
+        title: module.title,
+        subscriptionType: 'module-only' as SubscriptionType,
+        category: 'module' as const,
+        type: 'individual' as const,
+        pricing: {
+          monthly: module.pricing.monthly,
+          annual: module.pricing.annual,
+          oneTime: module.pricing.oneTime
+        },
+        currency: 'INR',
+        popular: module.popular,
+        recommended: module.recommended,
+        description: module.description,
+        shortDescription: module.shortDescription,
+        features: module.features,
+        benefits: module.benefits,
+        limitations: module.limitations,
+        inclusions: module.features,
+        exclusions: module.limitations || [],
+        targetUsers: module.targetUsers,
+        integrations: module.integrations,
+        maxUsers: module.maxUsers,
+        storage: module.storage,
+        support: module.support,
+        trial: true,
+        trialDays: module.trialDays,
+        status: module.status,
+        requirements: module.requirements,
+        icon: module.icon,
+        href: module.href,
+        validity: '12 months',
+        cancellationPolicy: 'Cancel anytime',
+        refundPolicy: 'Prorated refund available'
+      }));
   }
 
   // Generate Drive subscription plans (Full ERP Suite)
@@ -849,6 +867,55 @@ class SubscriptionService {
   // Generate premium add-on subscription plans
   private generatePremiumAddOnPlans(): SubscriptionPlan[] {
     return [
+      {
+        id: 'addon-add-entity',
+        name: 'Add Entity Capacity',
+        title: 'Add Entity',
+        subscriptionType: 'premium-addon',
+        category: 'addon',
+        type: 'individual',
+        pricing: {
+          monthly: 499,
+          annual: 4990
+        },
+        currency: 'INR',
+        popular: false,
+        recommended: true,
+        description: 'Purchase additional entity capacity for your organization to manage more entities within the platform.',
+        shortDescription: 'Purchase additional entity capacity',
+        features: [
+          'Adds +1 active entity capacity',
+          'Immediate activation upon purchase',
+          'Works across all subscribed modules',
+          'Prorated billing when added mid-cycle'
+        ],
+        benefits: [
+          'Scale entity management as you grow',
+          'Flexible month-to-month or annual billing',
+          'Consistent experience across modules'
+        ],
+        inclusions: [
+          '+1 active entity capacity added to your account'
+        ],
+        exclusions: [
+          'Does not include additional team seats',
+          'Does not include storage expansion'
+        ],
+        targetUsers: ['Entity Admins', 'Growing Organizations'],
+        integrations: ['Entity Management', 'Meeting Management', 'Work Order Management', 'Service Requests'],
+        maxEntities: 1,
+        support: 'Email Support',
+        trial: false,
+        trialDays: 0,
+        status: 'available',
+        icon: 'Building',
+        validity: 'Per billing cycle',
+        cancellationPolicy: 'Cancel anytime',
+        refundPolicy: 'Prorated refund available',
+        usageLimits: {
+          entityIncrement: 1
+        }
+      },
       {
         id: 'addon-ai-assistant',
         name: 'AI Assistant Premium',
@@ -1458,9 +1525,15 @@ class SubscriptionService {
     
     // Role-based filtering logic
     const roleBasedPackages = allPackages.filter(plan => {
+      // Always include individual module plans for discoverability
+      if (plan.type === 'individual' || plan.category === 'module') {
+        return true;
+      }
+
       const targetUsers = plan.targetUsers.map(user => user.toLowerCase());
-      
-      switch (userRole.toLowerCase()) {
+      const role = userRole.toLowerCase();
+
+      switch (role) {
         case 'service_seeker_individual_partner':
           return targetUsers.some(user => 
             user.includes('service seeker') || 
@@ -1579,6 +1652,8 @@ class SubscriptionService {
     const drivePlan = await this.getPackageById('drive-seeker-starter');
     const storagePlan = await this.getPackageById('storage-basic');
     const aiPlan = await this.getPackageById('addon-ai-assistant');
+    const entityPlan = await this.getPackageById('entity-management');
+    const meetingPlan = await this.getPackageById('meeting-management');
     
     return [
       {
@@ -1595,6 +1670,8 @@ class SubscriptionService {
         autoRenewal: true,
         features: drivePlan?.features || [],
         addOns: [],
+        teamMemberNames: ['Alice Johnson', 'Ravi Sharma', 'Priya Patel', 'Liam Brown', 'Noah Wilson'],
+        activeEntityNames: ['Acme Ventures Pvt Ltd', 'BlueSky Industries LLP'],
         plan: drivePlan!
       },
       {
@@ -1611,6 +1688,8 @@ class SubscriptionService {
         autoRenewal: false,
         features: storagePlan?.features || [],
         addOns: [],
+        teamMemberNames: ['Alice Johnson', 'Ravi Sharma'],
+        activeEntityNames: ['Acme Ventures Pvt Ltd'],
         plan: storagePlan!
       },
       {
@@ -1627,7 +1706,50 @@ class SubscriptionService {
         autoRenewal: false,
         features: aiPlan?.features || [],
         addOns: [],
+        teamMemberNames: ['AI Service Account'],
+        activeEntityNames: [],
         plan: aiPlan!
+      }
+      ,
+      // Trial ended module requiring purchase: Entity Management
+      {
+        id: 'sub-004',
+        planId: 'entity-management',
+        userId: userId,
+        status: 'expired',
+        startDate: new Date('2025-08-01'),
+        endDate: new Date('2025-08-15'), // trial ended
+        nextBillingDate: null,
+        billingCycle: 'monthly',
+        price: 29.99,
+        currency: 'USD',
+        autoRenewal: false,
+        features: entityPlan?.features || [],
+        addOns: [],
+        trialEndsAt: new Date('2025-08-15'),
+        teamMemberNames: ['Alice Johnson', 'Ravi Sharma', 'Maya Iyer'],
+        activeEntityNames: ['Acme Ventures Pvt Ltd', 'BlueSky Industries LLP', 'Nimbus Tech Pvt Ltd'],
+        plan: entityPlan!
+      },
+      // Trial ended module requiring purchase: Meeting Management
+      {
+        id: 'sub-005',
+        planId: 'meeting-management',
+        userId: userId,
+        status: 'expired',
+        startDate: new Date('2025-07-20'),
+        endDate: new Date('2025-08-03'), // trial ended
+        nextBillingDate: null,
+        billingCycle: 'monthly',
+        price: 19.99,
+        currency: 'USD',
+        autoRenewal: false,
+        features: meetingPlan?.features || [],
+        addOns: [],
+        trialEndsAt: new Date('2025-08-03'),
+        teamMemberNames: ['Alice Johnson', 'Priya Patel'],
+        activeEntityNames: ['Acme Ventures Pvt Ltd'],
+        plan: meetingPlan!
       }
     ];
   }

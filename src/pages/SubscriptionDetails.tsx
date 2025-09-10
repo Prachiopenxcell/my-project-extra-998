@@ -33,6 +33,7 @@ import {
   Zap
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import { subscriptionService } from "@/services/subscriptionService";
 
 interface SubscriptionDetail {
   id: string;
@@ -53,6 +54,9 @@ interface SubscriptionDetail {
   invoices: InvoiceItem[];
   cancellationDate?: string;
   cancellationReason?: string;
+  // Added for Usage tab details
+  teamMemberNames?: string[];
+  activeEntityNames?: string[];
 }
 
 interface FeatureItem {
@@ -142,10 +146,56 @@ const SubscriptionDetails = () => {
         ]
       };
 
-      setTimeout(() => {
-        setSubscription(mockSubscription);
+      // Additionally pull team/entity names from subscriptionService if available
+      try {
+        const svcSub = await subscriptionService.getSubscriptionById(subscriptionId || "sub-001");
+        let enriched: SubscriptionDetail = {
+          ...mockSubscription,
+          teamMemberNames: svcSub?.teamMemberNames ?? [],
+          activeEntityNames: svcSub?.activeEntityNames ?? []
+        };
+
+        // Sync usage metrics with actual list counts for accuracy
+        const tmCount = enriched.teamMemberNames?.length ?? 0;
+        const aeCount = enriched.activeEntityNames?.length ?? 0;
+
+        const updatedUsage = enriched.usage.map(u => {
+          if (u.name === "Team Members") {
+            const limit = u.limit;
+            const percentage = limit > 0 ? Math.min(100, Math.round((tmCount / limit) * 100)) : 0;
+            return { ...u, current: tmCount, percentage };
+          }
+          if (u.name === "Active Entities") {
+            // Active Entities may be unlimited (limit -1), keep percentage 0 in that case
+            const limit = u.limit;
+            const percentage = limit > 0 ? Math.min(100, Math.round((aeCount / limit) * 100)) : 0;
+            return { ...u, current: aeCount, percentage };
+          }
+          return u;
+        });
+        enriched = { ...enriched, usage: updatedUsage };
+        setSubscription(enriched);
+      } catch (e) {
+        // Fallback to mock if service fails
+        const fallback: SubscriptionDetail = {
+          ...mockSubscription,
+          teamMemberNames: [],
+          activeEntityNames: []
+        };
+        // Ensure usage metrics still consistent with empty lists
+        const updatedUsage = fallback.usage.map(u => {
+          if (u.name === "Team Members" || u.name === "Active Entities") {
+            const limit = u.limit;
+            const current = 0;
+            const percentage = limit > 0 ? 0 : 0;
+            return { ...u, current, percentage };
+          }
+          return u;
+        });
+        setSubscription({ ...fallback, usage: updatedUsage });
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     };
 
     fetchSubscription();
@@ -215,6 +265,7 @@ const SubscriptionDetails = () => {
   };
 
   const handleAddAddon = () => {
+    // Redirect to the Subscription Packages page with Add-ons tab selected
     navigate('/subscription/browse?tab=addons');
   };
 
@@ -490,6 +541,43 @@ const SubscriptionDetails = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Detailed Usage Lists */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Team Members ({subscription.teamMemberNames?.length ?? 0})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {subscription.teamMemberNames && subscription.teamMemberNames.length > 0 ? (
+                    <ul className="list-disc pl-5 space-y-1">
+                      {subscription.teamMemberNames.map((name, idx) => (
+                        <li key={idx} className="text-sm">{name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-600">No team members found for this subscription.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Entities ({subscription.activeEntityNames?.length ?? 0})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {subscription.activeEntityNames && subscription.activeEntityNames.length > 0 ? (
+                    <ul className="list-disc pl-5 space-y-1">
+                      {subscription.activeEntityNames.map((name, idx) => (
+                        <li key={idx} className="text-sm">{name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-600">No active entities found for this subscription.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Add-ons Tab */}

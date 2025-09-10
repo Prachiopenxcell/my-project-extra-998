@@ -12,7 +12,6 @@ import {
   User,
   Clock,
   Eye,
-  Share2,
   BookOpen,
   TrendingUp,
   Filter,
@@ -52,7 +51,25 @@ const tags = [
   'Digital Transformation', 'Risk Management', 'Audit Trail', 'Data Security'
 ];
 
-const featuredArticles = [
+type MediaType = 'article' | 'video' | 'infographic';
+
+interface Article {
+  id: number;
+  title: string;
+  excerpt: string;
+  category: string;
+  author: string;
+  date: string;
+  readTime: string;
+  views: number;
+  image: string;
+  tags: string[];
+  featured: boolean;
+  mediaType: MediaType;
+  downloadable?: boolean;
+}
+
+const featuredArticles: Article[] = [
   {
     id: 1,
     title: 'New Regulatory Framework for Digital Compliance Management',
@@ -137,7 +154,7 @@ const platformFeatures = [
  
 ];
 
-const articles = [
+const articles: Article[] = [
   {
     id: 3,
     title: 'Best Practices for Entity Management in Multi-Jurisdictional Operations',
@@ -197,7 +214,7 @@ const articles = [
   }
 ];
 
-const allArticles = [...featuredArticles, ...articles];
+const allArticles: Article[] = [...featuredArticles, ...articles];
 
 export default function Articles() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -205,8 +222,9 @@ export default function Articles() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showShareMenu, setShowShareMenu] = useState<number | null>(null);
-  const articlesPerPage = 6;
+  // Browsing mode: pagination or load more
+  const [browseMode, setBrowseMode] = useState<'pagination' | 'loadMore'>('loadMore');
+  const articlesPerPage = 3;
 
   const filteredArticles = allArticles.filter(article => {
     const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -234,7 +252,9 @@ export default function Articles() {
 
   const totalPages = Math.ceil(sortedArticles.length / articlesPerPage);
   const startIndex = (currentPage - 1) * articlesPerPage;
-  const paginatedArticles = sortedArticles.slice(startIndex, startIndex + articlesPerPage);
+  const paginatedArticles = browseMode === 'pagination'
+    ? sortedArticles.slice(startIndex, startIndex + articlesPerPage)
+    : sortedArticles.slice(0, currentPage * articlesPerPage);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev => 
@@ -262,7 +282,6 @@ export default function Articles() {
         window.open(`mailto:?subject=${encodeURIComponent(article.title)}&body=${encodeURIComponent(text + '\n\n' + url)}`);
         break;
     }
-    setShowShareMenu(null);
   };
 
   const getMediaIcon = (mediaType: string) => {
@@ -277,7 +296,7 @@ export default function Articles() {
     }
   };
 
-  const getRelatedArticles = (currentArticle: any) => {
+  const getRelatedArticles = (currentArticle: typeof allArticles[number]) => {
     return allArticles
       .filter(article => 
         article.id !== currentArticle.id && 
@@ -297,8 +316,8 @@ export default function Articles() {
       heroGradient="from-slate-600 to-gray-700"
     >
       <div className="space-y-8">
-        {/* Featured Articles */}
-        <section>
+       {/* Featured Articles */}
+ <section>
           <div className="flex items-center space-x-2 mb-6">
             <TrendingUp className="h-6 w-6 text-slate-600" />
             <h2 className="text-2xl font-bold text-gray-900">Featured Articles</h2>
@@ -352,53 +371,29 @@ export default function Articles() {
                         <span>{article.views}</span>
                       </div>
                     </div>
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowShareMenu(showShareMenu === article.id ? null : article.id)}
-                      >
-                        <Share2 className="h-4 w-4" />
+                    <div className="flex items-center space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'linkedin')} aria-label="Share on LinkedIn">
+                        <Linkedin className="h-4 w-4 text-blue-600" />
                       </Button>
-                      {showShareMenu === article.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-10">
-                          <div className="py-2">
-                            <button
-                              onClick={() => shareArticle(article, 'linkedin')}
-                              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                            >
-                              <Linkedin className="h-4 w-4 text-blue-600" />
-                              <span>LinkedIn</span>
-                            </button>
-                            <button
-                              onClick={() => shareArticle(article, 'twitter')}
-                              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                            >
-                              <Twitter className="h-4 w-4 text-blue-400" />
-                              <span>Twitter</span>
-                            </button>
-                            <button
-                              onClick={() => shareArticle(article, 'facebook')}
-                              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                            >
-                              <Facebook className="h-4 w-4 text-blue-800" />
-                              <span>Facebook</span>
-                            </button>
-                            <button
-                              onClick={() => shareArticle(article, 'email')}
-                              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-                            >
-                              <Mail className="h-4 w-4 text-gray-600" />
-                              <span>Email</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'twitter')} aria-label="Share on Twitter">
+                        <Twitter className="h-4 w-4 text-blue-400" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'facebook')} aria-label="Share on Facebook">
+                        <Facebook className="h-4 w-4 text-blue-800" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'email')} aria-label="Share via Email">
+                        <Mail className="h-4 w-4 text-gray-600" />
+                      </Button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-4">
                     {article.tags.slice(0, 3).map(tag => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
+                      <Badge
+                        key={tag}
+                        variant={selectedTags.includes(tag) ? 'default' : 'secondary'}
+                        className="text-xs cursor-pointer"
+                        onClick={() => toggleTag(tag)}
+                      >
                         {tag}
                       </Badge>
                     ))}
@@ -456,8 +451,8 @@ export default function Articles() {
                 </div>
               </div>
 
-              {/* Sort Options */}
-              <div className="flex items-center space-x-4">
+              {/* Sort Options and Browse Mode */}
+              <div className="flex items-center flex-wrap gap-3">
                 <Filter className="h-4 w-4 text-gray-500" />
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-48">
@@ -470,6 +465,31 @@ export default function Articles() {
                     <SelectItem value="title">Alphabetical</SelectItem>
                   </SelectContent>
                 </Select>
+                {/* <div className="flex items-center gap-2 ml-auto">
+                  <span className="text-sm text-gray-600">Browse:</span>
+                  <Button
+                    variant={browseMode === 'pagination' ? 'default' : 'outline'}
+                    size="sm"
+                    className={browseMode === 'pagination' ? 'bg-slate-700 hover:bg-slate-800' : ''}
+                    onClick={() => {
+                      setBrowseMode('pagination');
+                      setCurrentPage(1);
+                    }}
+                  >
+                    Pagination
+                  </Button>
+                  <Button
+                    variant={browseMode === 'loadMore' ? 'default' : 'outline'}
+                    size="sm"
+                    className={browseMode === 'loadMore' ? 'bg-slate-700 hover:bg-slate-800' : ''}
+                    onClick={() => {
+                      setBrowseMode('loadMore');
+                      setCurrentPage(1);
+                    }}
+                  >
+                    Load More
+                  </Button>
+                </div> */}
               </div>
             </div>
           </CardContent>
@@ -551,7 +571,12 @@ export default function Articles() {
                       </div>
                       <div className="flex flex-wrap gap-1 mb-3">
                         {article.tags.slice(0, 2).map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
+                          <Badge
+                            key={tag}
+                            variant={selectedTags.includes(tag) ? 'default' : 'secondary'}
+                            className="text-xs cursor-pointer"
+                            onClick={() => toggleTag(tag)}
+                          >
                             {tag}
                           </Badge>
                         ))}
@@ -566,54 +591,75 @@ export default function Articles() {
                           Read More
                           <ExternalLink className="h-3 w-3 ml-1" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowShareMenu(showShareMenu === article.id ? null : article.id)}
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center space-x-1">
+                          <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'linkedin')} aria-label="Share on LinkedIn">
+                            <Linkedin className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'twitter')} aria-label="Share on Twitter">
+                            <Twitter className="h-4 w-4 text-blue-400" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'facebook')} aria-label="Share on Facebook">
+                            <Facebook className="h-4 w-4 text-blue-800" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'email')} aria-label="Share via Email">
+                            <Mail className="h-4 w-4 text-gray-600" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  
-                  <div className="flex space-x-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        className={currentPage === page ? 'bg-slate-700 hover:bg-slate-800' : ''}
-                      >
-                        {page}
-                      </Button>
-                    ))}
+              {/* Pagination or Load More */}
+              {browseMode === 'pagination' ? (
+                totalPages > 1 && (
+                  <div className="flex items-center justify-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex space-x-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={currentPage === page ? 'bg-slate-700 hover:bg-slate-800' : ''}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
-                  
+                )
+              ) : (
+                <div className="flex items-center justify-center">
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={paginatedArticles.length >= sortedArticles.length}
                   >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
+                    {paginatedArticles.length >= sortedArticles.length
+                      ? 'All articles loaded'
+                      : 'Load More Articles'}
                   </Button>
                 </div>
               )}
@@ -641,6 +687,58 @@ export default function Articles() {
           )}
         </section>
 
+        {/* Suggested Reads (Related Articles) */}
+        {sortedArticles.length > 0 && (
+          <section>
+            <div className="flex items-center space-x-2 mb-6">
+              <BookOpen className="h-6 w-6 text-slate-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Suggested Reads</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {getRelatedArticles(sortedArticles[0]).map(article => (
+                <Card key={article.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <ImageWithPlaceholder 
+                    src={article.image} 
+                    alt={article.title}
+                    className="w-full h-32 object-cover"
+                  />
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center space-x-2 text-xs text-gray-500 mb-2">
+                      <Badge variant="outline" className="text-xs">{article.category}</Badge>
+                      <span>•</span>
+                      <span>{article.readTime}</span>
+                    </div>
+                    <CardTitle className="text-base line-clamp-2">{article.title}</CardTitle>
+                    <CardDescription className="line-clamp-2">{article.excerpt}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1 text-xs text-gray-500">
+                        <Eye className="h-3 w-3" />
+                        <span>{article.views}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'linkedin')} aria-label="Share on LinkedIn">
+                          <Linkedin className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'twitter')} aria-label="Share on Twitter">
+                          <Twitter className="h-4 w-4 text-blue-400" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'facebook')} aria-label="Share on Facebook">
+                          <Facebook className="h-4 w-4 text-blue-800" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => shareArticle(article, 'email')} aria-label="Share via Email">
+                          <Mail className="h-4 w-4 text-gray-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+ 
         {/* Newsletter Signup */}
         <Card className="bg-slate-50 border-slate-200">
           <CardContent className="p-6 text-center">

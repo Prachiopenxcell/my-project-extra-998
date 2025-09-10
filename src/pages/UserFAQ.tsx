@@ -238,7 +238,7 @@ export default function UserFAQ() {
                     variant={selectedCategory === category.id ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedCategory(category.id)}
-                    className="bg-slate-700 hover:bg-slate-800"
+                    className=" hover:bg-slate-800"
                   >
                     <category.icon className="h-4 w-4 mr-1" />
                     {category.title}

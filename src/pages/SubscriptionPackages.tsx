@@ -48,7 +48,8 @@ import { useNavigate } from "react-router-dom";
 
 // Using SubscriptionPlan from service
 
-interface AddOn {
+// Local UI type to avoid collision with service's internal AddOn type
+interface UIAddOn {
   id: string;
   name: string;
   description: string;
@@ -56,8 +57,9 @@ interface AddOn {
   currency: string;
   type: 'monthly' | 'one-time';
   category: string;
-  icon: React.ReactNode;
+  icon?: string; // matches service shape (string icon id)
   features: string[];
+  popular?: boolean;
 }
 
 const SubscriptionPackages = () => {
@@ -72,7 +74,7 @@ const SubscriptionPackages = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [filteredPlans, setFilteredPlans] = useState<SubscriptionPlan[]>([]);
   const [userPermissions, setUserPermissions] = useState<SubscriptionPermissions | null>(null);
-  const [addOns, setAddOns] = useState<AddOn[]>([]);
+  const [addOns, setAddOns] = useState<UIAddOn[]>([]);
   const [userPurchasedPlans, setUserPurchasedPlans] = useState<string[]>([]);
 
   // Load plans and user permissions on component mount
@@ -100,7 +102,19 @@ const SubscriptionPackages = () => {
         
         setPlans(allPlans);
         setUserPermissions(permissions);
-        setAddOns(comprehensiveAddOns);
+        // Map to local UI type to avoid TS name collision with service's internal AddOn interface
+        const uiAddOns: UIAddOn[] = comprehensiveAddOns.map(a => ({
+          id: a.id,
+          name: a.name,
+          description: a.description,
+          price: a.price,
+          currency: a.currency,
+          type: a.type,
+          category: a.category,
+          icon: a.icon,
+          features: a.features,
+        }));
+        setAddOns(uiAddOns);
         setUserPurchasedPlans(purchasedPlans);
         setFilteredPlans(allPlans);
       } catch (error) {

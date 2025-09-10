@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toDisplayFromStatus } from "@/utils/votingStatus";
 
 const EVoting = () => {
   return (
@@ -54,6 +55,9 @@ const EVotingModule = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<VotingStatus | "all">("all");
+  const [sortBy, setSortBy] = useState<"latest" | "oldest">("latest");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<10 | 50 | 100>(10);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -112,17 +116,11 @@ const EVotingModule = () => {
   };
 
   const getStatusBadge = (status: VotingStatus) => {
-    const statusConfig = {
-      draft: { label: "Draft", variant: "secondary" as const },
-      scheduled: { label: "Scheduled", variant: "default" as const },
-      in_progress: { label: "In Progress", variant: "default" as const },
-      completed: { label: "Completed", variant: "default" as const },
-      cancelled: { label: "Cancelled", variant: "destructive" as const },
-      review: { label: "Review", variant: "outline" as const },
-    };
-    
-    const config = statusConfig[status];
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    const { label, badgeClass } = toDisplayFromStatus(status);
+    // Preserve special cases: draft and review
+    if (status === 'draft') return <Badge variant="secondary">Draft</Badge>;
+    if (status === 'review') return <Badge variant="outline">Review</Badge>;
+    return <Badge className={badgeClass}>{label}</Badge>;
   };
 
   const getActivityIcon = (type: VotingActivity['type']) => {
@@ -175,6 +173,19 @@ const EVotingModule = () => {
     );
   }
 
+  // Derived: sort and paginate client-side
+  const sortedRequests = [...votingRequests].sort((a, b) => {
+    const ad = toValidDate(a.createdAt)?.getTime() ?? 0;
+    const bd = toValidDate(b.createdAt)?.getTime() ?? 0;
+    return sortBy === "latest" ? bd - ad : ad - bd;
+  });
+  const totalItems = sortedRequests.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = startIdx + pageSize;
+  const pagedRequests = sortedRequests.slice(startIdx, endIdx);
+
   return (
     <div className="container mx-auto p-4">
       {/* Header */}
@@ -203,7 +214,7 @@ const EVotingModule = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
               <Vote className="mr-2 h-4 w-4 text-blue-500" />
-              Active Votings
+              Ongoing Votings
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -223,7 +234,7 @@ const EVotingModule = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
               <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-              Completed Votings
+              Concluded Votings
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -239,7 +250,7 @@ const EVotingModule = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center">
               <Calendar className="mr-2 h-4 w-4 text-purple-500" />
-              Scheduled Votings
+              Upcoming Votings
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -251,32 +262,18 @@ const EVotingModule = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center">
-              <Clock className="mr-2 h-4 w-4 text-orange-500" />
-              In Progress Votings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.inProgressVotings}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-              +{stats?.inProgressVotingsChange} from last month
-            </div>
-          </CardContent>
-        </Card>
+        
       </div>
 
-      {/* Active Voting Requests */}
+      {/* Ongoing Voting Requests */}
       <Card className="mb-8">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                Active Voting Requests
+                Voting Requests
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/voting/all">
+                  <Link to="/voting">
                     <Eye className="h-4 w-4 mr-1" />
                     View All
                   </Link>
@@ -284,7 +281,7 @@ const EVotingModule = () => {
               </CardTitle>
               <p className="text-sm text-gray-600 mt-1">Track progress of your ongoing voting processes</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -301,10 +298,29 @@ const EVotingModule = () => {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="scheduled">Upcoming</SelectItem>
+                  <SelectItem value="in_progress">Ongoing</SelectItem>
+                  <SelectItem value="completed">Concluded</SelectItem>
                   <SelectItem value="review">Review</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">Latest</SelectItem>
+                  <SelectItem value="oldest">Oldest</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={String(pageSize) as `${number}`} onValueChange={(v) => { setPageSize(Number(v) as 10 | 50 | 100); setPage(1); }}>
+                <SelectTrigger className="w-28">
+                  <SelectValue placeholder="Per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / page</SelectItem>
+                  <SelectItem value="50">50 / page</SelectItem>
+                  <SelectItem value="100">100 / page</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -312,7 +328,7 @@ const EVotingModule = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {votingRequests.map((request) => (
+            {pagedRequests.map((request) => (
               <div key={request.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -372,10 +388,12 @@ const EVotingModule = () => {
                           Edit
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Report
-                      </DropdownMenuItem>
+                      {request.status === 'completed' && (
+                        <DropdownMenuItem>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Report
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem className="text-red-600">
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
@@ -385,6 +403,20 @@ const EVotingModule = () => {
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                Showing {totalItems === 0 ? 0 : startIdx + 1}-{Math.min(endIdx, totalItems)} of {totalItems}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={currentPage === 1}>First</Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</Button>
+                <span className="text-sm">Page {currentPage} of {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(totalPages)} disabled={currentPage === totalPages}>Last</Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

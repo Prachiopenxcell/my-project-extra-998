@@ -47,7 +47,7 @@ export interface Notification {
   relatedId?: string; // ID of related object (work order, service request, etc.)
   relatedType?: string; // Type of related object
   actions?: NotificationAction[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   deliveryChannels: DeliveryChannel[];
   createdAt: Date;
   readAt?: Date;
@@ -58,6 +58,7 @@ export interface Notification {
 export interface NotificationPreferences {
   userId: string;
   emailEnabled: boolean;
+  emailRequired?: boolean;
   smsEnabled: boolean;
   inAppEnabled: boolean;
   systemAlerts: boolean;

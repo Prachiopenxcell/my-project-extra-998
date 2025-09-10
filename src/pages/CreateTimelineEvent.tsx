@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,15 +23,46 @@ import {
   AlertCircle,
   CheckCircle
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+
+// Strongly typed form data
+interface CreateTimelineForm {
+  eventType: string;
+  activityName: string;
+  natureOfActivity: string;
+  description: string;
+  significance: number;
+  dueDate: string;
+  actualDate: string;
+  entity: string;
+  process: string;
+  isRecurring: boolean;
+  recurringType: string;
+  recurringInterval: number;
+  endDate: string;
+  timelyCompiled: boolean;
+  justificationReason: string;
+  remarks: string;
+  status: string;
+  notificationEnabled: boolean;
+  notificationDays: number;
+  notificationChannels: { email: boolean; sms: boolean; whatsapp: boolean; dashboard: boolean };
+  assignedTo: string;
+  priority: string;
+  tags: unknown[];
+  attachments: unknown[];
+}
 
 const CreateTimelineEvent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = (location as unknown as { state?: { mode?: string; eventId?: string | number; formData?: Partial<CreateTimelineForm> } }).state;
+  const isEdit = useMemo(() => navState?.mode === 'edit', [navState]);
   const { toast } = useToast();
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CreateTimelineForm>({
     eventType: "cirp_filing",
     activityName: "",
     natureOfActivity: "CIRP Filing",
@@ -45,6 +76,10 @@ const CreateTimelineEvent = () => {
     recurringType: "monthly",
     recurringInterval: 1,
     endDate: "",
+    timelyCompiled: false,
+    justificationReason: "",
+    remarks: "",
+    status: "forthcoming",
     notificationEnabled: true,
     notificationDays: 7,
     notificationChannels: {
@@ -62,7 +97,17 @@ const CreateTimelineEvent = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (field: string, value: any) => {
+  // Prefill when navigating for edit
+  useEffect(() => {
+    if (isEdit && navState?.formData) {
+      setFormData(prev => ({
+        ...prev,
+        ...navState.formData,
+      }));
+    }
+  }, [isEdit, navState]);
+
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -120,8 +165,8 @@ const CreateTimelineEvent = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast({
-        title: "Event Created",
-        description: "Timeline event has been created successfully.",
+        title: isEdit ? "Event Updated" : "Event Created",
+        description: isEdit ? "Timeline event has been updated successfully." : "Timeline event has been created successfully.",
       });
       
       navigate('/timeline');
@@ -163,8 +208,8 @@ const CreateTimelineEvent = () => {
             Back to Timeline
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Create Timeline Event</h1>
-            <p className="text-muted-foreground">Add a new event to your timeline</p>
+            <h1 className="text-2xl font-bold">{isEdit ? 'Edit Timeline Event' : 'Create Timeline Event'}</h1>
+            <p className="text-muted-foreground">{isEdit ? 'Update the details of your event' : 'Add a new event to your timeline'}</p>
           </div>
         </div>
 
@@ -321,40 +366,104 @@ const CreateTimelineEvent = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building className="h-5 w-5 text-green-500" />
+                  <Building className="h-5 w-5 text-purple-500" />
                   Entity & Process
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Select Entity</Label>
-                    <Select value={formData.entity} onValueChange={(value) => handleInputChange('entity', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose entity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="acme_corporation">Acme Corporation</SelectItem>
-                        <SelectItem value="tech_solutions">Tech Solutions Ltd</SelectItem>
-                        <SelectItem value="global_industries">Global Industries</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Select Entity</Label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Select value={formData.entity} onValueChange={(value) => handleInputChange('entity', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose entity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="acme_corporation">Acme Corporation</SelectItem>
+                          <SelectItem value="tech_solutions">Tech Solutions Ltd</SelectItem>
+                          <SelectItem value="global_industries">Global Industries</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                      Create Entity
+                    </Button>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Process Type</Label>
+                  <Select value={formData.process} onValueChange={(value) => handleInputChange('process', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose process" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cirp">CIRP Process</SelectItem>
+                      <SelectItem value="liquidation">Liquidation Process</SelectItem>
+                      <SelectItem value="compliance">Compliance Process</SelectItem>
+                      <SelectItem value="restructuring">Restructuring</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* Compliance & Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Compliance & Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="timelyCompiled"
+                    checked={formData.timelyCompiled}
+                    onCheckedChange={(checked) => handleInputChange('timelyCompiled', checked)}
+                  />
+                  <Label htmlFor="timelyCompiled">Timely Compiled</Label>
+                </div>
+
+                {!formData.timelyCompiled && (
                   <div className="space-y-2">
-                    <Label>Process Type</Label>
-                    <Select value={formData.process} onValueChange={(value) => handleInputChange('process', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose process" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cirp">CIRP Process</SelectItem>
-                        <SelectItem value="liquidation">Liquidation Process</SelectItem>
-                        <SelectItem value="compliance">Compliance Process</SelectItem>
-                        <SelectItem value="restructuring">Restructuring</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="justificationReason">Reason for Justification</Label>
+                    <Textarea
+                      id="justificationReason"
+                      value={formData.justificationReason}
+                      onChange={(e) => handleInputChange('justificationReason', e.target.value)}
+                      placeholder="Provide the reason for delay or non-compliance"
+                      rows={3}
+                    />
                   </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="remarks">Remarks</Label>
+                  <Textarea
+                    id="remarks"
+                    value={formData.remarks}
+                    onChange={(e) => handleInputChange('remarks', e.target.value)}
+                    placeholder="Any additional remarks"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="forthcoming">Forthcoming</SelectItem>
+                      <SelectItem value="due_today">Due Today</SelectItem>
+                      <SelectItem value="due_next_week">Due Next Week</SelectItem>
+                      <SelectItem value="on_time">On Time</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
@@ -503,25 +612,27 @@ const CreateTimelineEvent = () => {
                     {loading ? (
                       <>
                         <Clock className="mr-2 h-4 w-4 animate-spin" />
-                        Creating...
+                        {isEdit ? 'Updating...' : 'Creating...'}
                       </>
                     ) : (
                       <>
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Create Event
+                        {isEdit ? 'Update Event' : 'Create Event/Custom Timeline'}
                       </>
                     )}
                   </Button>
                   
-                  <Button 
-                    variant="outline" 
-                    onClick={handleSaveAndContinue}
-                    disabled={loading}
-                    className="w-full"
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    Save & Create Another
-                  </Button>
+                  {!isEdit && (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSaveAndContinue}
+                      disabled={loading}
+                      className="w-full"
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      Save & Create Another
+                    </Button>
+                  )}
                   
                   <Button 
                     variant="ghost" 

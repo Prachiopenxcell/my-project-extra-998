@@ -308,16 +308,23 @@ const CreateVDRRoomComplete = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="text-sm font-medium mb-2 block text-blue-900">Select Entity:</label>
-                        <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                          <SelectTrigger className="bg-white border-blue-200">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
-                            <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
-                            <SelectItem value="def-llc">DEF LLC</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                              <SelectTrigger className="bg-white border-blue-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
+                                <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
+                                <SelectItem value="def-llc">DEF LLC</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                            Create Entity
+                          </Button>
+                        </div>
                       </div>
                       
                       <div>
@@ -386,16 +393,23 @@ const CreateVDRRoomComplete = () => {
                       
                       <div>
                         <label className="text-sm font-medium mb-2 block text-purple-900">Select Entity:</label>
-                        <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                          <SelectTrigger className="bg-white border-purple-200">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
-                            <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
-                            <SelectItem value="def-llc">DEF LLC</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                              <SelectTrigger className="bg-white border-purple-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="abc-corp">ABC Corporation Ltd.</SelectItem>
+                                <SelectItem value="xyz-inc">XYZ Inc.</SelectItem>
+                                <SelectItem value="def-llc">DEF LLC</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                            Create Entity
+                          </Button>
+                        </div>
                       </div>
                       
                       <Button className="w-full bg-purple-600 hover:bg-purple-700">

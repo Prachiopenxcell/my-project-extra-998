@@ -177,8 +177,11 @@ const ComplianceEntitySetup = () => {
       title: "Setup New Compliance",
       description: `Starting compliance setup for ${entityName}`,
     });
-    // Navigate to checklist generation with selected entity
-    navigate(`/compliance/checklist?entity=${entityId}`);
+    // Navigate to checklist generation with selected entity details
+    const entityObj = entities.find(e => e.id === entityId);
+    navigate(`/compliance/checklist`, {
+      state: { selectedEntities: entityObj ? [entityObj] : [] }
+    });
   };
 
   const handleAddNewEntity = () => {
@@ -191,9 +194,10 @@ const ComplianceEntitySetup = () => {
 
   const handleContinue = () => {
     if (selectedEntities.length > 0) {
-      // Navigate to checklist generation with selected entities
+      // Navigate to checklist generation with selected entity objects
+      const selectedEntityObjects = entities.filter(e => selectedEntities.includes(e.id));
       navigate('/compliance/checklist', { 
-        state: { selectedEntities: selectedEntities } 
+        state: { selectedEntities: selectedEntityObjects } 
       });
     }
   };

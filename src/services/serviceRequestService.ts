@@ -3262,6 +3262,55 @@ class ServiceRequestService {
       submittedAt: new Date('2023-10-05'),
       updatedAt: new Date('2023-10-30'),
       lastEditDate: new Date('2023-10-05')
+    },
+    {
+      id: 'bid-115-001',
+      bidNumber: 'BID2024115-001',
+      serviceRequestId: 'sr-115',
+      providerId: 'provider-021',
+      providerName: 'Regulatory Compliance Experts',
+      providerProfile: {
+        rating: 4.6,
+        completedProjects: 112,
+        expertise: ['Regulatory Compliance', 'SEBI', 'RBI', 'Governance'],
+        location: 'Mumbai'
+      },
+      financials: {
+        professionalFee: 90000,
+        platformFee: 9000,
+        gst: 18900,
+        reimbursements: {
+          regulatoryStatutoryPayouts: 5000,
+          opeProfessionalTeam: 3500
+        },
+        totalBidAmount: 126400,
+        paymentStructure: PaymentStructure.MILESTONE_BASED,
+        milestones: [
+          {
+            id: 'milestone-115-1',
+            stageLabel: 'Kickoff & Gap Assessment',
+            paymentAmount: 40000,
+            dueDate: new Date('2024-02-10'),
+            description: 'Initial compliance gap analysis across RBI/SEBI and key regulations'
+          },
+          {
+            id: 'milestone-115-2',
+            stageLabel: 'Remediation Plan & Final Report',
+            paymentAmount: 50000,
+            dueDate: new Date('2024-02-28'),
+            description: 'Remediation roadmap, controls, and final compliance report'
+          }
+        ]
+      },
+      deliveryDate: new Date('2024-02-28'),
+      additionalInputs: 'Includes compliance checklist, policy templates, and board presentation.',
+      additionalClientInputs: [],
+      documents: [],
+      status: BidStatus.SUBMITTED,
+      isInvited: true,
+      submittedAt: new Date('2024-01-25'),
+      updatedAt: new Date('2024-01-25'),
+      lastEditDate: new Date('2024-01-25')
     }
   ];
 

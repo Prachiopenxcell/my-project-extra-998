@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -28,7 +29,8 @@ import {
   AlertCircle,
   CheckCircle,
   Info,
-  Calculator
+  Calculator,
+  Building
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -55,6 +57,19 @@ const SubscriptionUpgradeDowngrade = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [effectiveTiming, setEffectiveTiming] = useState<'immediate' | 'next_cycle'>('immediate');
+  const [upgradeSort, setUpgradeSort] = useState<'recommended' | 'price_asc' | 'price_desc'>('recommended');
+
+  // Add Modules flow
+  const [availableModulePlans, setAvailableModulePlans] = useState<SubscriptionPlan[]>([]);
+  const [selectedModuleIds, setSelectedModuleIds] = useState<Set<string>>(new Set());
+
+  // Switch to Drive flow
+  const [drivePlans, setDrivePlans] = useState<SubscriptionPlan[]>([]);
+  // Featured add-ons section
+  const [entityAddon, setEntityAddon] = useState<SubscriptionPlan | null>(null);
+  const [teamPlan, setTeamPlan] = useState<SubscriptionPlan | null>(null);
+  const [storagePlan, setStoragePlan] = useState<SubscriptionPlan | null>(null);
 
   useEffect(() => {
     const loadSubscriptionData = async () => {
@@ -100,6 +115,37 @@ const SubscriptionUpgradeDowngrade = () => {
 
             setUpgradeOptions(upgrades);
             setDowngradeOptions(downgrades);
+
+            // Load available modules not yet purchased
+            try {
+              const available = await subscriptionService.getAvailablePackages(user.id);
+              const modules = available.filter(p => p.category === 'module');
+              setAvailableModulePlans(modules);
+            } catch (e) {
+              console.warn('Failed to load available modules', e);
+            }
+
+            // Load drive plans (for switch-to-drive)
+            try {
+              const allDrive = await subscriptionService.getPackagesByCategory('drive');
+              setDrivePlans(allDrive);
+            } catch (e) {
+              console.warn('Failed to load drive plans', e);
+            }
+          
+            // Load featured add-ons
+            try {
+              const [addons, teams, storage] = await Promise.all([
+                subscriptionService.getPackagesByCategory('addon'),
+                subscriptionService.getPackagesByCategory('team'),
+                subscriptionService.getPackagesByCategory('storage')
+              ]);
+              setEntityAddon(addons.find(p => p.id === 'addon-add-entity') || null);
+              setTeamPlan(teams.find(p => p.id === 'team-basic') || null);
+              setStoragePlan(storage.find(p => p.id === 'storage-professional') || null);
+            } catch (e) {
+              console.warn('Failed to load featured add-ons', e);
+            }
           }
         }
       } catch (error) {
@@ -177,9 +223,11 @@ const SubscriptionUpgradeDowngrade = () => {
 
     setProcessing(true);
     try {
+      // Note: effectiveTiming ('immediate' | 'next_cycle') is respected by platform rules (mocked here).
+      // Service signature accepts (subscriptionId, newPlanId)
       const result = selectedOption.type === 'upgrade' 
-        ? await subscriptionService.upgradeSubscription(currentSubscription.id, selectedOption.plan.id, billingCycle)
-        : await subscriptionService.downgradeSubscription(currentSubscription.id, selectedOption.plan.id, billingCycle);
+        ? await subscriptionService.upgradeSubscription(currentSubscription.id, selectedOption.plan.id)
+        : await subscriptionService.downgradeSubscription(currentSubscription.id, selectedOption.plan.id);
 
       if (result.success) {
         toast.success(`Subscription ${selectedOption.type}d successfully`);
@@ -207,29 +255,70 @@ const SubscriptionUpgradeDowngrade = () => {
     }
   };
 
+  const renderAddonCard = (
+    plan: SubscriptionPlan,
+    opts: { subtitle: string; cta: string; badgeText?: string; icon?: 'building' | 'users' | 'database' | 'zap' }
+  ) => {
+    const price = billingCycle === 'annual' ? plan.pricing.annual / 12 : plan.pricing.monthly;
+    const iconEl = (() => {
+      switch (opts.icon) {
+        case 'building': return <Building className="h-5 w-5" />;
+        case 'users': return <Users className="h-5 w-5" />;
+        case 'database': return <Database className="h-5 w-5" />;
+        case 'zap': return <Zap className="h-5 w-5" />;
+        default: return getCategoryIcon(plan.category);
+      }
+    })();
+    return (
+      <Card key={plan.id} className="rounded-xl hover:shadow-md transition-all">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2 text-indigo-700">
+            {iconEl}
+          </div>
+          <CardTitle className="text-base">{plan.title}</CardTitle>
+          <CardDescription>{opts.subtitle}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="text-3xl font-bold">{formatCurrency(price)}</div>
+            <div className="text-gray-600 -mt-1">per month</div>
+            {opts.badgeText && (
+              <Badge className="mt-2 bg-green-100 text-green-800">{opts.badgeText}</Badge>
+            )}
+          </div>
+          <Button
+            className="w-full"
+            onClick={() => navigate(`/subscription/browse?category=${plan.category}&select=${plan.id}`)}
+          >
+            + {opts.cta}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderPlanCard = (option: UpgradeDowngradeOption) => {
     const { plan, type, priceDifference, prorationAmount } = option;
     const currentPrice = billingCycle === 'annual' ? plan.pricing.annual / 12 : plan.pricing.monthly;
     
     return (
-      <Card key={plan.id} className={`relative hover:shadow-lg transition-all duration-300 ${plan.popular ? 'ring-2 ring-blue-500' : ''}`}>
+      <Card key={plan.id} className={`relative h-full hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl ${plan.popular ? 'ring-2 ring-indigo-500' : 'border-gray-200'}`}>
         {plan.popular && (
-          <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-            <Badge className="bg-blue-500 text-white px-4 py-1">
-              <Star className="h-3 w-3 mr-1" />
-              Most Popular
-            </Badge>
+          <div className="absolute -top-3 left-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-indigo-600 text-white shadow-sm">
+              <Star className="h-3 w-3" /> Most Popular
+            </span>
           </div>
         )}
         
-        <CardHeader className="text-center pb-4">
-          <div className="flex items-center justify-center mb-3">
+        <CardHeader className="text-center pb-3">
+          <div className="flex items-center justify-center mb-2 text-indigo-700">
             {getCategoryIcon(plan.category)}
-            <Badge variant="outline" className="ml-2 text-xs">
+            <Badge variant="outline" className="ml-2 text-[10px] uppercase tracking-wide">
               {type === 'upgrade' ? 'Upgrade' : 'Downgrade'}
             </Badge>
           </div>
-          <CardTitle className="text-xl">{plan.name}</CardTitle>
+          <CardTitle className="text-lg font-semibold text-gray-900">{plan.name}</CardTitle>
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2">
               <span className="text-3xl font-bold">
@@ -237,20 +326,23 @@ const SubscriptionUpgradeDowngrade = () => {
               </span>
               <span className="text-gray-600">/month</span>
             </div>
-            <div className={`text-sm font-medium ${type === 'upgrade' ? 'text-red-600' : 'text-green-600'}`}>
+            <div className={`text-sm font-medium flex items-center justify-center gap-2 ${type === 'upgrade' ? 'text-red-600' : 'text-green-600'}`}>
               {type === 'upgrade' ? '+' : '-'}{formatCurrency(priceDifference)} per month
+              {prorationAmount !== 0 && (
+                <span
+                  className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5"
+                  title={`Prorated ${type === 'upgrade' ? 'charge' : 'credit'} applied if change is immediate: ${formatCurrency(Math.abs(prorationAmount))}`}
+                >
+                  <Info className="h-3 w-3 inline mr-1" /> Proration
+                </span>
+              )}
             </div>
-            {prorationAmount !== 0 && (
-              <div className="text-xs text-gray-600">
-                Prorated {type === 'upgrade' ? 'charge' : 'credit'}: {formatCurrency(Math.abs(prorationAmount))}
-              </div>
-            )}
           </div>
-          <p className="text-gray-600 text-sm mt-2">{plan.shortDescription}</p>
+          <p className="text-gray-600 text-sm mt-1">{plan.shortDescription}</p>
         </CardHeader>
         
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
+        <CardContent className="space-y-5 flex flex-col">
+          <div className="space-y-2">
             {plan.features.slice(0, 6).map((feature, index) => (
               <div key={index} className="flex items-center gap-3">
                 <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -292,7 +384,7 @@ const SubscriptionUpgradeDowngrade = () => {
             </div>
           )}
           
-          <div className="pt-4 space-y-3">
+          <div className="pt-2 mt-auto">
             <Button 
               onClick={() => handleSelectOption(option)} 
               className="w-full"
@@ -435,23 +527,170 @@ const SubscriptionUpgradeDowngrade = () => {
 
           {/* Upgrade Options */}
           <TabsContent value="upgrade" className="space-y-6">
-            {upgradeOptions.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {upgradeOptions.map(option => renderPlanCard(option))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Crown className="w-12 h-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium text-gray-900">No upgrade options available</p>
-                  <p className="text-gray-500">You're already on the highest tier plan.</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Add Modules, Switch to Drive, Add-ons quick actions */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <CardTitle className="text-lg">Upgrade Paths</CardTitle>
+                    <CardDescription>Select how you want to enhance your subscription</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Sort</span>
+                    <select
+                      className="text-sm border rounded-md px-2 py-1 bg-white"
+                      value={upgradeSort}
+                      onChange={(e) => setUpgradeSort(e.target.value as 'recommended' | 'price_asc' | 'price_desc')}
+                    >
+                      <option value="recommended">Recommended</option>
+                      <option value="price_asc">Price: Low to High</option>
+                      <option value="price_desc">Price: High to Low</option>
+                    </select>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Add more modules */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">Add more modules</div>
+                    <Badge>Modules</Badge>
+                  </div>
+                  {availableModulePlans.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {availableModulePlans.map(mod => {
+                        const checked = selectedModuleIds.has(mod.id);
+                        const price = billingCycle === 'annual' ? mod.pricing.annual / 12 : mod.pricing.monthly;
+                        return (
+                          <label key={mod.id} className="flex items-start gap-3 border rounded-lg p-3 cursor-pointer">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                setSelectedModuleIds(prev => {
+                                  const next = new Set(prev);
+                                  if (v) next.add(mod.id); else next.delete(mod.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{mod.title}</span>
+                                <span className="text-sm text-gray-600">{formatCurrency(price)}/month</span>
+                              </div>
+                              <div className="text-xs text-gray-500">{mod.shortDescription}</div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600">No additional modules available to add.</div>
+                  )}
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="text-sm">
+                      Selected modules: <span className="font-medium">{selectedModuleIds.size}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedModuleIds(new Set())}
+                        disabled={selectedModuleIds.size === 0}
+                      >
+                        Clear
+                      </Button>
+                      <Button
+                        onClick={() => navigate('/subscription?tab=individual')}
+                        disabled={selectedModuleIds.size === 0}
+                      >
+                        Continue to Purchase
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Switch to Drive */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-10">
+                    <div className="font-medium">Drive (Subject to the Qualification)</div>
+                    <Badge>Drive</Badge>
+                  </div>
+                  {drivePlans.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {drivePlans.map(plan => {
+                        const targetPrice = billingCycle === 'annual' ? plan.pricing.annual / 12 : plan.pricing.monthly;
+                        const currentPrice = currentSubscription ? (billingCycle === 'annual' ? currentSubscription.plan.pricing.annual / 12 : currentSubscription.plan.pricing.monthly) : 0;
+                        const diff = targetPrice - currentPrice;
+                        const syntheticOption: UpgradeDowngradeOption = {
+                          plan,
+                          type: diff > 0 ? 'upgrade' : 'downgrade',
+                          priceDifference: Math.abs(diff),
+                          prorationAmount: calculateProration(diff, currentSubscription?.nextBillingDate),
+                          effectiveDate: new Date(),
+                          benefits: currentSubscription ? getUpgradeBenefits(currentSubscription.plan, plan) : [],
+                        };
+                        return renderPlanCard(syntheticOption);
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600">No Drive plans available.</div>
+                  )}
+                </div>
+
+                {/* Purchase add-ons */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium">Purchase additional add-ons</div>
+                      <div className="text-sm text-gray-600">Storage capacity, AI, Team members, Add entity</div>
+                    </div>
+                    <Button variant="secondary" onClick={() => navigate('/subscription/browse?tab=addons')}>
+                      Browse Add-ons
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {entityAddon && renderAddonCard(entityAddon, { subtitle: 'Increase active entity capacity', cta: 'Add Entity', icon: 'building' })}
+                    {teamPlan && renderAddonCard(teamPlan, { subtitle: 'Essential team and roles management', cta: 'Add Team & Roles', icon: 'users' })}
+                    {storagePlan && renderAddonCard(storagePlan, { subtitle: 'Advanced cloud storage expansion', cta: 'Add Storage', badgeText: 'Save 20%', icon: 'database' })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
           </TabsContent>
 
           {/* Downgrade Options */}
           <TabsContent value="downgrade" className="space-y-6">
+            {/* Remove unneeded modules/features UI */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Remove modules at renewal</CardTitle>
+                <CardDescription>
+                  Deselect modules or features you no longer need. Changes may apply at the next billing cycle, and must respect usage limits.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {currentSubscription?.plan.moduleIds && currentSubscription.plan.moduleIds.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {currentSubscription.plan.moduleIds.map(mid => (
+                      <label key={mid} className="flex items-start gap-3 border rounded-lg p-3">
+                        <Checkbox />
+                        <div className="flex-1">
+                          <div className="font-medium">Module: {mid}</div>
+                          <div className="text-xs text-gray-500">Unselect to remove at renewal (subject to limits)</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">Your current plan does not list individual modules to remove.</div>
+                )}
+                <div className="flex items-center justify-end">
+                  <Button variant="outline" onClick={() => toast.info('Module removals are applied at renewal after validation against usage limits.')}>Apply at Renewal</Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {downgradeOptions.length > 0 ? (
               <>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -508,7 +747,7 @@ const SubscriptionUpgradeDowngrade = () => {
                       {selectedOption.type === 'upgrade' ? '+' : '-'}{formatCurrency(selectedOption.priceDifference)}/month
                     </span>
                   </div>
-                  {selectedOption.prorationAmount !== 0 && (
+                  {selectedOption.prorationAmount !== 0 && effectiveTiming === 'immediate' && (
                     <div className="flex justify-between">
                       <span>Prorated {selectedOption.type === 'upgrade' ? 'Charge' : 'Credit'}:</span>
                       <span className="font-medium">
@@ -516,9 +755,22 @@ const SubscriptionUpgradeDowngrade = () => {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span>Effective Date:</span>
-                    <span className="font-medium">Immediately</span>
+                  <div className="flex justify-between items-center">
+                    <span>Effective:</span>
+                    <RadioGroup
+                      value={effectiveTiming}
+                      onValueChange={(v) => setEffectiveTiming(v as 'immediate' | 'next_cycle')}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem id="eff-immediate" value="immediate" />
+                        <Label htmlFor="eff-immediate">Immediately</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem id="eff-next" value="next_cycle" />
+                        <Label htmlFor="eff-next">Next Billing Cycle</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
                 </div>
 

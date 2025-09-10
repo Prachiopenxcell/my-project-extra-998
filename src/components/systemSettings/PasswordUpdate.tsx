@@ -1,28 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Lock, 
   Eye, 
   EyeOff, 
   Shield, 
   CheckCircle, 
-  AlertCircle,
+  XCircle, 
+  AlertTriangle,
   Smartphone,
   Mail,
-  Key,
   Clock,
+  Key,
+  Calendar,
+  Users,
+  AlertCircle,
   MapPin,
   Monitor
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { systemSettingsService } from "@/services/systemSettingsService";
 import { PasswordUpdateData, SecuritySettings } from "@/types/systemSettings";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PasswordUpdate = () => {
   const [passwordData, setPasswordData] = useState<PasswordUpdateData>({
@@ -30,112 +37,127 @@ const PasswordUpdate = () => {
     newPassword: '',
     confirmPassword: ''
   });
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false
-  });
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpAttempts, setOtpAttempts] = useState(0);
+  const [otpMethod, setOtpMethod] = useState<'email' | 'sms'>('email');
+  const [mandatoryChange, setMandatoryChange] = useState(false);
 
-  // Load security settings on component mount
-  useState(() => {
-    const loadSecuritySettings = async () => {
-      try {
-        const settings = await systemSettingsService.getSecuritySettings();
-        setSecuritySettings(settings);
-      } catch (error) {
-        console.error('Failed to load security settings:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load security settings",
-          variant: "destructive"
-        });
-      } finally {
-        setLoadingSettings(false);
-      }
-    };
-
-    loadSecuritySettings();
-  });
-
-  const getPasswordStrength = (password: string) => {
-    let strength = 0;
-    const requirements = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      numbers: /\d/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-    };
-
-    Object.values(requirements).forEach(met => {
-      if (met) strength += 20;
-    });
-
-    return { strength, requirements };
-  };
-
-  const { strength, requirements } = getPasswordStrength(passwordData.newPassword);
-
-  const handlePasswordChange = (field: keyof PasswordUpdateData, value: string) => {
-    setPasswordData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [field]: !prev[field]
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
+  const loadSecuritySettings = async () => {
+    try {
+      const settings = await systemSettingsService.getSecuritySettings();
+      setSecuritySettings(settings);
+    } catch (error) {
+      console.error('Failed to load security settings:', error);
       toast({
         title: "Error",
-        description: "New passwords do not match",
+        description: "Failed to load security settings",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSecuritySettings();
+  }, []);
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validatePassword()) {
       return;
     }
 
-    if (strength < 80) {
-      toast({
-        title: "Weak Password",
-        description: "Please choose a stronger password that meets all requirements",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
+    setUpdating(true);
     try {
-      await systemSettingsService.updatePassword(passwordData);
-      toast({
-        title: "Success",
-        description: "Password updated successfully",
-      });
+      // First step: validate current password and initiate 2FA
+      if (!otpStep) {
+        // Simulate password validation and 2FA trigger
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setOtpStep(true);
+        setOtpMethod(securitySettings?.primaryMethod || 'email');
+        
+        toast({
+          title: "Verification Required",
+          description: `OTP sent to your ${otpMethod === 'email' ? 'email' : 'phone'}. Please enter the code to continue.`,
+        });
+        return;
+      }
       
-      // Reset form
+      // Second step: verify OTP and update password
+      if (otpCode.length !== 6) {
+        toast({
+          title: "Invalid OTP",
+          description: "Please enter a valid 6-digit OTP code.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Simulate OTP verification
+      if (otpCode !== '123456') { // Mock OTP for demo
+        setOtpAttempts(prev => prev + 1);
+        
+        if (otpAttempts >= 2) {
+          // Lock account for 24 hours after 3 failed attempts
+          toast({
+            title: "Account Locked",
+            description: "Too many failed OTP attempts. Your account is locked for 24 hours.",
+            variant: "destructive"
+          });
+          setOtpStep(false);
+          setOtpCode('');
+          setOtpAttempts(0);
+          return;
+        }
+        
+        toast({
+          title: "Invalid OTP",
+          description: `Invalid OTP code. ${2 - otpAttempts} attempts remaining.`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Update password
+      await systemSettingsService.updatePassword(passwordData);
+      
+      // Reset form and state
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-    } catch (error: any) {
+      setOtpStep(false);
+      setOtpCode('');
+      setOtpAttempts(0);
+      setMandatoryChange(false);
+      
+      toast({
+        title: "Success",
+        description: "Password updated successfully. All other active sessions have been terminated.",
+      });
+      
+      // Reload security settings
+      loadSecuritySettings();
+    } catch (error) {
+      console.error('Failed to update password:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update password",
+        description: "Failed to update password. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setUpdating(false);
     }
   };
 
@@ -164,19 +186,102 @@ const PasswordUpdate = () => {
     }));
   };
 
-  const getStatusIcon = (status: 'success' | 'failed' | 'warning') => {
-    switch (status) {
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-600" />;
-      case 'warning':
-        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+  const validatePassword = (): boolean => {
+    const { currentPassword, newPassword, confirmPassword } = passwordData;
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({
+        title: "Validation Error",
+        description: "All fields are required.",
+        variant: "destructive"
+      });
+      return false;
     }
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Validation Error",
+        description: "New password and confirmation do not match.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    // Enhanced password validation rules
+    const passwordRules = [
+      { test: newPassword.length >= 8, message: "At least 8 characters" },
+      { test: /[A-Z]/.test(newPassword), message: "At least one uppercase letter" },
+      { test: /[a-z]/.test(newPassword), message: "At least one lowercase letter" },
+      { test: /\d/.test(newPassword), message: "At least one number" },
+      { test: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword), message: "At least one special character" }
+    ];
+    
+    const failedRules = passwordRules.filter(rule => !rule.test);
+    if (failedRules.length > 0) {
+      toast({
+        title: "Password Requirements",
+        description: `Password must have: ${failedRules.map(r => r.message).join(', ')}`,
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    // Check against previous passwords (mock check)
+    const previousPasswords = securitySettings?.passwordPolicy?.previousPasswords ?? [];
+    if (previousPasswords.includes(newPassword)) {
+      toast({
+        title: "Validation Error",
+        description: "Cannot reuse any of your last 3 passwords.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (passwordStrength < 80) {
+      toast({
+        title: "Validation Error",
+        description: "Password is too weak. Please choose a stronger password.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    return true;
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Lock className="h-6 w-6 text-blue-600" />
+          Password & Security
+        </h2>
+        <p className="text-muted-foreground">Update your password and manage security settings</p>
+      </div>
+      
+      {/* Mandatory Password Change Alert */}
+      {mandatoryChange && (
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            <strong>Mandatory Password Change Required:</strong> Your password must be updated as part of our quarterly security policy. 
+            Please update your password to continue using the platform.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Password Policy Reminder */}
+      {securitySettings?.passwordPolicy?.mustChangeBy && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <Calendar className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Next Mandatory Change:</strong> {securitySettings.passwordPolicy?.mustChangeBy?.toLocaleDateString()}
+            <br />Last changed: {securitySettings.passwordPolicy?.lastChanged?.toLocaleDateString()}
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {/* Change Password Section */}
       <Card>
         <CardHeader>
@@ -186,15 +291,15 @@ const PasswordUpdate = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handlePasswordUpdate} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="currentPassword">Current Password</Label>
               <div className="relative">
                 <Input
                   id="currentPassword"
-                  type={showPasswords.current ? "text" : "password"}
+                  type={showCurrentPassword ? "text" : "password"}
                   value={passwordData.currentPassword}
-                  onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                   placeholder="Enter current password"
                   required
                 />
@@ -203,9 +308,9 @@ const PasswordUpdate = () => {
                   variant="ghost"
                   size="sm"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 h-auto p-1"
-                  onClick={() => togglePasswordVisibility('current')}
+                  onClick={() => setShowCurrentPassword(prev => !prev)}
                 >
-                  {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -215,9 +320,9 @@ const PasswordUpdate = () => {
               <div className="relative">
                 <Input
                   id="newPassword"
-                  type={showPasswords.new ? "text" : "password"}
+                  type={showNewPassword ? "text" : "password"}
                   value={passwordData.newPassword}
-                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                   placeholder="Enter new password"
                   required
                 />
@@ -226,9 +331,9 @@ const PasswordUpdate = () => {
                   variant="ghost"
                   size="sm"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 h-auto p-1"
-                  onClick={() => togglePasswordVisibility('new')}
+                  onClick={() => setShowNewPassword(prev => !prev)}
                 >
-                  {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
               
@@ -238,14 +343,14 @@ const PasswordUpdate = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Password Strength</span>
                     <span className="text-sm font-medium">
-                      {strength < 40 ? 'Weak' : strength < 80 ? 'Medium' : 'Strong'}
+                      {passwordStrength < 40 ? 'Weak' : passwordStrength < 80 ? 'Medium' : 'Strong'}
                     </span>
                   </div>
                   <Progress 
-                    value={strength} 
+                    value={passwordStrength} 
                     className={`h-2 ${
-                      strength < 40 ? 'text-red-600' : 
-                      strength < 80 ? 'text-yellow-600' : 'text-green-600'
+                      passwordStrength < 40 ? 'text-red-600' : 
+                      passwordStrength < 80 ? 'text-yellow-600' : 'text-green-600'
                     }`}
                   />
                 </div>
@@ -257,9 +362,9 @@ const PasswordUpdate = () => {
               <div className="relative">
                 <Input
                   id="confirmPassword"
-                  type={showPasswords.confirm ? "text" : "password"}
+                  type={showConfirmPassword ? "text" : "password"}
                   value={passwordData.confirmPassword}
-                  onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   placeholder="Confirm new password"
                   required
                 />
@@ -268,36 +373,36 @@ const PasswordUpdate = () => {
                   variant="ghost"
                   size="sm"
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 h-auto p-1"
-                  onClick={() => togglePasswordVisibility('confirm')}
+                  onClick={() => setShowConfirmPassword(prev => !prev)}
                 >
-                  {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
             {/* Password Requirements */}
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className={`flex items-center gap-2 ${requirements.length ? 'text-green-600' : 'text-muted-foreground'}`}>
-                {requirements.length ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <div className={`flex items-center gap-2 ${passwordData.newPassword.length >= 8 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {passwordData.newPassword.length >= 8 ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                 Minimum 8 characters
               </div>
-              <div className={`flex items-center gap-2 ${requirements.numbers ? 'text-green-600' : 'text-muted-foreground'}`}>
-                {requirements.numbers ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <div className={`flex items-center gap-2 ${/\d/.test(passwordData.newPassword) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {/\d/.test(passwordData.newPassword) ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                 At least one number
               </div>
-              <div className={`flex items-center gap-2 ${requirements.uppercase && requirements.lowercase ? 'text-green-600' : 'text-muted-foreground'}`}>
-                {requirements.uppercase && requirements.lowercase ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <div className={`flex items-center gap-2 ${(/[A-Z]/.test(passwordData.newPassword) && /[a-z]/.test(passwordData.newPassword)) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {(/[A-Z]/.test(passwordData.newPassword) && /[a-z]/.test(passwordData.newPassword)) ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                 Upper & lowercase letters
               </div>
-              <div className={`flex items-center gap-2 ${requirements.special ? 'text-green-600' : 'text-muted-foreground'}`}>
-                {requirements.special ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+              <div className={`flex items-center gap-2 ${/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {/[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword) ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
                 Special character
               </div>
             </div>
 
             <div className="flex gap-3">
-              <Button type="submit" disabled={loading || strength < 80}>
-                {loading ? "Changing Password..." : "Change Password"}
+              <Button type="submit" disabled={updating || passwordStrength < 80}>
+                {updating ? "Changing Password..." : "Change Password"}
               </Button>
               <Button type="button" variant="outline" onClick={generateStrongPassword}>
                 Generate Strong Password
@@ -306,9 +411,95 @@ const PasswordUpdate = () => {
           </form>
         </CardContent>
       </Card>
+      
+      {/* 2FA OTP Dialog */}
+      <Dialog open={otpStep} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              Two-Factor Authentication
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Alert>
+              <Smartphone className="h-4 w-4" />
+              <AlertDescription>
+                We've sent a 6-digit verification code to your {otpMethod === 'email' ? 'email address' : 'phone number'}.
+                Enter the code below to complete your password update.
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-2">
+              <Label htmlFor="otp">Verification Code</Label>
+              <Input
+                id="otp"
+                type="text"
+                placeholder="Enter 6-digit code"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="text-center text-lg tracking-widest"
+                maxLength={6}
+              />
+            </div>
+            
+            {otpAttempts > 0 && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  Invalid code. {2 - otpAttempts} attempts remaining before account lockout.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOtpStep(false);
+                  setOtpCode('');
+                  setOtpAttempts(0);
+                  setUpdating(false);
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePasswordUpdate}
+                disabled={otpCode.length !== 6 || updating}
+                className="flex-1"
+              >
+                {updating ? (
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                )}
+                Verify & Update
+              </Button>
+            </div>
+            
+            <div className="text-center">
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => {
+                  setOtpMethod(otpMethod === 'email' ? 'sms' : 'email');
+                  toast({
+                    title: "Code Resent",
+                    description: `Verification code sent to your ${otpMethod === 'email' ? 'phone' : 'email'}.`
+                  });
+                }}
+              >
+                Send code via {otpMethod === 'email' ? 'SMS' : 'Email'} instead
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Two-Factor Authentication */}
-      {!loadingSettings && securitySettings && (
+      {!loading && securitySettings && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -376,7 +567,7 @@ const PasswordUpdate = () => {
       )}
 
       {/* Security Logs */}
-      {!loadingSettings && securitySettings && (
+      {!loading && securitySettings && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -391,7 +582,13 @@ const PasswordUpdate = () => {
               {securitySettings.recentActivity.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
                   <div className="flex items-center gap-3">
-                    {getStatusIcon(activity.status)}
+                    {activity.status === 'success' ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : activity.status === 'failed' ? (
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    )}
                     <div>
                       <p className="text-sm font-medium">{activity.action}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -399,13 +596,13 @@ const PasswordUpdate = () => {
                         {activity.timestamp.toLocaleString()}
                         {activity.location && (
                           <>
-                            <MapPin className="h-3 w-3 ml-2" />
+                            <span className="ml-2">📍</span>
                             {activity.location}
                           </>
                         )}
                         {activity.device && (
                           <>
-                            <Monitor className="h-3 w-3 ml-2" />
+                            <span className="ml-2">💻</span>
                             {activity.device}
                           </>
                         )}

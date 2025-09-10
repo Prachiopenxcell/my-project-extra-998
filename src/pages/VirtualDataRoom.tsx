@@ -130,18 +130,25 @@ const VirtualDataRoom = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Select Entity:</label>
-                  <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose an entity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {entities.map((entity) => (
-                        <SelectItem key={entity.id} value={entity.id}>
-                          {entity.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose an entity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {entities.map((entity) => (
+                            <SelectItem key={entity.id} value={entity.id}>
+                              {entity.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/create-entity')}>
+                      Create Entity
+                    </Button>
+                  </div>
                 </div>
               </div>
               

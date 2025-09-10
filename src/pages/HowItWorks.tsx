@@ -40,12 +40,13 @@ const userJourneys = [
         duration: '5-10 minutes',
         features: ['Identity Verification', 'Document Upload', 'Profile Completion']
       },
+      
       {
         step: 2,
-        title: 'Discover Service Providers',
-        description: 'Browse our verified network of professional service providers, filter by expertise, location, and ratings.',
-        duration: '10-15 minutes',
-        features: ['Provider Directory', 'Advanced Filters', 'Reviews & Ratings']
+        title: ' Raise Service Request & find best service provider',
+        description: ' "Raise Service Request" to post your requirements and receive competitive bids. Compare proposals and choose the best service provider.',
+        duration: '5 minutes to post',
+        features: ['Raise Service Request', 'Receive Bids', 'Compare & Select']
       },
       {
         step: 3,
@@ -79,7 +80,7 @@ const userJourneys = [
       {
         step: 2,
         title: 'Client Acquisition',
-        description: 'Receive engagement requests, respond to RFPs, and build your client portfolio through our marketplace.',
+        description: 'Receive opportunities, submit bid and build your client portfolio through our marketplace.',
         duration: 'Ongoing',
         features: ['Lead Management', 'Proposal Tools', 'Client Matching']
       },

@@ -18,7 +18,8 @@ const createNotification = (
   userRole: string,
   actions: NotificationAction[] = [],
   moduleId: string = 'system',
-  daysAgo: number = 0
+  daysAgo: number = 0,
+  entityIdOverride?: string
 ): Notification => {
   const baseDate = new Date();
   return {
@@ -31,7 +32,7 @@ const createNotification = (
     summary: message.length > 100 ? message.substring(0, 100) + '...' : message,
     userId: 'user-123',
     userRole,
-    entityId: userRole.includes('ENTITY') ? 'entity-1' : undefined,
+    entityId: entityIdOverride !== undefined ? entityIdOverride : (userRole.includes('ENTITY') ? 'entity-1' : undefined),
     moduleId,
     relatedId: `rel-${id}`,
     relatedType: type === NotificationType.ACTIVITY ? 'work_order' : 'system',
@@ -151,21 +152,7 @@ export const getServiceSeekerIndividualNotifications = (userRole: string): Notif
 ];
 
 export const getServiceSeekerEntityAdminNotifications = (userRole: string): Notification[] => [
-  createNotification(
-    'ss-ent-regret-1',
-    NotificationType.SYSTEM,
-    NotificationPriority.HIGH,
-    NotificationStatus.UNREAD,
-    'Service Request Regret',
-    'We regret to inform you that the requested "International Trade Law Advisory" service is currently not available on our platform. We are actively working to expand our network of specialized professionals.',
-    userRole,
-    [
-      { id: '1', label: 'Explore Alternative Services', url: '/service-requests/create', primary: true },
-      { id: '2', label: 'Request Service Addition', url: '/support/service-request' }
-    ],
-    'service-requests',
-    0
-  ),
+  
   createNotification(
     'ss-ent-1',
     NotificationType.ACTIVITY,
@@ -257,21 +244,7 @@ export const getServiceSeekerEntityAdminNotifications = (userRole: string): Noti
 ];
 
 export const getServiceSeekerTeamMemberNotifications = (userRole: string): Notification[] => [
-  createNotification(
-    'ss-tm-regret-1',
-    NotificationType.SYSTEM,
-    NotificationPriority.HIGH,
-    NotificationStatus.UNREAD,
-    'Service Request Regret',
-    'We regret to inform you that the requested "Environmental Impact Assessment" service is currently not available on our platform. Please consult with your admin for alternative solutions.',
-    userRole,
-    [
-      { id: '1', label: 'View Available Services', url: '/service-requests/create', primary: true },
-      { id: '2', label: 'Contact Admin', url: '/entity-management/team' }
-    ],
-    'service-requests',
-    0
-  ),
+  
   createNotification(
     'ss-tm-1',
     NotificationType.ACTIVITY,
@@ -333,7 +306,7 @@ export const getServiceSeekerTeamMemberNotifications = (userRole: string): Notif
 ];
 
 export const getServiceProviderIndividualNotifications = (userRole: string): Notification[] => [
-  createNotification(
+ /*  createNotification(
     'sp-ind-regret-1',
     NotificationType.SYSTEM,
     NotificationPriority.MEDIUM,
@@ -346,8 +319,9 @@ export const getServiceProviderIndividualNotifications = (userRole: string): Not
       { id: '2', label: 'View Available Opportunities', url: '/service-requests' }
     ],
     'service-requests',
-    0
-  ),
+    0,
+    'entity-1'
+  ), */
   createNotification(
     'sp-ind-1',
     NotificationType.ACTIVITY,

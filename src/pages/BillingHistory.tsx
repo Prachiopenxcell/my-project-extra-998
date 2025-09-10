@@ -386,7 +386,7 @@ const BillingHistory = () => {
                     <TableRow>
                       <TableHead>Invoice ID</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Paid On</TableHead>
+                      
                       <TableHead>Module</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Storage Purchased</TableHead>
@@ -405,9 +405,7 @@ const BillingHistory = () => {
                         <TableCell>
                           {formatDate(record.date)}
                         </TableCell>
-                        <TableCell>
-                          {record.paidAt ? formatDate(record.paidAt) : '-'}
-                        </TableCell>
+                        
                         <TableCell>
                           {record.moduleName || '-'}
                         </TableCell>

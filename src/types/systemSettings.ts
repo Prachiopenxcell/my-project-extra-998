@@ -33,6 +33,8 @@ export interface Permission {
   module: string;
   actions: string[];
   level: 'read' | 'write' | 'admin';
+  subModule?: string; // optional sub-module under a module
+  entityId?: string; // optional entity scope for this permission
 }
 
 export interface ProcessTemplate {
@@ -71,12 +73,17 @@ export interface PaymentHistory {
   id: string;
   date: Date;
   serviceTitle: string;
-  details: string;
+  serviceDetails: {
+    moduleName?: string;
+    storagePurchasedGB?: number;
+    teamMembersAdded?: number;
+  };
   amount: number;
   status: PaymentStatus;
   invoiceUrl?: string;
   paymentMethod: PaymentMethodType;
   transactionId: string;
+  paidDate?: Date;
 }
 
 export enum PaymentStatus {
@@ -101,6 +108,14 @@ export interface SubscriptionSettings {
   paymentMethods: PaymentMethod[];
   primaryPaymentMethod: string;
   backupPaymentMethod?: string;
+  renewalAttempts: {
+    firstAttempt: number; // days before expiration
+    secondAttempt: number; // hours after first failure
+    finalNotice: number; // days before manual renewal required
+  };
+  billingCycle: 'monthly' | 'quarterly' | 'annual';
+  nextRenewalDate?: Date;
+  lastRenewalDate?: Date;
 }
 
 export interface PaymentMethod {
@@ -121,12 +136,18 @@ export interface NotificationPreferences {
     documentExpiry: boolean;
     securityAlerts: boolean;
     marketingUpdates: boolean;
+    workOrderUpdates: boolean;
+    bidNotifications: boolean;
+    complianceReminders: boolean;
+    meetingReminders: boolean;
   };
   sms: {
     urgentAlerts: boolean;
     twoFactorCodes: boolean;
     paymentConfirmations: boolean;
     appointmentReminders: boolean;
+    criticalDeadlines: boolean;
+    securityAlerts: boolean;
   };
   inApp: {
     realTimeUpdates: boolean;
@@ -138,6 +159,13 @@ export interface NotificationPreferences {
       startTime: string;
       endTime: string;
     };
+  };
+  // Role-specific notification preferences
+  roleSpecific: {
+    adminNotifications?: boolean;
+    teamMemberUpdates?: boolean;
+    clientCommunications?: boolean;
+    providerOpportunities?: boolean;
   };
 }
 
@@ -186,6 +214,19 @@ export interface SecuritySettings {
   backupMethod?: 'sms' | 'email';
   backupCodes: string[];
   recentActivity: SecurityActivity[];
+  passwordPolicy: {
+    lastChanged: Date;
+    mustChangeBy?: Date;
+    changeReason?: 'user_initiated' | 'mandatory_quarterly' | 'security_breach' | 'account_recovery' | 'contact_updated';
+    failedAttempts: number;
+    lockedUntil?: Date;
+    previousPasswords: string[]; // hashed
+  };
+  sessionManagement: {
+    maxActiveSessions: number;
+    currentSessions: number;
+    terminateOtherSessions: boolean;
+  };
 }
 
 export interface SecurityActivity {
@@ -202,6 +243,7 @@ export interface SystemSettingsStats {
   teamMembers: {
     total: number;
     active: number;
+    limit: number; // based on subscription
   };
   processTemplates: {
     total: number;
@@ -211,6 +253,14 @@ export interface SystemSettingsStats {
   notifications: {
     total: number;
     unread: number;
+  };
+  documentCycles: {
+    active: number;
+    total: number;
+  };
+  autoMailCycles: {
+    active: number;
+    scheduled: number;
   };
 }
 
@@ -231,4 +281,125 @@ export interface SystemSettingsResponse<T> {
   page: number;
   pageSize: number;
   hasMore: boolean;
+}
+
+// Document Cycle Management
+export interface DocumentCycle {
+  id: string;
+  name: string;
+  description: string;
+  stages: DocumentStage[];
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  lastModified: Date;
+  applicableRoles: TeamMemberRole[];
+}
+
+export interface DocumentStage {
+  id: string;
+  name: string;
+  description: string;
+  order: number;
+  requiredDocuments: string[];
+  approvalRequired: boolean;
+  assignedRole?: TeamMemberRole;
+  timeLimit?: number; // in days
+  notifications: {
+    reminder: number; // days before deadline
+    escalation: number; // days after deadline
+  };
+}
+
+// Auto-Mail Cycle Management
+export interface AutoMailCycle {
+  id: string;
+  name: string;
+  description: string;
+  triggers: MailTrigger[];
+  template: MailTemplate;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  lastModified: Date;
+  applicableRoles: TeamMemberRole[];
+  schedule?: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+    time: string;
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+  };
+}
+
+export interface MailTrigger {
+  id: string;
+  event: string;
+  condition?: string;
+  delay?: number; // in hours
+}
+
+export interface MailTemplate {
+  id: string;
+  subject: string;
+  body: string;
+  variables: string[];
+  attachments?: string[];
+}
+
+// Role-based access control
+export interface RolePermissions {
+  role: string;
+  permissions: {
+    teamManagement: boolean;
+    processManagement: boolean;
+    documentCycle: boolean;
+    autoMailCycle: boolean;
+    subscriptionSettings: boolean;
+    paymentHistory: boolean;
+    profileManagement: boolean;
+    passwordUpdate: boolean;
+    notificationManagement: boolean;
+  };
+}
+
+// Team member limits based on subscription
+export interface SubscriptionLimits {
+  teamMemberLimit: number;
+  storageLimit: number; // in GB
+  processTemplateLimit: number;
+  documentCycleLimit: number;
+  autoMailCycleLimit: number;
+}
+
+// Access control configuration exposed to UI for building permissions
+export interface ModuleDefinition {
+  id: string; // e.g., 'claims'
+  name: string; // e.g., 'Claims'
+  subModules?: string[]; // e.g., ['Create', 'Review']
+  actions: string[]; // allowed actions e.g., ['read','write','admin']
+}
+
+export interface EntitySummary {
+  id: string;
+  name: string;
+  subscribedModules: string[]; // module ids
+}
+
+export interface AvailableAccessOptions {
+  modules: ModuleDefinition[];
+  entities: EntitySummary[];
+  subscription: {
+    currentActiveMembers: number;
+    memberLimit: number;
+    upgradeLink?: string;
+  };
+}
+
+export interface CreateTeamMemberInput {
+  name: string;
+  email: string;
+  mobile: string;
+  role: TeamMemberRole;
+  permissions: Permission[];
+  inviteExisting?: boolean; // if true, treat as invite to existing user
 }

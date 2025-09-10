@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -19,8 +19,110 @@ const STEPS = [
   { id: 3, name: "Invitation Parameters" },
   { id: 4, name: "Manual AR Nominations" },
   { id: 5, name: "System Suggested ARs" },
-  { id: 6, name: "Review & Initiate" }
+  { id: 6, name: "Call EOI – General Summary" },
+  { id: 7, name: "Initiate Consent Request" },
 ];
+
+// Props and reusable summary table (function declaration so it is hoisted)
+type StepProps = { formData: ARSelectionFormData; updateFormData: (data: Partial<ARSelectionFormData>) => void };
+
+function ARSummaryTable({ formData, updateFormData }: StepProps) {
+  const parseNum = (v: string) => {
+    const n = parseInt(v || "0", 10);
+    return isNaN(n) ? 0 : n;
+  };
+
+  const A = parseNum(formData.requiredInvitations);
+  const D = parseNum(formData.userProposed);
+  const calculatedSystem = Math.max(0, A - D);
+
+  React.useEffect(() => {
+    const current = parseNum(formData.systemProposed);
+    if (current !== calculatedSystem) {
+      updateFormData({ systemProposed: String(calculatedSystem) });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [A, D]);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full border border-gray-200 rounded-md text-sm">
+        <thead className="bg-muted/40">
+          <tr>
+            <th className="border border-gray-200 p-2 text-left font-medium">Class of creditors</th>
+            <th className="border border-gray-200 p-2 text-left font-medium">Req. No. of invitation for EOIs (A)</th>
+            <th className="border border-gray-200 p-2 text-left font-medium">Req. No. of Nominations (B)</th>
+            <th className="border border-gray-200 p-2 text-left font-medium">No. of AR to be selected (C)</th>
+            <th className="border border-gray-200 p-2 text-left font-medium">No. of prospective ARs to be proposed by User (D)</th>
+            <th className="border border-gray-200 p-2 text-left font-medium">No. of prospective ARs to be proposed by System</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border border-gray-200 p-2 min-w-[220px]">
+              <Select value={formData.classOfCreditors} onValueChange={(value) => updateFormData({ classOfCreditors: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Financial Creditors-Secured">Financial creditors- secured</SelectItem>
+                  <SelectItem value="Financial Creditors-Unsecured">Financial Creditors-unsecured</SelectItem>
+                  <SelectItem value="Operational Creditors">Operational Creditors</SelectItem>
+                  <SelectItem value="Bondholders-Secured">Bondholders- secured</SelectItem>
+                  <SelectItem value="Debenture holders- secured">Debenture holders- secured</SelectItem>
+                  <SelectItem value="Deposit holders- secured">Deposit holders- secured</SelectItem>
+                  <SelectItem value="Bond holders- unsecured">Bond holders- unsecured</SelectItem>
+                  <SelectItem value="Debenture holders- unsecured">Debenture holders- unsecured</SelectItem>
+                  <SelectItem value="Deposit holders- unsecured">Deposit holders- unsecured</SelectItem>
+                  <SelectItem value="Homebuyers">Homebuyers</SelectItem>
+                </SelectContent>
+              </Select>
+            </td>
+            <td className="border border-gray-200 p-2 min-w-[160px]">
+              <Input
+                value={formData.requiredInvitations}
+                onChange={(e) => updateFormData({ requiredInvitations: e.target.value })}
+                inputMode="numeric"
+                className="h-9"
+              />
+            </td>
+            <td className="border border-gray-200 p-2 min-w-[160px]">
+              <Input
+                value={formData.requiredNominations}
+                onChange={(e) => updateFormData({ requiredNominations: e.target.value })}
+                inputMode="numeric"
+                className="h-9"
+              />
+            </td>
+            <td className="border border-gray-200 p-2 min-w-[160px]">
+              <Input
+                value={formData.arsToSelect}
+                onChange={(e) => updateFormData({ arsToSelect: e.target.value })}
+                inputMode="numeric"
+                className="h-9"
+              />
+            </td>
+            <td className="border border-gray-200 p-2 min-w-[220px]">
+              <Input
+                value={formData.userProposed}
+                onChange={(e) => updateFormData({ userProposed: e.target.value })}
+                inputMode="numeric"
+                className="h-9"
+              />
+            </td>
+            <td className="border border-gray-200 p-2 min-w-[220px]">
+              <div className="flex items-center gap-2">
+                <Input value={String(calculatedSystem)} readOnly className="h-9 max-w-[100px]" />
+                <span className="text-xs text-muted-foreground">Calculated (A - D)</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 
 interface ARSelectionFormData {
   // Step 1: Regulatory Provisions
@@ -43,6 +145,8 @@ interface ARSelectionFormData {
   
   // Step 5: System Suggested ARs
   selectedSystemARs: string[];
+  // Step 7: Consent selection
+  selectedConsentARs?: string[];
 }
 
 const ARSelectionProcess = () => {
@@ -76,10 +180,21 @@ const ARSelectionProcess = () => {
     ],
     
     // Step 5
-    selectedSystemARs: ["1", "2", "3"]
+    selectedSystemARs: ["1", "2", "3"],
+    // Step 7
+    selectedConsentARs: []
   });
 
   const progressPercentage = (currentStep / STEPS.length) * 100;
+
+  // Allow deep-linking to a specific step via ?step=
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stepParam = Number(params.get('step'));
+    if (stepParam && stepParam >= 1 && stepParam <= STEPS.length) {
+      setCurrentStep(stepParam);
+    }
+  }, []);
 
   // Handle form data changes
   const updateFormData = (data: Partial<ARSelectionFormData>) => {
@@ -123,27 +238,47 @@ const ARSelectionProcess = () => {
     }
   };
 
-  // Submit the form
+  // Submit the form (finalize consent invites in Step 7)
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+      // Validate: Step 7 requires at least one selected candidate
+      if (currentStep === 7 && (!formData.selectedConsentARs || formData.selectedConsentARs.length === 0)) {
+        toast({
+          title: "No candidates selected",
+          description: "Please select at least one AR candidate to send consent requests.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
       toast({
-        title: "Success",
-        description: "AR Selection Process initiated successfully!",
+        title: "Invitation Mail has been Sent",
+        description: `Consent requests have been sent to ${formData.selectedConsentARs?.length ?? 0} AR candidate(s). Emails have been sent successfully.`,
         variant: "default"
       });
-      
-      // Navigate to Call EOI after short delay
+      // Redirect back to listing shortly after showing the toast
       setTimeout(() => {
-        navigate("/ar-call-eoi");
-      }, 1500);
+        navigate("/ar-facilitators", { replace: true });
+        // Hard-refresh fallback in case SPA routing doesn't re-render
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            const target = "/ar-facilitators";
+            if (window.location.pathname !== target) {
+              window.location.assign(target);
+            } else {
+              // Even if path is same but view didn't update, force reload
+              window.location.reload();
+            }
+          }
+        }, 700);
+      }, 800);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to initiate AR Selection Process. Please try again.",
+        description: "Failed to send consent requests. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -165,7 +300,9 @@ const ARSelectionProcess = () => {
       case 5:
         return <SystemSuggestedARsStep formData={formData} updateFormData={updateFormData} />;
       case 6:
-        return <ReviewInitiateStep formData={formData} updateFormData={updateFormData} />;
+        return <GeneralSummaryStep formData={formData} updateFormData={updateFormData} />;
+      case 7:
+        return <ConsentRequestStep formData={formData} updateFormData={updateFormData} />;
       default:
         return <div>Unknown step</div>;
     }
@@ -197,10 +334,10 @@ const ARSelectionProcess = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Initiating...
+                    Sending...
                   </>
                 ) : (
-                  <>🚀 Initiate Process</>
+                  <> Send Consent Requests</>
                 )}
               </Button>
             ) : (
@@ -211,7 +348,7 @@ const ARSelectionProcess = () => {
                     Saving...
                   </>
                 ) : (
-                  <>💾 Save & Continue</>
+                  <> Save & Continue</>
                 )}
               </Button>
             )}
@@ -234,6 +371,9 @@ const ARSelectionProcess = () => {
           </div>
         </div>
 
+        {/* Summary table visible on the page for quick reference */}
+    
+
         <div className="bg-card rounded-lg shadow p-6 mb-6">
           {renderStep()}
         </div>
@@ -253,7 +393,7 @@ const ARSelectionProcess = () => {
                   Saving...
                 </>
               ) : (
-                <>💾 Save as Draft</>
+                <> Save as Draft</>
               )}
             </Button>
             {currentStep < STEPS.length ? (
@@ -265,10 +405,10 @@ const ARSelectionProcess = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Initiating...
+                    Sending...
                   </>
                 ) : (
-                  <>🚀 Initiate Process</>
+                  <> Send Consent Requests</>
                 )}
               </Button>
             )}
@@ -289,10 +429,10 @@ const RegulatoryProvisionsStep: React.FC<{ formData: ARSelectionFormData; update
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="IBBI CIRP">IBBI (Insolvency and Bankruptcy Board of India) - CIRP</SelectItem>
-          <SelectItem value="IBBI Liquidation">IBBI (Insolvency and Bankruptcy Board of India) - Liquidation</SelectItem>
-          <SelectItem value="SARFAESI">SARFAESI Act</SelectItem>
-          <SelectItem value="Companies Act">Companies Act 2013</SelectItem>
+          <SelectItem value="IBBI CIRP">IBBI CIRP</SelectItem>
+          <SelectItem value="IBBI Liquidation">IBBI Liquidation</SelectItem>
+          <SelectItem value="SEBI">SEBI</SelectItem>
+          <SelectItem value="IBBI Insolvency">IBBI Insolvency</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -330,10 +470,16 @@ const EntityClassDetailsStep: React.FC<{ formData: ARSelectionFormData; updateFo
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="Financial Creditors-Secured">Financial Creditors-Secured</SelectItem>
-          <SelectItem value="Financial Creditors-Unsecured">Financial Creditors-Unsecured</SelectItem>
+          <SelectItem value="Financial Creditors-Secured">Financial creditors- secured</SelectItem>
+          <SelectItem value="Financial Creditors-Unsecured">Financial Creditors-unsecured</SelectItem>
           <SelectItem value="Operational Creditors">Operational Creditors</SelectItem>
-          <SelectItem value="Bondholders-Secured">Bondholders-Secured</SelectItem>
+          <SelectItem value="Bondholders-Secured">Bondholders- secured</SelectItem>
+          <SelectItem value="Debenture holders- secured">Debenture holders- secured</SelectItem>
+          <SelectItem value="Deposit holders- secured">Deposit holders- secured</SelectItem>
+          <SelectItem value="Bond holders- unsecured">Bond holders- unsecured</SelectItem>
+          <SelectItem value="Debenture holders- unsecured">Debenture holders- unsecured</SelectItem>
+          <SelectItem value="Deposit holders- unsecured">Deposit holders- unsecured</SelectItem>
+          <SelectItem value="Homebuyers">Homebuyers</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -442,11 +588,11 @@ const ManualNominationsStep: React.FC<{ formData: ARSelectionFormData; updateFor
 
 const SystemSuggestedARsStep: React.FC<{ formData: ARSelectionFormData; updateFormData: (data: Partial<ARSelectionFormData>) => void }> = ({ formData, updateFormData }) => {
   const systemARs = [
-    { id: "1", name: "AR Name 1", location: "Mumbai", ibbi: "IB123" },
-    { id: "2", name: "AR Name 2", location: "Delhi", ibbi: "IB124" },
-    { id: "3", name: "AR Name 3", location: "Bangalore", ibbi: "IB125" },
-    { id: "4", name: "AR Name 4", location: "Chennai", ibbi: "IB126" },
-    { id: "5", name: "AR Name 5", location: "Pune", ibbi: "IB127" }
+    { id: "1", name: "Rajesh Kumar", location: "Mumbai", ibbi: "IB123456" },
+    { id: "2", name: "Priya Sharma", location: "Delhi", ibbi: "IB789012" },
+    { id: "3", name: "Amit Patel", location: "Bangalore", ibbi: "IB345678" },
+    { id: "4", name: "Sunita Verma", location: "Chennai", ibbi: "IB901234" },
+    { id: "5", name: "Neha Gupta", location: "Pune", ibbi: "IB567890" }
   ];
 
   const toggleAR = (id: string) => {
@@ -458,6 +604,11 @@ const SystemSuggestedARsStep: React.FC<{ formData: ARSelectionFormData; updateFo
 
   return (
     <div className="space-y-4">
+      {/* Summary table within Step 5 as per requirement */}
+      {/* <div className="mb-4">
+        <h3 className="text-sm font-semibold mb-2">AR Nomination Summary</h3>
+        <ARSummaryTable formData={formData} updateFormData={updateFormData} />
+      </div> */}
       {systemARs.map((ar) => (
         <div key={ar.id} className="flex items-center gap-3 p-3 border rounded-lg">
           <Checkbox
@@ -476,44 +627,434 @@ const SystemSuggestedARsStep: React.FC<{ formData: ARSelectionFormData; updateFo
   );
 };
 
-const ReviewInitiateStep: React.FC<{ formData: ARSelectionFormData; updateFormData: (data: Partial<ARSelectionFormData>) => void }> = ({ formData }) => (
-  <div className="space-y-6">
-    <div className="grid grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Regulatory Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p><strong>Applicable Law:</strong> {formData.applicableLaw}</p>
-          <p><strong>Entity:</strong> {formData.entityName}</p>
-          <p><strong>Class:</strong> {formData.classOfCreditors}</p>
-        </CardContent>
-      </Card>
+// Step 6: General Summary (Call EOI)
+const GeneralSummaryStep: React.FC<{ formData: ARSelectionFormData; updateFormData: (data: Partial<ARSelectionFormData>) => void }> = ({ formData, updateFormData }) => {
+  const systemARs = [
+    { id: "1", name: "Rajesh Kumar", location: "Mumbai", ibbi: "IB123456" },
+    { id: "2", name: "Priya Sharma", location: "Delhi", ibbi: "IB789012" },
+    { id: "3", name: "Amit Patel", location: "Bangalore", ibbi: "IB345678" },
+    { id: "4", name: "Sunita Verma", location: "Chennai", ibbi: "IB901234" },
+    { id: "5", name: "Neha Gupta", location: "Pune", ibbi: "IB567890" }
+  ];
+
+  const selectedSystemARs = systemARs.filter(ar => formData.selectedSystemARs.includes(ar.id));
+  // Local inputs for adding a new manual nomination
+  const [newNomName, setNewNomName] = React.useState("");
+  const [newNomEmail, setNewNomEmail] = React.useState("");
+
+  const addManualNomination = () => {
+    if (!newNomName.trim() || !newNomEmail.trim()) return;
+    updateFormData({ manualNominations: [...formData.manualNominations, { name: newNomName.trim(), email: newNomEmail.trim() }] });
+    setNewNomName("");
+    setNewNomEmail("");
+  };
+
+  const removeManualNomination = (index: number) => {
+    const updated = formData.manualNominations.filter((_, i) => i !== index);
+    updateFormData({ manualNominations: updated });
+  };
+
+  const updateNomination = (index: number, key: 'name' | 'email', value: string) => {
+    const updated = [...formData.manualNominations];
+    updated[index] = { ...updated[index], [key]: value };
+    updateFormData({ manualNominations: updated });
+  };
+
+  return (
+    <div className="space-y-8  ">
       
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Invitation Parameters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p><strong>Required Invitations:</strong> {formData.requiredInvitations}</p>
-          <p><strong>ARs to Select:</strong> {formData.arsToSelect}</p>
-          <p><strong>Manual Nominations:</strong> {formData.manualNominations.length}</p>
-          <p><strong>System ARs Selected:</strong> {formData.selectedSystemARs.length}</p>
-        </CardContent>
-      </Card>
+
+      <div className="grid grid-cols-2 gap-8">
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-600">Entity:</span>
+              <span className="text-sm text-gray-900">{formData.entityName}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-600">Selected Law:</span>
+              <span className="text-sm text-gray-900">{formData.applicableLaw}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-600">Class of Creditors:</span>
+            </div>
+            <Select value={formData.classOfCreditors} onValueChange={(v) => updateFormData({ classOfCreditors: v })}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Financial Creditors-Secured">Financial creditors- secured</SelectItem>
+                <SelectItem value="Financial Creditors-Unsecured">Financial Creditors-unsecured</SelectItem>
+                <SelectItem value="Operational Creditors">Operational Creditors</SelectItem>
+                <SelectItem value="Bondholders-Secured">Bondholders- secured</SelectItem>
+                <SelectItem value="Debenture holders- secured">Debenture holders- secured</SelectItem>
+                <SelectItem value="Deposit holders- secured">Deposit holders- secured</SelectItem>
+                <SelectItem value="Bond holders- unsecured">Bond holders- unsecured</SelectItem>
+                <SelectItem value="Debenture holders- unsecured">Debenture holders- unsecured</SelectItem>
+                <SelectItem value="Deposit holders- unsecured">Deposit holders- unsecured</SelectItem>
+                <SelectItem value="Homebuyers">Homebuyers</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-gray-900">Invitation Parameters</h3>
+          <span className="text-xs text-slate-500">Auto-calculated fields are read-only</span>
+        </div>
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Req. No. of Invitations for EOIs (A):</Label>
+              <Input value={formData.requiredInvitations} readOnly className="mt-2 bg-gray-50" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">No. of ARs to be selected:</Label>
+              <Input value={formData.arsToSelect} readOnly className="mt-2 bg-gray-50" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">Req. No. of Nominations:</Label>
+              <Input value={formData.requiredNominations} readOnly className="mt-2 bg-gray-50" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-gray-700">No. of ARs proposed by User (D):</Label>
+              <Input value={formData.userProposed} readOnly className="mt-2 bg-gray-50" />
+            </div>
+          </div>
+        </div>
+        <div className="mt-4">
+          <Label className="text-sm font-medium text-gray-700">No. of ARs proposed by System:</Label>
+          <div className="flex items-center gap-3 mt-2">
+            <Input value={formData.systemProposed} readOnly className="max-w-32 bg-gray-50" />
+            <span className="text-sm text-gray-500">(Auto)</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Manual AR Nominations</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-transparent">
+              <tr className="border-b border-slate-200">
+                <th className="text-left font-medium p-3 text-slate-500">Name</th>
+                <th className="text-left font-medium p-3 text-slate-500">Email</th>
+                <th className="text-right font-medium p-3 text-slate-500">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {formData.manualNominations.map((nomination, idx) => (
+                <tr key={idx} className="border-b hover:bg-blue-50/40">
+                  <td className="p-3">
+                    <Input
+                      placeholder="Enter AR name"
+                      value={nomination.name}
+                      onChange={(e) => updateNomination(idx, 'name', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-3">
+                    <Input
+                      type="email"
+                      placeholder="Enter AR email"
+                      value={nomination.email}
+                      onChange={(e) => updateNomination(idx, 'email', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-3 text-right">
+                    <Button variant="outline" size="sm" onClick={() => removeManualNomination(idx)}>
+                      Remove
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4">
+          <Button variant="outline" size="sm" onClick={() => updateFormData({ manualNominations: [...formData.manualNominations, { name: '', email: '' }] })}>
+            + Add Another AR Nomination
+          </Button>
+        </div>
+        {formData.manualNominations.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No manual nominations added
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Selected System ARs</h3>
+        <div className="space-y-3">
+          {selectedSystemARs.map((ar) => (
+            <div key={ar.id} className="flex items-center justify-between p-4 border rounded-lg bg-blue-50/70 border-blue-100">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-700 rounded-full"></div>
+                <span className="font-medium text-gray-900">{ar.name}</span>
+              </div>
+              <div className="text-sm text-gray-600">
+                Location: {ar.location} | IBBI: {ar.ibbi}
+              </div>
+            </div>
+          ))}
+        </div>
+        {selectedSystemARs.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No system ARs selected
+          </div>
+        )}
+      </div>
+
+      {formData.notes && (
+        <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Notes</h3>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-gray-700 whitespace-pre-wrap">{formData.notes}</p>
+          </div>
+        </div>
+      )}
     </div>
-    
-    {formData.notes && (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Notes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>{formData.notes}</p>
-        </CardContent>
-      </Card>
-    )}
-  </div>
-);
+  );
+};
+
+// Step 7: Initiate Consent Request (within wizard)
+const ConsentRequestStep: React.FC<{ formData: ARSelectionFormData; updateFormData: (data: Partial<ARSelectionFormData>) => void }> = ({ formData, updateFormData }) => {
+  const [location, setLocation] = React.useState("Mumbai");
+  const [notes, setNotes] = React.useState("");
+  const [selected, setSelected] = React.useState<string[]>([]);
+  const [showPreview, setShowPreview] = React.useState(true);
+  const [isEditingTemplate, setIsEditingTemplate] = React.useState(false);
+  const [letterText, setLetterText] = React.useState(
+    `Subject: Request for Consent to Act as Authorized Representative - ${formData.classOfCreditors}\n\n` +
+    `Dear [AR Name],\n\n` +
+    `I hope this email finds you well.\n\n` +
+    `You are invited to serve as an Authorized Representative for the ${formData.classOfCreditors} in the matter of [${formData.entityName}] under the provisions of the Insolvency and Bankruptcy Code, 2016.\n\n` +
+    `Please provide the following documents:\n` +
+    `1. Written consent to act as Authorized Representative\n` +
+    `2. Letter of Disclosure of Relationship as required under the Code\n` +
+    `3. Copy of valid IBBI Registration Certificate\n\n` +
+    `Additional Information:\n` +
+    `- Location: ${location}\n` +
+    `- Class of Creditors: ${formData.classOfCreditors}\n\n` +
+    `Kindly respond by [Response Date] to ensure timely processing of your appointment.\n\n` +
+    `Regards,\nJohn Doe\nResolution Professional`
+  );
+
+  const candidates = [
+    { id: "c1", name: "Rajesh Kumar", location: "Mumbai", profession: "CA, LLB", exp: "15 years", reg: "IB123456" },
+    { id: "c2", name: "Priya Sharma", location: "Delhi", profession: "Advocate", exp: "12 years", reg: "IB789012" },
+    { id: "c3", name: "Amit Patel", location: "Bangalore", profession: "CA", exp: "18 years", reg: "IB345678" },
+    { id: "c4", name: "Sunita Verma", location: "Hyderabad", profession: "CMA, CS", exp: "10 years", reg: "IB901234" },
+  ];
+
+  const toggle = (id: string, all = false) => {
+    if (all) {
+      setSelected(selected.length === candidates.length ? [] : candidates.map(c => c.id));
+      return;
+    }
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  // Keep selected candidates in the main form data for submission
+  React.useEffect(() => {
+    updateFormData({ selectedConsentARs: selected });
+  }, [selected, updateFormData]);
+
+  return (
+    <div className="space-y-8 bg-slate-50/60 p-6 rounded-xl border border-slate-200">
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Request for Consent from AR</h2>
+        <div className="h-1 w-24 bg-blue-600/80 rounded-full mb-4"></div>
+        
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Class of Creditors</Label>
+            <Select value={formData.classOfCreditors} onValueChange={(v) => updateFormData({ classOfCreditors: v })}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Financial Creditors-Secured">Financial creditors- secured</SelectItem>
+                <SelectItem value="Financial Creditors-Unsecured">Financial Creditors-unsecured</SelectItem>
+                <SelectItem value="Operational Creditors">Operational Creditors</SelectItem>
+                <SelectItem value="Bondholders-Secured">Bondholders- secured</SelectItem>
+                <SelectItem value="Debenture holders- secured">Debenture holders- secured</SelectItem>
+                <SelectItem value="Deposit holders- secured">Deposit holders- secured</SelectItem>
+                <SelectItem value="Bond holders- unsecured">Bond holders- unsecured</SelectItem>
+                <SelectItem value="Debenture holders- unsecured">Debenture holders- unsecured</SelectItem>
+                <SelectItem value="Deposit holders- unsecured">Deposit holders- unsecured</SelectItem>
+                <SelectItem value="Homebuyers">Homebuyers</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label className="text-sm font-medium text-gray-700">Location</Label>
+            <Select value={location} onValueChange={setLocation}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mumbai">Mumbai</SelectItem>
+                <SelectItem value="Delhi">Delhi</SelectItem>
+                <SelectItem value="Bangalore">Bangalore</SelectItem>
+                <SelectItem value="Hyderabad">Hyderabad</SelectItem>
+                <SelectItem value="Chennai">Chennai</SelectItem>
+                <SelectItem value="Pune">Pune</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">Location can be specified manually or use creditor's location if suggested by system.</p>
+          </div>
+        </div>
+        
+        <div className="mt-6">
+          <Label className="text-sm font-medium text-gray-700">Additional Notes (Optional)</Label>
+          <Textarea 
+            value={notes} 
+            onChange={e => setNotes(e.target.value)} 
+            placeholder="Add any specific requirements or notes for the AR candidates..." 
+            className="mt-2" 
+            rows={3} 
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Select candidates to send invitation for consent</h3>
+        
+        <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <Checkbox 
+              checked={selected.length === candidates.length} 
+              onCheckedChange={() => toggle('', true)} 
+            />
+            <span className="text-sm font-medium text-gray-700">Select All</span>
+          </div>
+          <span className="text-sm text-gray-600">Selected candidates: {selected.length} of {candidates.length}</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm ">
+            <thead className="bg-transparent">
+              <tr className="border-b border-slate-200">
+                <th className="text-left font-medium p-4 text-slate-500"></th>
+                <th className="text-left font-medium p-4 text-slate-500">AR Name</th>
+                <th className="text-left font-medium p-4 text-slate-500">Location</th>
+                <th className="text-left font-medium p-4 text-slate-500">Profession</th>
+                <th className="text-left font-medium p-4 text-slate-500">Experience</th>
+                <th className="text-left font-medium p-4 text-slate-500">IBBI Reg</th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map(c => (
+                <tr key={c.id} className="border-b hover:bg-blue-50/40">
+                  <td className="p-4">
+                    <Checkbox 
+                      checked={selected.includes(c.id)} 
+                      onCheckedChange={() => toggle(c.id)} 
+                    />
+                  </td>
+                  <td className="p-4 font-medium text-gray-900">{c.name}</td>
+                  <td className="p-4 text-gray-700">{c.location}</td>
+                  <td className="p-4 text-gray-700">{c.profession}</td>
+                  <td className="p-4 text-gray-700">{c.exp}</td>
+                  <td className="p-4 text-gray-700">{c.reg}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {selected.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            Please select at least one candidate to proceed
+          </div>
+        )}
+      </div>
+
+      {/* Consent Letter Preview (inline editable) */}
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200 ring-1 ring-blue-50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 flex items-center justify-center">
+              <Mail />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Consent Letter Preview</h3>
+          </div>
+          <div className="flex gap-2">
+            {isEditingTemplate ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsEditingTemplate(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setIsEditingTemplate(false)}
+                >
+                  Save
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-blue-600"
+                  onClick={() => setIsEditingTemplate(true)}
+                >
+                  Edit Template
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-blue-600"
+                  onClick={() => setShowPreview(!showPreview)}
+                >
+                  {showPreview ? 'Hide Preview' : 'Show Preview'}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Inline single-editor or preview */}
+        {isEditingTemplate ? (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">Letter Content</Label>
+            <Textarea
+              value={letterText}
+              onChange={(e) => setLetterText(e.target.value)}
+              className="mt-1"
+              rows={16}
+              placeholder={"Type the entire email content here including Subject, Greeting and Body..."}
+            />
+            <p className="text-xs text-gray-500">Hint: You can use placeholders like [AR Name] and [Response Date].</p>
+          </div>
+        ) : (
+          showPreview && (
+            <div className="bg-gray-50 p-6 rounded-lg border">
+              <pre className="whitespace-pre-wrap text-sm text-gray-800">{letterText}</pre>
+            </div>
+          )
+        )}
+      </div>
+
+      
+    </div>
+  );
+};
 
 export default ARSelectionProcess;

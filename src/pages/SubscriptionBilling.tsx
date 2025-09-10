@@ -152,7 +152,7 @@ const SubscriptionBilling = () => {
         },
         {
           id: "item-4",
-          description: "Storage Extension",
+          description: "Storage Extension (50 GB)",
           quantity: 1,
           unitPrice: 39.99,
           total: 39.99,
@@ -283,6 +283,38 @@ const SubscriptionBilling = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Derivation helpers to align with Transaction History fields
+  const deriveModule = (invoice: Invoice): string => {
+    const descs = invoice.items.map(i => i.description.toLowerCase());
+    if (descs.some(d => d.includes('team seat'))) return 'Team Management';
+    if (descs.some(d => d.includes('storage'))) return 'Document Cycle';
+    return 'Subscription';
+  };
+
+  const deriveStoragePurchasedGB = (invoice: Invoice): number | null => {
+    // Look for patterns like "(50 GB)" or "50GB" in item descriptions
+    let total = 0;
+    invoice.items.forEach(i => {
+      const match = i.description.match(/(\d+)\s*GB/i);
+      if (match) total += parseInt(match[1], 10);
+    });
+    return total > 0 ? total : null;
+  };
+
+  const deriveTeamMembersAdded = (invoice: Invoice): number | null => {
+    let total = 0;
+    invoice.items.forEach(i => {
+      const match = i.description.match(/Additional Team Seats\s*\((\d+)\)/i);
+      if (match) total += parseInt(match[1], 10);
+    });
+    return total > 0 ? total : null;
+  };
+
+  const derivePaidOn = (invoice: Invoice): string | null => {
+    if (invoice.status === 'paid') return invoice.date;
+    return null;
   };
 
   const getStatusColor = (status: string) => {
@@ -508,7 +540,11 @@ const SubscriptionBilling = () => {
                   <TableRow>
                     <TableHead>Invoice</TableHead>
                     <TableHead>Date</TableHead>
+                    
+                    <TableHead>Module</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Storage Purchased</TableHead>
+                    <TableHead>Team Members Added</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Payment Method</TableHead>
@@ -522,6 +558,8 @@ const SubscriptionBilling = () => {
                         {invoice.invoiceNumber}
                       </TableCell>
                       <TableCell>{formatDate(invoice.date)}</TableCell>
+                      
+                      <TableCell>{deriveModule(invoice)}</TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium">{invoice.description}</p>
@@ -529,6 +567,18 @@ const SubscriptionBilling = () => {
                             {invoice.items.length} item{invoice.items.length > 1 ? 's' : ''}
                           </p>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const gb = deriveStoragePurchasedGB(invoice);
+                          return gb ? `${gb} GB` : '—';
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const seats = deriveTeamMembersAdded(invoice);
+                          return typeof seats === 'number' ? seats : '—';
+                        })()}
                       </TableCell>
                       <TableCell className="font-semibold">
                         {formatCurrency(invoice.amount)}

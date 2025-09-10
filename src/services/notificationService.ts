@@ -272,6 +272,7 @@ class NotificationService {
     const defaultPreferences: NotificationPreferences = {
       userId,
       emailEnabled: true,
+      emailRequired: false,
       smsEnabled: false,
       inAppEnabled: true,
       systemAlerts: true,

@@ -211,6 +211,19 @@ export default function FAQ() {
           </CardContent>
         </Card>
 
+        {/* Personalized FAQ Prompt */}
+        <Card className="border-slate-200 bg-slate-50">
+          <CardContent className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Looking for personalized answers?</h3>
+              <p className="text-gray-600">View FAQs tailored to your role, user type, and subscribed modules.</p>
+            </div>
+            <Button asChild className="bg-slate-700 hover:bg-slate-800">
+              <a href="/user-faq">Go to Your User FAQ</a>
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* FAQ Categories */}
         {filteredFAQs.map(category => (
           category.faqs.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,14 +28,50 @@ const NotificationManagement = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadPreferences();
-  }, []);
-
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     try {
-      const prefs = await systemSettingsService.getNotificationPreferences();
-      setPreferences(prefs);
+      // Mock enhanced notification preferences with role-specific options
+      const mockPrefs: NotificationPreferences = {
+        email: {
+          serviceUpdates: true,
+          paymentReminders: true,
+          teamActivities: true,
+          systemAnnouncements: true,
+          documentExpiry: true,
+          securityAlerts: true,
+          marketingUpdates: false,
+          workOrderUpdates: true,
+          bidNotifications: true,
+          complianceReminders: true,
+          meetingReminders: true
+        },
+        sms: {
+          urgentAlerts: true,
+          twoFactorCodes: true,
+          paymentConfirmations: true,
+          appointmentReminders: true,
+          criticalDeadlines: true,
+          securityAlerts: true
+        },
+        inApp: {
+          realTimeUpdates: true,
+          desktopNotifications: true,
+          soundNotifications: false,
+          frequency: 'instant',
+          quietHours: {
+            enabled: true,
+            startTime: '22:00',
+            endTime: '08:00'
+          }
+        },
+        roleSpecific: {
+          adminNotifications: user?.role?.includes('admin') || false,
+          teamMemberUpdates: true,
+          clientCommunications: user?.role?.includes('seeker') || false,
+          providerOpportunities: user?.role?.includes('provider') || false
+        }
+      };
+      setPreferences(mockPrefs);
     } catch (error) {
       console.error('Failed to load notification preferences:', error);
       toast({
@@ -46,7 +82,11 @@ const NotificationManagement = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.role]);
+
+  useEffect(() => {
+    loadPreferences();
+  }, [loadPreferences]);
 
   const updatePreferences = async (newPreferences: Partial<NotificationPreferences>) => {
     if (!preferences) return;
@@ -92,12 +132,35 @@ const NotificationManagement = () => {
     });
   };
 
-  const handleInAppToggle = (key: keyof NotificationPreferences['inApp'], value: boolean) => {
+  const handleInAppToggle = (key: keyof NotificationPreferences['inApp'], value: boolean | string) => {
     if (!preferences) return;
     updatePreferences({
       inApp: {
         ...preferences.inApp,
         [key]: value
+      }
+    });
+  };
+
+  const handleRoleSpecificToggle = (key: keyof NotificationPreferences['roleSpecific'], value: boolean) => {
+    if (!preferences) return;
+    updatePreferences({
+      roleSpecific: {
+        ...preferences.roleSpecific,
+        [key]: value
+      }
+    });
+  };
+
+  const handleQuietHoursUpdate = (field: 'startTime' | 'endTime', value: string) => {
+    if (!preferences) return;
+    updatePreferences({
+      inApp: {
+        ...preferences.inApp,
+        quietHours: {
+          ...preferences.inApp.quietHours,
+          [field]: value
+        }
       }
     });
   };
@@ -208,18 +271,24 @@ const NotificationManagement = () => {
     <div className="space-y-6">
       {/* Email Notifications */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex items-center justify-between flex-row">
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
             Email Notifications
+            
           </CardTitle>
+          <Switch
+                checked={preferences.email.serviceUpdates}
+                onCheckedChange={(checked) => handleEmailToggle('serviceUpdates', checked)}
+                disabled={saving}
+              />
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Service Updates</Label>
-                <p className="text-sm text-muted-foreground">Receive updates on service progress</p>
+              <div>
+                <Label className="text-sm font-medium">Service Updates</Label>
+                <p className="text-xs text-muted-foreground">Updates about your services and requests</p>
               </div>
               <Switch
                 checked={preferences.email.serviceUpdates}
@@ -227,19 +296,55 @@ const NotificationManagement = () => {
                 disabled={saving}
               />
             </div>
-
+            
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Payment Reminders</Label>
-                <p className="text-sm text-muted-foreground">Auto-renewal & payment notifications</p>
+              <div>
+                <Label className="text-sm font-medium">Work Order Updates</Label>
+                <p className="text-xs text-muted-foreground">Notifications about work order status changes</p>
               </div>
               <Switch
-                checked={preferences.email.paymentReminders}
-                onCheckedChange={(checked) => handleEmailToggle('paymentReminders', checked)}
+                checked={preferences.email.workOrderUpdates}
+                onCheckedChange={(checked) => handleEmailToggle('workOrderUpdates', checked)}
                 disabled={saving}
               />
             </div>
-
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Bid Notifications</Label>
+                <p className="text-xs text-muted-foreground">New bids and bid status updates</p>
+              </div>
+              <Switch
+                checked={preferences.email.bidNotifications}
+                onCheckedChange={(checked) => handleEmailToggle('bidNotifications', checked)}
+                disabled={saving}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Compliance Reminders</Label>
+                <p className="text-xs text-muted-foreground">Document expiry and compliance deadlines</p>
+              </div>
+              <Switch
+                checked={preferences.email.complianceReminders}
+                onCheckedChange={(checked) => handleEmailToggle('complianceReminders', checked)}
+                disabled={saving}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Meeting Reminders</Label>
+                <p className="text-xs text-muted-foreground">Upcoming meetings and appointments</p>
+              </div>
+              <Switch
+                checked={preferences.email.meetingReminders}
+                onCheckedChange={(checked) => handleEmailToggle('meetingReminders', checked)}
+                disabled={saving}
+              />
+            </div>
+            
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Team Activities</Label>
@@ -305,14 +410,20 @@ const NotificationManagement = () => {
 
       {/* SMS Notifications */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex items-center justify-between flex-row">
           <CardTitle className="flex items-center gap-2">
             <Smartphone className="h-5 w-5" />
             SMS Notifications
           </CardTitle>
+          <Switch
+                checked={preferences.email.serviceUpdates}
+                onCheckedChange={(checked) => handleEmailToggle('serviceUpdates', checked)}
+                disabled={saving}
+              />
         </CardHeader>
+        
         <CardContent className="space-y-4">
-          <div className="grid gap-4">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Urgent Alerts</Label>
@@ -350,13 +461,37 @@ const NotificationManagement = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Appointment Reminders</Label>
-                <p className="text-sm text-muted-foreground">Meeting and deadline notifications</p>
+              <div>
+                <Label className="text-sm font-medium">Appointment Reminders</Label>
+                <p className="text-xs text-muted-foreground">SMS reminders for upcoming appointments</p>
               </div>
               <Switch
                 checked={preferences.sms.appointmentReminders}
                 onCheckedChange={(checked) => handleSmsToggle('appointmentReminders', checked)}
+                disabled={saving}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Critical Deadlines</Label>
+                <p className="text-xs text-muted-foreground">Urgent deadline notifications</p>
+              </div>
+              <Switch
+                checked={preferences.sms.criticalDeadlines}
+                onCheckedChange={(checked) => handleSmsToggle('criticalDeadlines', checked)}
+                disabled={saving}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Security Alerts</Label>
+                <p className="text-xs text-muted-foreground">Account security notifications via SMS</p>
+              </div>
+              <Switch
+                checked={preferences.sms.securityAlerts}
+                onCheckedChange={(checked) => handleSmsToggle('securityAlerts', checked)}
                 disabled={saving}
               />
             </div>

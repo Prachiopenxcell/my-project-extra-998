@@ -17,10 +17,112 @@ import {
   SystemSettingsStats, 
   SystemSettingsFilters, 
   SystemSettingsResponse,
-  PaymentMethod
+  PaymentMethod,
+  ModuleDefinition,
+  EntitySummary,
+  AvailableAccessOptions,
+  CreateTeamMemberInput
 } from '@/types/systemSettings';
 
 class SystemSettingsService {
+  private members: TeamMember[];
+  private memberLimit: number;
+  private modules: ModuleDefinition[];
+  private entities: EntitySummary[];
+
+  constructor() {
+    // Initialize mock members
+    this.members = [
+      {
+        id: '1',
+        name: 'John Doe',
+        email: 'john.doe@company.com',
+        role: TeamMemberRole.ADMIN,
+        status: TeamMemberStatus.ACTIVE,
+        lastActive: new Date(),
+        permissions: [
+          { module: 'service_requests', actions: ['read', 'write', 'admin'], level: 'admin', entityId: 'org-1' }
+        ],
+        joinedAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: '2',
+        name: 'Sarah Wilson',
+        email: 'sarah.wilson@company.com',
+        role: TeamMemberRole.TEAM_MEMBER,
+        status: TeamMemberStatus.ACTIVE,
+        lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        permissions: [
+          { module: 'service_requests', actions: ['read', 'write'], level: 'write' },
+          { module: 'work_orders', actions: ['read'], level: 'read' }
+        ],
+        joinedAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: '3',
+        name: 'Mike Johnson',
+        email: 'mike.johnson@company.com',
+        role: TeamMemberRole.TEAM_MEMBER,
+        status: TeamMemberStatus.ACTIVE,
+        lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        permissions: [
+          { module: 'meetings', actions: ['read', 'write'], level: 'write' }
+        ],
+        joinedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: '4',
+        name: 'Lisa Brown',
+        email: 'lisa.brown@company.com',
+        role: TeamMemberRole.TEAM_LEAD,
+        status: TeamMemberStatus.ACTIVE,
+        lastActive: new Date(Date.now() - 30 * 60 * 1000),
+        permissions: [
+          { module: 'team_management', actions: ['read', 'write'], level: 'write' },
+          { module: 'reports', actions: ['read'], level: 'read' }
+        ],
+        joinedAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: '5',
+        name: 'Tom Davis',
+        email: 'tom.davis@company.com',
+        role: TeamMemberRole.TEAM_MEMBER,
+        status: TeamMemberStatus.INACTIVE,
+        lastActive: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        permissions: [
+          { module: 'documents', actions: ['read'], level: 'read' }
+        ],
+        joinedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+      },
+      {
+        id: '6',
+        name: 'Anna Smith',
+        email: 'anna.smith@company.com',
+        role: TeamMemberRole.TEAM_MEMBER,
+        status: TeamMemberStatus.PENDING,
+        lastActive: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        permissions: [],
+        joinedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      }
+    ];
+
+    this.memberLimit = 6;
+
+    this.modules = [
+      { id: 'service_requests', name: 'Service Requests', actions: ['read', 'write', 'admin'], subModules: ['Create', 'Review', 'Assign'] },
+      { id: 'work_orders', name: 'Work Orders', actions: ['read', 'write', 'admin'], subModules: ['Overview', 'Track Task', 'Payment'] },
+      { id: 'meetings', name: 'Meetings', actions: ['read', 'write'], subModules: ['Schedule', 'Notes'] },
+      { id: 'documents', name: 'Documents', actions: ['read', 'write'], subModules: ['Upload', 'Review'] },
+      { id: 'team_management', name: 'Team Management', actions: ['read', 'write', 'admin'] },
+      { id: 'reports', name: 'Reports', actions: ['read'] }
+    ];
+
+    this.entities = [
+      { id: 'org-1', name: 'Sample Organization', subscribedModules: ['service_requests', 'work_orders', 'meetings', 'documents', 'team_management'] },
+      { id: 'entity-2', name: 'Litigation Unit', subscribedModules: ['work_orders', 'documents'] }
+    ];
+  }
   // Profile Management
   async getProfile(): Promise<ProfileData> {
     // Mock implementation - replace with actual API call
@@ -121,7 +223,19 @@ class SystemSettingsService {
               location: 'Unknown',
               status: 'failed'
             }
-          ]
+          ],
+          passwordPolicy: {
+            lastChanged: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            mustChangeBy: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+            changeReason: 'mandatory_quarterly',
+            failedAttempts: 0,
+            previousPasswords: []
+          },
+          sessionManagement: {
+            maxActiveSessions: 3,
+            currentSessions: 1,
+            terminateOtherSessions: false
+          }
         });
       }, 500);
     });
@@ -131,82 +245,7 @@ class SystemSettingsService {
   async getTeamMembers(filters?: SystemSettingsFilters): Promise<SystemSettingsResponse<TeamMember>> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const mockTeamMembers: TeamMember[] = [
-          {
-            id: '1',
-            name: 'John Doe',
-            email: 'john.doe@company.com',
-            role: TeamMemberRole.ADMIN,
-            status: TeamMemberStatus.ACTIVE,
-            lastActive: new Date(),
-            permissions: [
-              { module: 'all', actions: ['read', 'write', 'admin'], level: 'admin' }
-            ],
-            joinedAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-          },
-          {
-            id: '2',
-            name: 'Sarah Wilson',
-            email: 'sarah.wilson@company.com',
-            role: TeamMemberRole.TEAM_MEMBER,
-            status: TeamMemberStatus.ACTIVE,
-            lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000),
-            permissions: [
-              { module: 'service_requests', actions: ['read', 'write'], level: 'write' },
-              { module: 'work_orders', actions: ['read'], level: 'read' }
-            ],
-            joinedAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000)
-          },
-          {
-            id: '3',
-            name: 'Mike Johnson',
-            email: 'mike.johnson@company.com',
-            role: TeamMemberRole.TEAM_MEMBER,
-            status: TeamMemberStatus.ACTIVE,
-            lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000),
-            permissions: [
-              { module: 'meetings', actions: ['read', 'write'], level: 'write' }
-            ],
-            joinedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-          },
-          {
-            id: '4',
-            name: 'Lisa Brown',
-            email: 'lisa.brown@company.com',
-            role: TeamMemberRole.TEAM_LEAD,
-            status: TeamMemberStatus.ACTIVE,
-            lastActive: new Date(Date.now() - 30 * 60 * 1000),
-            permissions: [
-              { module: 'team_management', actions: ['read', 'write'], level: 'write' },
-              { module: 'reports', actions: ['read'], level: 'read' }
-            ],
-            joinedAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000)
-          },
-          {
-            id: '5',
-            name: 'Tom Davis',
-            email: 'tom.davis@company.com',
-            role: TeamMemberRole.TEAM_MEMBER,
-            status: TeamMemberStatus.INACTIVE,
-            lastActive: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-            permissions: [
-              { module: 'documents', actions: ['read'], level: 'read' }
-            ],
-            joinedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
-          },
-          {
-            id: '6',
-            name: 'Anna Smith',
-            email: 'anna.smith@company.com',
-            role: TeamMemberRole.TEAM_MEMBER,
-            status: TeamMemberStatus.PENDING,
-            lastActive: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-            permissions: [],
-            joinedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-          }
-        ];
-
-        let filteredMembers = mockTeamMembers;
+        let filteredMembers = this.members;
 
         if (filters?.role) {
           filteredMembers = filteredMembers.filter(member => member.role === filters.role);
@@ -235,9 +274,16 @@ class SystemSettingsService {
     });
   }
 
-  async addTeamMember(memberData: Partial<TeamMember>): Promise<TeamMember> {
-    return new Promise((resolve) => {
+  async addTeamMember(memberData: Partial<TeamMember> & Partial<CreateTeamMemberInput>): Promise<TeamMember> {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
+        const activeCount = this.members.filter(m => m.status !== TeamMemberStatus.INACTIVE && !m.archived).length;
+        if (activeCount >= this.memberLimit) {
+          reject(new Error('Team member limit reached. Please upgrade your plan to add more members.'));
+          return;
+        }
+
+        const permissions = (memberData as CreateTeamMemberInput).permissions ?? memberData.permissions ?? [];
         const newMember: TeamMember = {
           id: Date.now().toString(),
           name: memberData.name || '',
@@ -245,9 +291,14 @@ class SystemSettingsService {
           role: memberData.role || TeamMemberRole.TEAM_MEMBER,
           status: TeamMemberStatus.PENDING,
           lastActive: new Date(),
-          permissions: memberData.permissions || [],
-          joinedAt: new Date()
+          permissions,
+          joinedAt: new Date(),
+          phone: (memberData as CreateTeamMemberInput).mobile || memberData.phone
         };
+
+        this.members = [...this.members, newMember];
+        // Mock notification dispatch
+        console.log('Notification queued: email & sms with temporary credentials');
         resolve(newMember);
       }, 1000);
     });
@@ -256,6 +307,16 @@ class SystemSettingsService {
   async updateTeamMember(id: string, memberData: Partial<TeamMember>): Promise<void> {
     return new Promise((resolve) => {
       setTimeout(() => {
+        const idx = this.members.findIndex(m => m.id === id);
+        if (idx !== -1) {
+          const prev = this.members[idx];
+          const updated = { ...prev, ...memberData } as TeamMember;
+          this.members[idx] = updated;
+          // If email or phone changed, trigger OTP reset requirement (mock)
+          if ((memberData.email && memberData.email !== prev.email) || (memberData.phone && memberData.phone !== prev.phone)) {
+            console.log('Security event: contact info changed, OTP reset required.');
+          }
+        }
         console.log('Team member updated:', id, memberData);
         resolve();
       }, 1000);
@@ -265,6 +326,7 @@ class SystemSettingsService {
   async removeTeamMember(id: string): Promise<void> {
     return new Promise((resolve) => {
       setTimeout(() => {
+        this.members = this.members.filter(m => m.id !== id);
         console.log('Team member removed:', id);
         resolve();
       }, 1000);
@@ -274,6 +336,7 @@ class SystemSettingsService {
   async archiveTeamMember(id: string): Promise<void> {
     return new Promise((resolve) => {
       setTimeout(() => {
+        this.members = this.members.map(m => m.id === id ? { ...m, archived: true } : m);
         console.log('Team member archived:', id);
         resolve();
       }, 1000);
@@ -283,9 +346,27 @@ class SystemSettingsService {
   async deactivateTeamMember(id: string): Promise<void> {
     return new Promise((resolve) => {
       setTimeout(() => {
+        this.members = this.members.map(m => m.id === id ? { ...m, status: TeamMemberStatus.INACTIVE } : m);
         console.log('Team member deactivated:', id);
         resolve();
       }, 1000);
+    });
+  }
+
+  async getAvailableAccessOptions(): Promise<AvailableAccessOptions> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const currentActiveMembers = this.members.filter(m => m.status !== TeamMemberStatus.INACTIVE && !m.archived).length;
+        resolve({
+          modules: this.modules,
+          entities: this.entities,
+          subscription: {
+            currentActiveMembers,
+            memberLimit: this.memberLimit,
+            upgradeLink: '/billing/upgrade?addon=team_members'
+          }
+        });
+      }, 400);
     });
   }
 
@@ -383,13 +464,19 @@ class SystemSettingsService {
             systemAnnouncements: true,
             documentExpiry: true,
             securityAlerts: true,
-            marketingUpdates: false
+            marketingUpdates: false,
+            workOrderUpdates: true,
+            bidNotifications: true,
+            complianceReminders: true,
+            meetingReminders: true
           },
           sms: {
             urgentAlerts: true,
             twoFactorCodes: true,
             paymentConfirmations: true,
-            appointmentReminders: false
+            appointmentReminders: false,
+            criticalDeadlines: true,
+            securityAlerts: true
           },
           inApp: {
             realTimeUpdates: true,
@@ -401,6 +488,12 @@ class SystemSettingsService {
               startTime: '22:00',
               endTime: '08:00'
             }
+          },
+          roleSpecific: {
+            adminNotifications: true,
+            teamMemberUpdates: true,
+            clientCommunications: true,
+            providerOpportunities: true
           }
         });
       }, 500);
@@ -444,7 +537,15 @@ class SystemSettingsService {
             }
           ],
           primaryPaymentMethod: '1',
-          backupPaymentMethod: '2'
+          backupPaymentMethod: '2',
+          renewalAttempts: {
+            firstAttempt: 7,
+            secondAttempt: 48,
+            finalNotice: 3
+          },
+          billingCycle: 'monthly',
+          nextRenewalDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000),
+          lastRenewalDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
         });
       }, 500);
     });
@@ -468,7 +569,11 @@ class SystemSettingsService {
             id: '1',
             date: new Date('2025-02-15'),
             serviceTitle: 'Monthly Subscription',
-            details: 'Professional Plus • Team: 6 members • Storage: 100GB',
+            serviceDetails: {
+              moduleName: 'Subscription',
+              storagePurchasedGB: 100,
+              teamMembersAdded: 6,
+            },
             amount: 299.99,
             status: PaymentStatus.COMPLETED,
             invoiceUrl: '/invoices/2025-02-15.pdf',
@@ -479,7 +584,11 @@ class SystemSettingsService {
             id: '2',
             date: new Date('2025-01-15'),
             serviceTitle: 'Monthly Subscription',
-            details: 'Professional Plus • Team: 5 members • Storage: 100GB',
+            serviceDetails: {
+              moduleName: 'Subscription',
+              storagePurchasedGB: 100,
+              teamMembersAdded: 5,
+            },
             amount: 299.99,
             status: PaymentStatus.COMPLETED,
             invoiceUrl: '/invoices/2025-01-15.pdf',
@@ -490,7 +599,10 @@ class SystemSettingsService {
             id: '3',
             date: new Date('2025-01-10'),
             serviceTitle: 'Additional Storage',
-            details: 'Extra 50GB Storage • Module: Document Cycle',
+            serviceDetails: {
+              moduleName: 'Document Cycle',
+              storagePurchasedGB: 50,
+            },
             amount: 49.99,
             status: PaymentStatus.COMPLETED,
             invoiceUrl: '/invoices/2025-01-10.pdf',
@@ -501,7 +613,11 @@ class SystemSettingsService {
             id: '4',
             date: new Date('2024-12-15'),
             serviceTitle: 'Monthly Subscription',
-            details: 'Professional Plus • Team: 5 members • Storage: 50GB',
+            serviceDetails: {
+              moduleName: 'Subscription',
+              storagePurchasedGB: 50,
+              teamMembersAdded: 5,
+            },
             amount: 299.99,
             status: PaymentStatus.COMPLETED,
             invoiceUrl: '/invoices/2024-12-15.pdf',
@@ -512,7 +628,10 @@ class SystemSettingsService {
             id: '5',
             date: new Date('2024-12-01'),
             serviceTitle: 'Team Member License',
-            details: 'Additional Member • New Member: Sarah Wilson',
+            serviceDetails: {
+              moduleName: 'Team Management',
+              teamMembersAdded: 1,
+            },
             amount: 29.99,
             status: PaymentStatus.COMPLETED,
             invoiceUrl: '/invoices/2024-12-01.pdf',
@@ -537,10 +656,11 @@ class SystemSettingsService {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
-          profileCompletion: 85,
+          profileCompletion: 92,
           teamMembers: {
-            total: 8,
-            active: 6
+            total: this.members.length,
+            active: this.members.filter(m => m.status === TeamMemberStatus.ACTIVE).length,
+            limit: this.memberLimit
           },
           processTemplates: {
             total: 12,
@@ -550,6 +670,14 @@ class SystemSettingsService {
           notifications: {
             total: 45,
             unread: 12
+          },
+          documentCycles: {
+            active: 5,
+            total: 9
+          },
+          autoMailCycles: {
+            active: 3,
+            scheduled: 7
           }
         });
       }, 500);

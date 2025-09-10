@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,7 @@ import {
   FileText,
   Briefcase
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserRole } from "@/types/auth";
 import { subscriptionService, SubscriptionPlan, SubscriptionStats, SubscriptionFilters } from "@/services/subscriptionService";
@@ -83,7 +83,32 @@ const SubscriptionPackages = () => {
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
   const [filteredPlans, setFilteredPlans] = useState<SubscriptionPlan[]>([]);
   const [stats, setStats] = useState<SubscriptionStats | null>(null);
-  const [activeTab, setActiveTab] = useState("all");
+  const location = useLocation();
+  const initialTab = new URLSearchParams(location.search).get('tab') || 'all';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Keep tab in sync if query param changes externally
+  useEffect(() => {
+    const qpTab = new URLSearchParams(location.search).get('tab') || 'all';
+    if (qpTab !== activeTab) {
+      setActiveTab(qpTab);
+    }
+  }, [location.search, activeTab]);
+
+  // Allowed module titles as per ModulesSubscription.tsx
+  // We filter by title to align displays and remove extras
+  const allowedModuleTitles = useMemo(() => [
+    'Entity Management',
+    'Meeting Management',
+    'E-Voting System',
+    'Claims Management',
+    'Litigation Management',
+    'Virtual Data Room',
+    'Regulatory Compliance',
+    'AR & Facilitators',
+    'Timeline Management',
+    // 'Advanced Analytics' // Not available in current data, so intentionally omitted
+  ], []);
 
   const loadData = useCallback(async () => {
     try {
@@ -104,11 +129,14 @@ const SubscriptionPackages = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user?.role]);
 
   const filterPlans = useCallback(async () => {
     try {
-      let plans = [...allPlans];
+      // Start with a reliable source depending on tab
+      let plans = activeTab === 'individual'
+        ? await subscriptionService.getIndividualPackages()
+        : [...allPlans];
 
       // Filter by tab
       if (activeTab === "individual") {
@@ -117,6 +145,9 @@ const SubscriptionPackages = () => {
         plans = plans.filter(plan => plan.type === 'bundle');
       } else if (activeTab === "popular") {
         plans = plans.filter(plan => plan.popular);
+      } else if (activeTab === "addons") {
+        // Only add-on related plans for the Add-ons tab
+        plans = plans.filter(plan => ['storage', 'team', 'addon'].includes(plan.category));
       }
 
       // Apply filters
@@ -142,6 +173,33 @@ const SubscriptionPackages = () => {
           plans = plans.filter(plan => plan.type === 'bundle');
         } else if (activeTab === "popular") {
           plans = plans.filter(plan => plan.popular);
+        } else if (activeTab === "addons") {
+          plans = plans.filter(plan => ['storage', 'team', 'addon'].includes(plan.category));
+        }
+      }
+
+      // Always restrict individual module list to allowed modules from ModulesSubscription
+      plans = plans.map(p => ({ ...p }));
+      if (activeTab === 'individual' || typeFilter === 'individual') {
+        plans = plans.filter(p => p.category === 'module' && allowedModuleTitles.includes(p.title));
+      }
+
+      // Fallback: if no plans found and no filters applied, fetch role-agnostic data to display something meaningful
+      const noFiltersApplied = (
+        categoryFilter === 'all' &&
+        priceFilter === 'all' &&
+        typeFilter === 'all' &&
+        !showPopularOnly &&
+        !showTrialOnly &&
+        !searchTerm
+      );
+      if (plans.length === 0 && noFiltersApplied) {
+        if (activeTab === 'individual') {
+          const fallback = await subscriptionService.getIndividualPackages();
+          plans = fallback;
+        } else {
+          const fallbackAll = await subscriptionService.getAllPackages();
+          plans = fallbackAll;
         }
       }
 
@@ -149,7 +207,17 @@ const SubscriptionPackages = () => {
     } catch (error) {
       console.error("Failed to filter plans:", error);
     }
-  }, [allPlans, searchTerm, categoryFilter, priceFilter, typeFilter, showPopularOnly, showTrialOnly, activeTab]);
+  }, [
+    allPlans,
+    activeTab,
+    categoryFilter,
+    priceFilter,
+    typeFilter,
+    showPopularOnly,
+    showTrialOnly,
+    searchTerm,
+    allowedModuleTitles
+  ]);
 
   useEffect(() => {
     loadData();
@@ -189,7 +257,11 @@ const SubscriptionPackages = () => {
           description: `${plan.trialDays}-day trial for ${plan.title} has been activated`
         });
       } else {
-        await subscriptionService.subscribeToPlan(user?.id || "current-user", plan.id, billingCycle);
+        await subscriptionService.subscribeToPackage(
+          user?.id || "current-user",
+          plan.id,
+          billingCycle
+        );
         toast({
           title: "Subscription Activated",
           description: `Successfully subscribed to ${plan.title}`
@@ -253,7 +325,11 @@ const SubscriptionPackages = () => {
       professional: { label: "Professional", className: "bg-purple-100 text-purple-800" },
       enterprise: { label: "Enterprise", className: "bg-orange-100 text-orange-800" },
       addon: { label: "Add-on", className: "bg-gray-100 text-gray-800" },
-      bundle: { label: "Bundle", className: "bg-green-100 text-green-800" }
+      bundle: { label: "Bundle", className: "bg-green-100 text-green-800" },
+      module: { label: "Module", className: "bg-indigo-100 text-indigo-800" },
+      drive: { label: "Drive", className: "bg-cyan-100 text-cyan-800" },
+      storage: { label: "Storage", className: "bg-sky-100 text-sky-800" },
+      team: { label: "Team", className: "bg-teal-100 text-teal-800" }
     };
     
     const config = categoryConfig[category as keyof typeof categoryConfig] || categoryConfig.professional;
@@ -481,17 +557,188 @@ const SubscriptionPackages = () => {
         </Card>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => {
+            setActiveTab(val);
+            const sp = new URLSearchParams(location.search);
+            sp.set('tab', val);
+            navigate({ search: `?${sp.toString()}` }, { replace: true });
+          }}
+          className="space-y-6"
+        >
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="all">All Packages</TabsTrigger>
             <TabsTrigger value="bundles">Bundle Plans</TabsTrigger>
             <TabsTrigger value="individual">Individual Modules</TabsTrigger>
             <TabsTrigger value="popular">Popular</TabsTrigger>
+            <TabsTrigger value="addons">Add-ons</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTab} className="space-y-6">
-            {/* Plans Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Consolidated list of individual module names */}
+            
+
+            {/* Add-ons Tab Content */}
+            {activeTab === 'addons' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Browse Add-ons</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-600 mb-4">Enhance your subscription with additional capabilities.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Storage Capacity */}
+                      {allPlans.filter(p => p.category === 'storage').map(plan => (
+                        <Card key={plan.id} className="hover:shadow transition-shadow">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-sky-100 rounded-lg">
+                                  <Database className="h-6 w-6 text-sky-700" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-lg">{plan.title}</CardTitle>
+                                  <p className="text-sm text-gray-600 mt-1">Increase your storage capacity</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {getPriceDisplay(plan)}
+                              <Button onClick={() => handleSubscribe(plan)} className="w-full">
+                                <Plus className="h-4 w-4 mr-2" /> Add Storage
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {/* AI */}
+                      {allPlans.filter(p => p.category === 'addon').map(plan => (
+                        <Card key={plan.id} className="hover:shadow transition-shadow">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-yellow-100 rounded-lg">
+                                  <Zap className="h-6 w-6 text-yellow-700" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-lg">{plan.title}</CardTitle>
+                                  <p className="text-sm text-gray-600 mt-1">AI capabilities and automation</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {getPriceDisplay(plan)}
+                              <Button onClick={() => handleSubscribe(plan)} className="w-full">
+                                <Plus className="h-4 w-4 mr-2" /> Enable AI
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {/* Team member seats */}
+                      {allPlans.filter(p => p.category === 'team').map(plan => (
+                        <Card key={plan.id} className="hover:shadow transition-shadow">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-teal-100 rounded-lg">
+                                  <Users className="h-6 w-6 text-teal-700" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-lg">{plan.title}</CardTitle>
+                                  <p className="text-sm text-gray-600 mt-1">Add team member capacity</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {getPriceDisplay(plan)}
+                              <Button onClick={() => handleSubscribe(plan)} className="w-full">
+                                <Plus className="h-4 w-4 mr-2" /> Add Team Seats
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {/* Add Entity (real add-on if available; otherwise placeholder) */}
+                      {(() => {
+                        const entityPlans = allPlans.filter(p => (
+                          p.category === 'addon' && (
+                            p.id.toLowerCase().includes('entity') || p.title.toLowerCase().includes('entity')
+                          )
+                        ));
+                        if (entityPlans.length > 0) {
+                          return entityPlans.map(plan => (
+                            <Card key={plan.id} className="hover:shadow transition-shadow">
+                              <CardHeader>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-100 rounded-lg">
+                                      <Building className="h-6 w-6 text-indigo-700" />
+                                    </div>
+                                    <div>
+                                      <CardTitle className="text-lg">{plan.title}</CardTitle>
+                                      <p className="text-sm text-gray-600 mt-1">Purchase additional entity capacity</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-3">
+                                  {getPriceDisplay(plan)}
+                                  <Button onClick={() => handleSubscribe(plan)} className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" /> Add Entity
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ));
+                        }
+                        // Fallback placeholder if no specific entity add-on SKU exists
+                        return (
+                          <Card className="hover:shadow transition-shadow">
+                            <CardHeader>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-indigo-100 rounded-lg">
+                                    <Building className="h-6 w-6 text-indigo-700" />
+                                  </div>
+                                  <div>
+                                    <CardTitle className="text-lg">Add Entity</CardTitle>
+                                    <p className="text-sm text-gray-600 mt-1">Purchase additional entity capacity</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-3">
+                                <div className="text-sm text-gray-600">Contact sales to add more entities to your account.</div>
+                                <Button onClick={() => toast({ title: 'Contact Sales', description: 'Our team will assist you in adding more entities.' })} className="w-full" variant="outline">
+                                  <ArrowRight className="h-4 w-4 mr-2" /> Add Entity
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            {/* Plans Grid (hidden on Add-ons tab since it has custom layout above) */}
+            {activeTab !== 'addons' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPlans.map((plan) => {
                 const IconComponent = getModuleIcon(plan.icon);
                 
@@ -614,9 +861,10 @@ const SubscriptionPackages = () => {
                   </Card>
                 );
               })}
-            </div>
+              </div>
+            )}
 
-            {filteredPlans.length === 0 && (
+            {activeTab !== 'addons' && filteredPlans.length === 0 && (
               <Card>
                 <CardContent className="p-12 text-center">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
