@@ -106,6 +106,15 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
       expiryDate: '2025-01-15',
       features: ['Compliance Checklists', 'Regulatory Updates', 'Audit Management', 'Reporting']
     }
+    ,
+    {
+      id: 'ai',
+      name: 'AI Assistance',
+      isActive: true,
+      subscriptionId: 'sub-001',
+      expiryDate: '2025-01-15',
+      features: ['Document Authentication', 'Quality Check', 'Draft Assistance']
+    }
   ];
 
   const loadSubscriptions = async () => {

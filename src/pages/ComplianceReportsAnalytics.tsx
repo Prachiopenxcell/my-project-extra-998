@@ -407,9 +407,9 @@ const ComplianceReportsAnalytics = () => {
                       <span className="text-sm">January 2024</span>
                       <div className="flex items-center space-x-2">
                         <div className="w-20 bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{width: '92%'}}></div>
+                          <div className="bg-green-500 h-2 rounded-full" style={{width: '100%'}}></div>
                         </div>
-                        <span className="text-sm font-medium">92%</span>
+                        <span className="text-sm font-medium">100%</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-center">

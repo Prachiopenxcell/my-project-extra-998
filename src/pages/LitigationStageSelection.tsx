@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,11 +19,12 @@ import {
 
 const LitigationStageSelection = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
   // State management
   const [selectedEntity, setSelectedEntity] = useState("Acme Corporation Ltd");
-  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [selectedStages, setSelectedStages] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
 
   // Mock data for entities
@@ -32,6 +33,15 @@ const LitigationStageSelection = () => {
     { id: "entity-002", name: "TechSolutions Pvt Ltd" },
     { id: "entity-003", name: "Global Ventures Inc" }
   ];
+
+  // Preselect stage from query param if provided
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const stage = params.get("stage");
+    if (stage === "pre-filing" || stage === "active") {
+      setSelectedStages(new Set([stage]));
+    }
+  }, [location.search]);
 
   // Progress steps
   const steps = [
@@ -42,7 +52,7 @@ const LitigationStageSelection = () => {
   ];
 
   const handleContinue = () => {
-    if (!selectedStage) {
+    if (selectedStages.size === 0) {
       toast({
         title: "Selection Required",
         description: "Please select a litigation stage to continue.",
@@ -56,10 +66,14 @@ const LitigationStageSelection = () => {
     // Navigate based on selected stage
     setTimeout(() => {
       setLoading(false);
-      if (selectedStage === "pre-filing") {
-        navigate("/litigation/create/pre-filing");
+      const hasStage1 = selectedStages.has('pre-filing');
+      const hasStage2 = selectedStages.has('active');
+      if (hasStage1 && hasStage2) {
+        navigate('/litigation/create?pipeline=active');
+      } else if (hasStage1) {
+        navigate('/litigation/create');
       } else {
-        navigate("/litigation/create/active");
+        navigate('/litigation/create-active');
       }
     }, 500);
   };
@@ -149,11 +163,15 @@ const LitigationStageSelection = () => {
                     {/* Stage 1 Card */}
                     <Card 
                       className={`cursor-pointer border-2 transition-all ${
-                        selectedStage === "pre-filing" 
+                        selectedStages.has("pre-filing")
                           ? "border-blue-500 bg-blue-50" 
                           : "border-gray-200 hover:border-gray-300"
                       }`}
-                      onClick={() => setSelectedStage("pre-filing")}
+                      onClick={() => setSelectedStages(prev => {
+                        const next = new Set(prev);
+                        if (next.has('pre-filing')) next.delete('pre-filing'); else next.add('pre-filing');
+                        return next;
+                      })}
                     >
                       <CardContent className="pt-6">
                         <div className="flex flex-col items-center text-center space-y-3">
@@ -176,11 +194,15 @@ const LitigationStageSelection = () => {
                     {/* Stage 2 Card */}
                     <Card 
                       className={`cursor-pointer border-2 transition-all ${
-                        selectedStage === "active" 
+                        selectedStages.has("active")
                           ? "border-orange-500 bg-orange-50" 
                           : "border-gray-200 hover:border-gray-300"
                       }`}
-                      onClick={() => setSelectedStage("active")}
+                      onClick={() => setSelectedStages(prev => {
+                        const next = new Set(prev);
+                        if (next.has('active')) next.delete('active'); else next.add('active');
+                        return next;
+                      })}
                     >
                       <CardContent className="pt-6">
                         <div className="flex flex-col items-center text-center space-y-3">
@@ -200,6 +222,13 @@ const LitigationStageSelection = () => {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* When both are selected, show an info note */}
+                  {selectedStages.has('pre-filing') && selectedStages.has('active') && (
+                    <div className="bg-blue-50 p-2 rounded text-xs text-blue-800">
+                      Stage 1 will be shown first. After documents, the flow will switch to Stage 2 before the final review.
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
@@ -208,7 +237,7 @@ const LitigationStageSelection = () => {
                 </Button>
                 <Button 
                   onClick={handleContinue} 
-                  disabled={!selectedStage || loading}
+                  disabled={selectedStages.size === 0 || loading}
                   className="flex items-center gap-2"
                 >
                   {loading ? "Processing..." : "Continue"}

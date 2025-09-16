@@ -32,12 +32,15 @@ import {
   Mail,
   Settings,
   AlertTriangle,
-  Info
+  Info,
+  Bot,
+  Save
 } from "lucide-react";
 import { format } from "date-fns";
 import EOIDetailView from './EOIDetailView';
 import EOIEditForm from './EOIEditForm';
 import COCMemberDetailView from './COCMemberDetailView';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 interface EOIInvitation {
   id: string;
@@ -111,6 +114,16 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
   // Upload List of Creditors (Excel)
   const [creditorsFile, setCreditorsFile] = useState<File | null>(null);
   const [creditorsSaving, setCreditorsSaving] = useState(false);
+  // Document Requirements Checklist: selection and file state
+  const [docSelections, setDocSelections] = useState<Record<number, boolean>>({});
+  const [docFiles, setDocFiles] = useState<Record<number, File | null>>({});
+  const [docMode, setDocMode] = useState<Record<number, 'manual' | 'ai'>>({});
+  const [showAiEditor, setShowAiEditor] = useState(false);
+  const [aiEditorIndex, setAiEditorIndex] = useState<number | null>(null);
+  const [aiEditorTitle, setAiEditorTitle] = useState<string>('');
+  const [aiDraft, setAiDraft] = useState<string>('');
+  const { hasModuleAccess } = useSubscription();
+  const [aiEnabledLocal, setAiEnabledLocal] = useState<boolean>(false);
 
   // Use external state if provided, otherwise use internal state
   const showCreateForm = externalShowCreateForm !== undefined ? externalShowCreateForm : internalShowCreateForm;
@@ -155,6 +168,64 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
     if (file) {
       toast({ title: 'File selected', description: `${file.name} ready to save.` });
     }
+  };
+
+  // ===== AI Template Helpers =====
+  const isAiEnabled = () => {
+    // If subscription context exists and has ai module, allow; otherwise rely on local toggle
+    try {
+      if (typeof hasModuleAccess === 'function') {
+        return !!hasModuleAccess('ai');
+      }
+    } catch (err) {
+      // no-op: subscription context may be unavailable in some environments
+    }
+    return aiEnabledLocal;
+  };
+
+  const enableAiAssistance = () => {
+    setAiEnabledLocal(true);
+    toast({ title: 'AI Assistance Enabled', description: 'You can now use AI Suggested templates for documents.' });
+  };
+
+  const getDefaultTemplate = (label: string) => {
+    switch (label.toLowerCase()) {
+      case 'letter stating eoi signed by pras':
+      case 'letter stating eoi signed by pras'.toLowerCase():
+        return `Subject: Expression of Interest for Participation in Resolution Process\n\nTo,\nThe Resolution Professional\n[Corporate Debtor Name]\n[Address]\n\nDear Sir/Madam,\n\nWe, [Applicant Name/Consortium], hereby submit our Expression of Interest (EOI) to participate in the Corporate Insolvency Resolution Process of [Corporate Debtor Name] pursuant to the invitation published under Regulation 36A of the IBBI (CIRP) Regulations, 2016.\n\nWe confirm that:\n1. We meet the eligibility criteria as specified in the EOI invitation.\n2. We are not disqualified under Section 29A of the Insolvency and Bankruptcy Code, 2016.\n3. We agree to abide by the process terms and timelines.\n\nAuthorized Signatory:\nName: [Name]\nDesignation: [Designation]\nDate: [Date]\nPlace: [Place]\n\nEnclosures: As applicable.`;
+      case '29a eligibility undertaking':
+        return `Undertaking Under Section 29A of the IBC, 2016\n\nI/We, [Name of Applicant], do hereby solemnly affirm that I/We am/are eligible under Section 29A of the Insolvency and Bankruptcy Code, 2016, and none of the disqualifications enumerated therein apply to me/us or any person acting jointly or in concert with me/us.\n\nSigned:_________________\nAuthorized Signatory\nDate: [Date]`;
+      case 'fulfilling eligibility criteria':
+      case 'fulfilling eligibility criteria undertaking':
+        return `Undertaking for Fulfilling Eligibility Criteria\n\nWe confirm that we meet all eligibility criteria specified under the EOI, including minimum net worth/turnover requirements, sectoral experience, and any other stipulated conditions. Supporting documents are enclosed.\n\nAuthorized Signatory\nDate: [Date]`;
+      case 'confidential undertaking':
+        return `Confidentiality Undertaking\n\nWe acknowledge that information shared during the process is confidential. We undertake to keep all such information confidential and use it solely for the purpose of evaluating participation in the resolution process.\n\nAuthorized Signatory\nDate: [Date]`;
+      case 'board resolution docs':
+      case 'board resolution':
+      case 'copies of board resolution authorising person':
+        return `Certified True Copy of Board Resolution\n\nResolved that Mr./Ms. [Name], [Designation], is hereby authorized to submit the Expression of Interest and Resolution Plan, sign all documents, and do all acts necessary for participation in the CIRP of [Corporate Debtor Name].\n\nFor and on behalf of [Company Name]\n\n[Director/Company Secretary]\nDate: [Date]`;
+      default:
+        return `Auto-generated template for: ${label}\n\n[Replace this section with final content]\n\nAuthorized Signatory\nDate: [Date]`;
+    }
+  };
+
+  const openAiEditor = (index: number, label: string) => {
+    setAiEditorIndex(index);
+    setAiEditorTitle(label);
+    setAiDraft(getDefaultTemplate(label));
+    setShowAiEditor(true);
+  };
+
+  const saveAiDraftAsFile = () => {
+    if (aiEditorIndex == null) return;
+    const content = aiDraft || '';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const safeName = aiEditorTitle.replace(/[^a-z0-9-]+/gi, '_').toLowerCase();
+    const file = new File([blob], `${safeName}_ai_template.txt`, { type: 'text/plain' });
+    setDocFiles(prev => ({ ...prev, [aiEditorIndex]: file }));
+    setDocMode(prev => ({ ...prev, [aiEditorIndex]: 'ai' }));
+    setShowAiEditor(false);
+    toast({ title: 'Template Saved', description: `${aiEditorTitle} template saved and attached.` });
   };
 
   const handleSaveCreditors = async () => {
@@ -777,23 +848,120 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
             <div className="space-y-4">
               <h4 className="font-medium">Document Requirements Checklist:</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                {/* Column 1 */}
+                <div className="space-y-3">
                   {[
                     "Letter stating EOI signed by PRAs",
-                    "Fulfilling Eligibility criteria", 
+                    "Fulfilling Eligibility criteria",
                     "Annual Reports (3 years)",
                     "Board Resolution docs",
                     "KYC of PRAs",
                     "List of connected persons",
-                    "Payment proof (Cheque/DD/NEFT)"
-                  ].map((item, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Checkbox id={`doc-${index}`} defaultChecked />
-                      <label htmlFor={`doc-${index}`} className="text-sm">{item}</label>
-                    </div>
-                  ))}
+                    "Payment proof (Cheque/DD/NEFT)",
+                  ].map((item, index) => {
+                    const checked = !!docSelections[index];
+                    const file = docFiles[index] || null;
+                    const mode = docMode[index] || 'manual';
+                    return (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`doc-${index}`}
+                            checked={checked}
+                            onCheckedChange={(value) =>
+                              setDocSelections((prev) => ({ ...prev, [index]: !!value }))
+                            }
+                          />
+                          <label htmlFor={`doc-${index}`} className="text-sm">
+                            {item}
+                          </label>
+                        </div>
+                        {checked && (
+                          <div className="ml-6 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={mode === 'manual' ? 'default' : 'outline'}
+                                onClick={() => setDocMode(prev => ({ ...prev, [index]: 'manual' }))}
+                              >
+                                Upload Manually
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={mode === 'ai' ? 'default' : 'outline'}
+                                onClick={() => {
+                                  setDocMode(prev => ({ ...prev, [index]: 'ai' }));
+                                  openAiEditor(index, item);
+                                }}
+                              >
+                                <Bot className="h-4 w-4 mr-1" /> AI Suggested
+                              </Button>
+                            </div>
+                            {mode === 'manual' && (
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Upload {item}</label>
+                                <Input
+                                  type="file"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0] || null;
+                                    setDocFiles((prev) => ({ ...prev, [index]: f }));
+                                    if (f) {
+                                      toast({ title: 'File selected', description: `${f.name} ready to save.` });
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
+                            {/* {mode === 'ai' && !isAiEnabled() && (
+                              <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground flex items-center justify-between">
+                                <div className="flex items-start gap-2">
+                                  <Info className="h-4 w-4 mt-0.5" />
+                                  <span>This document will be auto-suggested by AI. Enable AI Assistance to use this feature.</span>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={enableAiAssistance}>Enable AI Assistance</Button>
+                              </div>
+                            )} */}
+                            {file && (
+                              <div className="flex items-center justify-between rounded-md border p-2">
+                                <div className="text-sm text-muted-foreground truncate">
+                                  {file.name}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const url = URL.createObjectURL(file);
+                                      window.open(url, "_blank");
+                                      setTimeout(() => URL.revokeObjectURL(url), 30000);
+                                    }}
+                                    title="View"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDocFiles((prev) => ({ ...prev, [index]: null }))}
+                                    title="Remove"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="space-y-2">
+                {/* Column 2 */}
+                <div className="space-y-3">
                   {[
                     "29A eligibility undertaking",
                     "Confidential Undertaking",
@@ -801,18 +969,131 @@ const EOIManagement = ({ showCreateForm: externalShowCreateForm, setShowCreateFo
                     "Incorporation documents",
                     "KYC of Authorised person",
                     "Consortium Agreement",
-                    "Company Profile"
-                  ].map((item, index) => (
-                    <div key={index + 7} className="flex items-center space-x-2">
-                      <Checkbox id={`doc-${index + 7}`} defaultChecked />
-                      <label htmlFor={`doc-${index + 7}`} className="text-sm">{item}</label>
-                    </div>
-                  ))}
+                    "Company Profile",
+                  ].map((item, i) => {
+                    const index = i + 7; // continue indices from first column
+                    const checked = !!docSelections[index];
+                    const file = docFiles[index] || null;
+                    const mode = docMode[index] || 'manual';
+                    return (
+                      <div key={index} className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`doc-${index}`}
+                            checked={checked}
+                            onCheckedChange={(value) =>
+                              setDocSelections((prev) => ({ ...prev, [index]: !!value }))
+                            }
+                          />
+                          <label htmlFor={`doc-${index}`} className="text-sm">
+                            {item}
+                          </label>
+                        </div>
+                        {checked && (
+                          <div className="ml-6 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={mode === 'manual' ? 'default' : 'outline'}
+                                onClick={() => setDocMode(prev => ({ ...prev, [index]: 'manual' }))}
+                              >
+                                Upload Manually
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={mode === 'ai' ? 'default' : 'outline'}
+                                onClick={() => {
+                                  setDocMode(prev => ({ ...prev, [index]: 'ai' }));
+                                  openAiEditor(index, item);
+                                }}
+                              >
+                                <Bot className="h-4 w-4 mr-1" /> AI Suggested
+                              </Button>
+                            </div>
+                            {mode === 'manual' && (
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Upload {item}</label>
+                                <Input
+                                  type="file"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0] || null;
+                                    setDocFiles((prev) => ({ ...prev, [index]: f }));
+                                    if (f) {
+                                      toast({ title: 'File selected', description: `${f.name} ready to save.` });
+                                    }
+                                  }}
+                                />
+                              </div>
+                            )}
+                            
+                            {file && (
+                              <div className="flex items-center justify-between rounded-md border p-2">
+                                <div className="text-sm text-muted-foreground truncate">
+                                  {file.name}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const url = URL.createObjectURL(file);
+                                      window.open(url, "_blank");
+                                      setTimeout(() => URL.revokeObjectURL(url), 30000);
+                                    }}
+                                    title="View"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setDocFiles((prev) => ({ ...prev, [index]: null }))}
+                                    title="Remove"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* AI Template Editor Dialog */}
+        <Dialog open={showAiEditor} onOpenChange={setShowAiEditor}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5" /> AI Template – {aiEditorTitle}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Auto-generated content</label>
+              <textarea
+                className="w-full h-72 border rounded-md p-3 text-sm"
+                value={aiDraft}
+                onChange={(e) => setAiDraft(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAiEditor(false)}>Cancel</Button>
+              <Button onClick={saveAiDraftAsFile}>
+                <Save className="h-4 w-4 mr-2" /> Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

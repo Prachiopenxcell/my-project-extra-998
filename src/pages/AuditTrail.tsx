@@ -33,7 +33,10 @@ import {
   Smartphone,
   Mail,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  MapPin
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 
@@ -45,6 +48,36 @@ const AuditTrail = () => {
   const [dateFilter, setDateFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("latest");
   const [dateRange, setDateRange] = useState("last30days");
+
+  const toReadable = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString();
+    } catch {
+      return iso;
+    }
+  };
+
+  type LocalAudit = { timestamp: string; user: string; action: string; resource: string; location: string; module: string };
+  const readLocalAudit = (): LocalAudit[] => {
+    try {
+      return JSON.parse(localStorage.getItem("vdr_audit_log") || "[]");
+    } catch {
+      return [];
+    }
+  };
+
+  const localAuditLogs = readLocalAudit().map(l => ({
+    id: `local-${l.timestamp}`,
+    timestamp: toReadable(l.timestamp),
+    user: l.user,
+    action: l.action.toUpperCase(),
+    resource: l.resource,
+    location: l.location,
+    ip: "local",
+    device: "Web",
+    details: ""
+  }));
 
   const auditLogs = [
     {
@@ -138,6 +171,8 @@ const AuditTrail = () => {
     }
   };
 
+  const combinedLogs = [...localAuditLogs, ...auditLogs];
+
   return (
     <DashboardLayout>
       <div className="container mx-auto p-4">
@@ -223,7 +258,7 @@ const AuditTrail = () => {
         </div>
 
         {/* Filter & Search */}
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Filter & Search</CardTitle>
           </CardHeader>
@@ -292,12 +327,12 @@ const AuditTrail = () => {
         </Card>
 
         {/* Activity Log */}
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Activity Log</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {auditLogs.map((log) => (
+            {combinedLogs.map((log) => (
               <div key={log.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
@@ -308,21 +343,22 @@ const AuditTrail = () => {
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">🕐 {log.timestamp}</span>
+                          <span className="text-sm text-muted-foreground inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {log.timestamp}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">👤 {log.user}</span>
+                          <span className="font-medium inline-flex items-center gap-1"><User className="h-3 w-3" /> {log.user}</span>
                           <Badge className={`text-xs ${getActionColor(log.action)}`}>
                             {log.action}
                           </Badge>
                           <span className="text-sm">{log.resource}</span>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          📍 Location: {log.location}
+                        <div className="text-sm text-muted-foreground inline-flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          <span>Location: {log.location}</span>
                         </div>
                         {log.details && (
-                          <div className="text-sm text-muted-foreground">
-                            💭 {log.details}
+                          <div className="text-sm text-muted-foreground inline-flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" /> {log.details}
                           </div>
                         )}
                       </div>
@@ -346,7 +382,7 @@ const AuditTrail = () => {
         </Card>
 
         {/* Export & Compliance */}
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Export & Compliance</CardTitle>
           </CardHeader>
@@ -370,7 +406,7 @@ const AuditTrail = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-muted-foreground">⚖️ Compliance: Ready for audit review</span>
+                <span className="text-sm text-muted-foreground">Compliance: Ready for audit review</span>
               </div>
             </div>
           </CardContent>
@@ -382,7 +418,7 @@ const AuditTrail = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" disabled>
-                  ⏮️
+                  <ChevronsLeft className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" size="sm" disabled>
                   <ChevronLeft className="h-4 w-4" />
@@ -392,7 +428,7 @@ const AuditTrail = () => {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" size="sm">
-                  ⏭️
+                  <ChevronsRight className="h-4 w-4" />
                 </Button>
               </div>
               <div className="flex items-center gap-2">

@@ -42,7 +42,7 @@ interface Claim {
   claimantName: string;
   claimantCategory: string;
   claimedAmount: number;
-  status: 'open' | 'allocation_pending' | 'verification_pending' | 'admission_pending' | 'accepted' | 'rejected';
+  status: 'open' | 'allocation_pending' | 'verification_pending' | 'admission_pending' | 'allocated' | 'accepted' | 'rejected';
   source: 'claimant_submitted' | 'team_uploaded';
   submissionDate: string;
   uploadedBy?: string;
@@ -115,7 +115,105 @@ const AllClaimsList = () => {
       assignedTo: "Mike Johnson",
       verifiedBy: "John Doe",
       entityName: "ABC Corporation Ltd"
-    }
+    },
+    {
+      id: "INV005",
+      claimantName: "Axis Bank",
+      claimantCategory: "Financial Creditor - Secured",
+      claimedAmount: 1800000,
+      status: "allocated",
+      source: "claimant_submitted",
+      submissionDate: "2024-01-16",
+      assignedTo: "Sarah Connor",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV006",
+      claimantName: "ICICI Bank Ltd",
+      claimantCategory: "Financial Creditor - Secured",
+      claimedAmount: 3200000,
+      status: "open",
+      source: "claimant_submitted",
+      submissionDate: "2024-01-21",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV007",
+      claimantName: "Kotak Mahindra Bank",
+      claimantCategory: "Financial Creditor - Unsecured",
+      claimedAmount: 900000,
+      status: "verification_pending",
+      source: "claimant_submitted",
+      submissionDate: "2024-01-18",
+      assignedTo: "Priya Kapoor",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV008",
+      claimantName: "XYZ Logistics Pvt Ltd",
+      claimantCategory: "Operational Creditor",
+      claimedAmount: 450000,
+      status: "allocation_pending",
+      source: "team_uploaded",
+      submissionDate: "2024-01-19",
+      uploadedBy: "Ops Team",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV009",
+      claimantName: "Staff Welfare Association",
+      claimantCategory: "Workmen/Staff/Employees",
+      claimedAmount: 600000,
+      status: "admission_pending",
+      source: "claimant_submitted",
+      submissionDate: "2024-01-17",
+      assignedTo: "Anita Desai",
+      verifiedBy: "Suresh Kumar",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV010",
+      claimantName: "GST Department",
+      claimantCategory: "Statutory Authorities",
+      claimedAmount: 1100000,
+      status: "verification_pending",
+      source: "team_uploaded",
+      submissionDate: "2024-01-16",
+      uploadedBy: "Finance Team",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV011",
+      claimantName: "Income Tax Department",
+      claimantCategory: "Statutory Authorities",
+      claimedAmount: 750000,
+      status: "allocation_pending",
+      source: "team_uploaded",
+      submissionDate: "2024-01-15",
+      uploadedBy: "Finance Team",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV012",
+      claimantName: "Misc Vendor A",
+      claimantCategory: "Other",
+      claimedAmount: 200000,
+      status: "open",
+      source: "claimant_submitted",
+      submissionDate: "2024-01-14",
+      entityName: "ABC Corporation Ltd"
+    },
+    {
+      id: "INV013",
+      claimantName: "Misc Claimant B",
+      claimantCategory: "Other",
+      claimedAmount: 150000,
+      status: "rejected",
+      source: "team_uploaded",
+      submissionDate: "2024-01-13",
+      uploadedBy: "Admin User",
+      entityName: "ABC Corporation Ltd"
+    },
   ]);
 
   const getStatusColor = (status: string) => {
@@ -128,6 +226,8 @@ const AllClaimsList = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'admission_pending':
         return 'bg-orange-100 text-orange-800';
+      case 'allocated':
+        return 'bg-blue-100 text-blue-800';
       case 'accepted':
         return 'bg-green-100 text-green-800';
       case 'rejected':
@@ -147,6 +247,8 @@ const AllClaimsList = () => {
         return 'Verification Pending';
       case 'admission_pending':
         return 'Admission Pending';
+      case 'allocated':
+        return 'Allocated';
       case 'accepted':
         return 'Accepted';
       case 'rejected':
@@ -170,7 +272,7 @@ const AllClaimsList = () => {
   };
 
   const handleAllocateClaim = (id: string) => {
-    navigate(`/claims/allocate/${id}`);
+    navigate(`/claims/claim/${id}?tab=allocation`);
   };
 
   const handleUploadClaim = () => {
@@ -206,7 +308,7 @@ const AllClaimsList = () => {
   };
 
   const handleAdmitClaim = (id: string) => {
-    navigate(`/claims/admit/${id}`);
+    navigate(`/claims/claim/${id}?tab=admission`);
   };
 
   const filteredClaims = claims.filter(claim => {
@@ -544,7 +646,7 @@ const ClaimsTable = ({
                 <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Source</TableHead>
-                <TableHead>Submission Date</TableHead>
+                <TableHead>Date of Claim Upload</TableHead>
                 {showEditDelete && <TableHead>Uploaded By</TableHead>}
                 <TableHead>Actions</TableHead>
               </TableRow>

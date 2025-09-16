@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,19 +75,37 @@ const LitigationReviewSubmit = () => {
   const [confirmSubmission, setConfirmSubmission] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
-  // Mock review data - in real app, this would come from form state
+  // Load review data from localStorage
+  const [stage1Data, setStage1Data] = useState<Record<string, any> | null>(null);
+  const [stage2Data, setStage2Data] = useState<Record<string, any> | null>(null);
+  
+  useEffect(() => {
+    try {
+      const s1 = localStorage.getItem('review_stage1');
+      const s2 = localStorage.getItem('review_stage2');
+      if (s1) setStage1Data(JSON.parse(s1));
+      if (s2) setStage2Data(JSON.parse(s2));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Mock fallback data if no localStorage data
   const [reviewData] = useState<ReviewData>({
-    caseType: (type as 'pre-filing' | 'active') || 'pre-filing',
-    caseNumber: type === 'active' ? 'CP(IB)-123/MB/2025' : undefined,
-    title: type === 'active' ? 'Insolvency Petition - Beta Industries' : 'Application Draft - NCLT Petition',
-    court: 'NCLT Mumbai',
-    status: type === 'active' ? 'Filed, Under Scrutiny' : 'Draft',
-    filingDate: type === 'active' ? '2025-01-05' : undefined,
-    nextHearing: type === 'active' ? '2025-02-15' : undefined,
-    plaintiff: 'Acme Corporation Ltd',
-    defendant: 'Beta Industries Pvt Ltd',
+    caseType: stage2Data ? 'active' : 'pre-filing',
+    caseNumber: stage2Data?.caseNumber || undefined,
+    title: stage2Data ? (stage2Data.particulars?.slice(0, 50) || 'Active Litigation') : (stage1Data?.title || 'Pre-filing Application'),
+    court: stage2Data?.court || stage1Data?.court || 'NCLT Mumbai',
+    status: stage2Data?.status || 'Draft',
+    filingDate: stage2Data?.filingDate || undefined,
+    nextHearing: undefined,
+    plaintiff: stage2Data?.plaintiff || 'Applicant',
+    defendant: stage2Data?.defendant || 'Respondent',
     amount: 2500000,
-    lawyer: {
+    lawyer: stage2Data?.lawyer || stage1Data?.assignedLawyer ? {
+      name: stage2Data?.lawyer?.name || 'Adv. Rajesh Sharma',
+      specialization: stage2Data?.lawyer?.specialization || 'NCLT, NCLAT, Insolvency Law',
+      contact: stage2Data?.lawyer?.contact || '+91-98765-43210',
+      email: stage2Data?.lawyer?.email || 'rajesh.sharma@lawfirm.com'
+    } : {
       name: 'Adv. Rajesh Sharma',
       specialization: 'NCLT, NCLAT, Insolvency Law',
       contact: '+91-98765-43210',
@@ -98,9 +116,9 @@ const LitigationReviewSubmit = () => {
       { name: 'E-Filing Receipt.pdf', type: 'PDF', size: '1.2 MB', uploaded: true },
       { name: 'Supporting Documents.zip', type: 'ZIP', size: '5.8 MB', uploaded: true }
     ],
-    particulars: 'Corporate insolvency resolution process under Section 7 of the Insolvency and Bankruptcy Code, 2016 against Beta Industries Pvt Ltd for default in payment of operational debt amounting to ₹25,00,000.',
-    reliefSought: 'Initiation of Corporate Insolvency Resolution Process (CIRP) against the Corporate Debtor and appointment of Interim Resolution Professional.',
-    costEstimation: {
+    particulars: stage2Data?.particulars || stage1Data?.particulars || 'Application particulars',
+    reliefSought: stage2Data?.reliefSought || (Array.isArray(stage1Data?.reliefSought) ? stage1Data.reliefSought.join(', ') : stage1Data?.reliefSought) || 'Relief sought',
+    costEstimation: stage2Data?.costEstimation || {
       filingFee: 15000,
       courtFee: 5000,
       counselFee: 35000,
@@ -149,9 +167,14 @@ const LitigationReviewSubmit = () => {
     // Simulate API call
     setTimeout(() => {
       setLoading(false);
+      // Clear review data after successful submit
+      try {
+        localStorage.removeItem('review_stage1');
+        localStorage.removeItem('review_stage2');
+      } catch { /* ignore */ }
       toast({
         title: "Case Submitted Successfully",
-        description: `Your ${reviewData.caseType === 'active' ? 'active litigation' : 'pre-filing'} case has been submitted for processing.`,
+        description: `Your ${stage2Data ? 'litigation' : 'pre-filing'} case has been submitted for processing.`,
       });
       navigate('/litigation');
     }, 2000);
@@ -206,7 +229,126 @@ const LitigationReviewSubmit = () => {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Case Summary Card */}
+            {/* Stage 1 Review */}
+            {stage1Data && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Scale className="h-5 w-5 text-blue-600" />
+                    Pre-filing Review (Stage 1)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Title</label>
+                      <p className="font-medium mt-1">{stage1Data.title}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Court</label>
+                      <p className="mt-1">{stage1Data.court}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Act & Section</label>
+                      <p className="mt-1">{stage1Data.actSection}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Response Type</label>
+                      <p className="mt-1">{stage1Data.responseType} ({stage1Data.numberOfDays} days)</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Particulars</label>
+                    <p className="mt-2 text-sm leading-relaxed">{stage1Data.particulars}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Relief Sought</label>
+                    <p className="mt-2 text-sm leading-relaxed">{Array.isArray(stage1Data.reliefSought) ? stage1Data.reliefSought.join(', ') : stage1Data.reliefSought}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Documents</label>
+                    <p className="mt-1">{stage1Data.documentsCount} documents uploaded</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Stage 2 Review */}
+            {stage2Data && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Scale className="h-5 w-5 text-orange-600" />
+                    Active Litigation Review (Stage 2)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Status</label>
+                      <p className="font-medium mt-1">{stage2Data.status}</p>
+                    </div>
+                    {stage2Data.caseNumber && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500">Case Number</label>
+                        <p className="font-medium mt-1">{stage2Data.caseNumber}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Plaintiff</label>
+                      <p className="mt-1">{stage2Data.plaintiff}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Defendant</label>
+                      <p className="mt-1">{stage2Data.defendant}</p>
+                    </div>
+                  </div>
+                  {stage2Data.filingDate && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Filing Date</label>
+                      <p className="mt-1">{formatDate(stage2Data.filingDate)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Particulars</label>
+                    <p className="mt-2 text-sm leading-relaxed">{stage2Data.particulars}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Relief Sought</label>
+                    <p className="mt-2 text-sm leading-relaxed">{stage2Data.reliefSought}</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Application Versions</label>
+                      <p className="mt-1">{stage2Data.applicationCopyVersions} versions</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">E-filing Receipt Versions</label>
+                      <p className="mt-1">{stage2Data.eFilingReceiptVersions} versions</p>
+                    </div>
+                  </div>
+                  {(stage2Data.interimOrders?.length > 0 || stage2Data.finalOrders?.length > 0) && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Orders</label>
+                      <div className="mt-2 space-y-1 text-sm">
+                        {stage2Data.interimOrders?.map((o, i) => (
+                          <div key={i}>Interim: {o.date} - {o.summary}</div>
+                        ))}
+                        {stage2Data.finalOrders?.map((o, i) => (
+                          <div key={i}>Final: {o.date} - {o.summary}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Combined Case Summary Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">

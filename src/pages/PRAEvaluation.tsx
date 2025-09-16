@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowLeft,
   Search,
@@ -44,7 +45,14 @@ import {
   Mail,
   Calendar,
   CreditCard,
-  UserCheck
+  UserCheck,
+  Settings2,
+  ArrowUp,
+  ArrowDown,
+  Columns,
+  Rows,
+  Printer,
+  Share2
 } from 'lucide-react';
 
 interface PRAEvaluation {
@@ -75,9 +83,50 @@ interface ComplianceItem {
   remarks: string;
 }
 
+// === Report Types (aligned with PRADetails) ===
+interface ReportCustomization {
+  selectedFields: string[];
+  fieldOrder: string[];
+  sortBy?: string;
+  sortDirection: 'asc' | 'desc';
+  filters: Record<string, string | number | boolean>;
+  layout: 'horizontal' | 'vertical';
+}
+
+interface ReportData {
+  praId: string;
+  praName: string;
+  entityType: string;
+  complianceStatus: string;
+  section29AStatus: string;
+  eligiblitycreator: 'Yes' | 'No';
+  financialStatus: string;
+  documentsStatus: string;
+  remarks?: string;
+}
+
+interface ProvisionalReport {
+  id: string;
+  name: string;
+  generatedDate: string;
+  status: 'draft' | 'final' | 'circulated';
+  customization: ReportCustomization;
+  data: ReportData[];
+}
+
+interface SavedReport {
+  id: string;
+  name: string;
+  format: 'pdf' | 'excel' | 'docx';
+  savedDate: string;
+  isSigned: boolean;
+  filePath: string;
+}
+
 const PRAEvaluation = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, organization, updateUser } = useAuth();
   
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,6 +134,35 @@ const PRAEvaluation = () => {
   const [aiEvaluationEnabled, setAiEvaluationEnabled] = useState(false);
   const [selectedPRA, setSelectedPRA] = useState<PRAEvaluation | null>(null);
   const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
+  const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState<null | { praId: string; reportId: string }>(null);
+  const [showSignatureDialog, setShowSignatureDialog] = useState<null | { praId: string; savedId: string }>(null);
+  const [showCirculateDialog, setShowCirculateDialog] = useState<null | { praId: string; savedId: string }>(null);
+
+  // Reports state per PRA
+  const [reportCustomization, setReportCustomization] = useState<ReportCustomization>({
+    selectedFields: ['praName', 'entityType', 'complianceStatus', 'section29AStatus', 'eligiblitycreator'],
+    fieldOrder: ['praName', 'entityType', 'complianceStatus', 'section29AStatus', 'eligiblitycreator'],
+    sortBy: 'praName',
+    sortDirection: 'asc',
+    filters: {},
+    layout: 'horizontal'
+  });
+  const [reportsByPra, setReportsByPra] = useState<Record<string, ProvisionalReport[]>>({});
+  const [savedReportsByPra, setSavedReportsByPra] = useState<Record<string, SavedReport[]>>({});
+
+  const allAvailableFields = useMemo(() => (
+    [
+      { key: 'praName', label: 'PRA Name' },
+      { key: 'entityType', label: 'Entity Type' },
+      { key: 'complianceStatus', label: 'Compliance Status' },
+      { key: 'section29AStatus', label: 'Section 29A' },
+      { key: 'eligiblitycreator', label: 'Eligible' },
+      { key: 'financialStatus', label: 'Financials' },
+      { key: 'documentsStatus', label: 'Documents' },
+      { key: 'remarks', label: 'Remarks' },
+    ]
+  ), []);
 
   // Mock PRA evaluations data
   const [praEvaluations, setPraEvaluations] = useState<PRAEvaluation[]>([
@@ -240,15 +318,163 @@ const PRAEvaluation = () => {
     }
   };
 
-  const handleGenerateReport = () => {
-    toast({
-      title: "Report Generated",
-      description: "Provisional eligibility report has been generated and saved"
+  // Generate a provisional report for a specific PRA
+  // Now includes ALL currently filtered PRAs in the report table
+  const generateReportForPra = (pra: PRAEvaluation) => {
+    const buildRow = (p: PRAEvaluation): ReportData => ({
+      praId: p.id,
+      praName: p.praName,
+      entityType: p.entityType,
+      complianceStatus: p.overallScore >= 80 ? 'Compliant' : 'Needs Review',
+      section29AStatus: p.section29ACompliance ? 'Compliant' : 'Non-Compliant',
+      eligiblitycreator: p.status === 'compliant' ? 'Yes' : 'No',
+      financialStatus: 'Verified',
+      documentsStatus: `${p.complianceChecklist.filter(c=>c.status==='complied').length}/${p.complianceChecklist.length || 1} Verified`,
+      remarks: p.status === 'under-review' ? 'Subject to review' : undefined,
     });
-    navigate('/resolution/reports');
+
+    const rows: ReportData[] = (filteredPRAs && filteredPRAs.length
+      ? filteredPRAs
+      : praEvaluations
+    ).map(buildRow);
+
+    const newReport: ProvisionalReport = {
+      id: `${pra.id}-${Date.now()}`,
+      name: `Provisional Report - ${new Date().toLocaleDateString()}`,
+      generatedDate: new Date().toISOString().split('T')[0],
+      status: 'draft',
+      customization: { ...reportCustomization },
+      data: rows
+    };
+    setReportsByPra(prev => ({
+      ...prev,
+      [pra.id]: [...(prev[pra.id] || []), newReport]
+    }));
   };
 
-  const handleUpdateCompliance = (praId: string, complianceData: any) => {
+  const handleGenerateReport = () => {
+    // Bulk-generate for all filtered PRAs
+    filteredPRAs.forEach(pra => generateReportForPra(pra));
+    toast({
+      title: 'Report(s) Generated',
+      description: `Generated provisional report for ${filteredPRAs.length} PRA(s).`
+    });
+  };
+
+  // Helper: build a matrix based on customization
+  const buildReportMatrix = (rep: ProvisionalReport) => {
+    const fields = rep.customization.fieldOrder.filter(f => rep.customization.selectedFields.includes(f));
+    const rows = rep.data.map(row => fields.map(f => (row as any)[f] ?? ''));
+    return { headers: fields, rows };
+  };
+
+  const downloadAsCSV = (rep: ProvisionalReport, asXlsx = false) => {
+    const { headers, rows } = buildReportMatrix(rep);
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','))].join('\n');
+    const blob = new Blob([csv], { type: asXlsx ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${rep.name.replace(/\s+/g,'_')}.${asXlsx ? 'xlsx' : 'csv'}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadAsDOCX = (rep: ProvisionalReport) => {
+    const { headers, rows } = buildReportMatrix(rep);
+    const content = [rep.name, '', headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+    const blob = new Blob([content], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${rep.name.replace(/\s+/g,'_')}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const printAsPDF = (rep: ProvisionalReport) => {
+    const { headers, rows } = buildReportMatrix(rep);
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<html><head><title>${rep.name}</title><style>table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}</style></head><body>`);
+    w.document.write(`<h2>${rep.name}</h2>`);
+    w.document.write('<table>');
+    w.document.write('<thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>');
+    w.document.write('<tbody>' + rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('') + '</tbody>');
+    w.document.write('</table></body></html>');
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
+  const finalizeReport = (praId: string, reportId: string) => {
+    const report = (reportsByPra[praId] || []).find(r => r.id === reportId);
+    if (!report) return;
+    // Move to saved reports
+    setSavedReportsByPra(prev => ({
+      ...prev,
+      [praId]: [...(prev[praId] || []), {
+        id: reportId,
+        name: report.name,
+        format: 'pdf',
+        savedDate: new Date().toISOString().split('T')[0],
+        isSigned: false,
+        filePath: `/reports/${reportId}.pdf`
+      }]
+    }));
+    // Optionally update status
+    setReportsByPra(prev => ({
+      ...prev,
+      [praId]: (prev[praId] || []).map(r => r.id === reportId ? { ...r, status: 'final' } : r)
+    }));
+    toast({ title: 'Report Saved', description: 'Report finalized and saved.' });
+  };
+
+  // Signature handling with profile validation
+  const [signatureForm, setSignatureForm] = useState({
+    fullName: '',
+    organization: '',
+    address: '',
+    email: '',
+    phone: ''
+  });
+
+  useEffect(() => {
+    // prefill from auth
+    const fullName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+    setSignatureForm(prev => ({
+      ...prev,
+      fullName,
+      organization: organization?.name || '',
+      address: (user as any)?.address || '',
+      email: user?.email || '',
+      phone: (user as any)?.phone || ''
+    }));
+  }, [user, organization]);
+
+  const signSavedReport = (praId: string, savedId: string) => {
+    const sr = (savedReportsByPra[praId] || []).find(r => r.id === savedId);
+    if (!sr) return;
+    // Validate minimal fields
+    const missing: string[] = [];
+    if (!signatureForm.fullName) missing.push('Full Name');
+    if (!signatureForm.organization) missing.push('Organization/Company Name');
+    if (!signatureForm.address) missing.push('Registered Address');
+    if (!signatureForm.email) missing.push('Email ID');
+    if (!signatureForm.phone) missing.push('Phone Number');
+    if (missing.length) {
+      setShowSignatureDialog({ praId, savedId });
+      toast({ title: 'Signature Details Required', description: `Please provide: ${missing.join(', ')}` });
+      return;
+    }
+    setSavedReportsByPra(prev => ({
+      ...prev,
+      [praId]: (prev[praId] || []).map(r => r.id === savedId ? { ...r, isSigned: true } : r)
+    }));
+    toast({ title: 'Report Signed', description: 'Report signed electronically with profile details.' });
+  };
+
+  const handleUpdateCompliance = (praId: string, complianceData: Partial<PRAEvaluation>) => {
     setPraEvaluations(prev => 
       prev.map(pra => 
         pra.id === praId 
@@ -311,6 +537,10 @@ const PRAEvaluation = () => {
                   Run AI Evaluation
                 </>
               )}
+            </Button>
+            <Button onClick={() => setShowCustomizeDialog(true)} variant="outline" className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" />
+              Customize
             </Button>
             <Button onClick={handleGenerateReport} className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -395,6 +625,10 @@ const PRAEvaluation = () => {
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Bot className="h-3 w-3" />
                   AI Evaluation: {aiEvaluationEnabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Settings2 className="h-3 w-3" />
+                  Layout: {reportCustomization.layout === 'horizontal' ? 'Horizontal' : 'Vertical'}
                 </Badge>
               </div>
             </div>
@@ -524,27 +758,6 @@ const PRAEvaluation = () => {
                         </div>
                       </div>
 
-                      {/* Top Compliance Items */}
-                      {pra.complianceChecklist.length > 0 && (
-                        <div className="space-y-3 mb-4">
-                          <h5 className="font-medium">Recent Compliance Items</h5>
-                          <div className="space-y-2">
-                            {pra.complianceChecklist.slice(0, 2).map((item) => (
-                              <div key={item.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                                <div className="flex-1">
-                                  <div className="font-medium text-sm">{item.section}</div>
-                                  <div className="text-xs text-muted-foreground">{item.description}</div>
-                                  {item.evidence && (
-                                    <div className="text-xs text-blue-600 mt-1">Evidence: {item.evidence}</div>
-                                  )}
-                                </div>
-                                {getStatusBadge(item.status)}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Remarks */}
                       {pra.remarks && (
                         <div className="space-y-2 mb-4">
@@ -553,8 +766,8 @@ const PRAEvaluation = () => {
                         </div>
                       )}
 
-                      {/* Actions */}
-                      <div className="flex justify-between items-center pt-4 border-t">
+                      {/* Per-PRA Actions */}
+                      <div className="flex justify-between items-center pb-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           {pra.aiEvaluationEnabled && (
                             <Badge variant="outline" className="flex items-center gap-1">
@@ -564,6 +777,14 @@ const PRAEvaluation = () => {
                           )}
                         </div>
                         <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => generateReportForPra(pra)}>
+                            <FileText className="h-3 w-3 mr-1" />
+                            Generate Report
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setShowCustomizeDialog(true)}>
+                            <Settings2 className="h-3 w-3 mr-1" />
+                            Customize
+                          </Button>
                           <Dialog open={showEvaluationDialog && selectedPRA?.id === pra.id} onOpenChange={(open) => {
                             setShowEvaluationDialog(open);
                             if (open) setSelectedPRA(pra);
@@ -607,7 +828,6 @@ const PRAEvaluation = () => {
                                     ))}
                                   </div>
                                 </div>
-                                
                                 <div className="flex justify-end gap-2">
                                   <Button variant="outline" onClick={() => setShowEvaluationDialog(false)}>
                                     Cancel
@@ -632,6 +852,52 @@ const PRAEvaluation = () => {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Provisional Reports List for this PRA */}
+                      <div className="space-y-2 border-t pt-4">
+                        <h5 className="font-medium text-sm">Provisional Reports</h5>
+                        {!(reportsByPra[pra.id] && reportsByPra[pra.id].length) && (
+                          <div className="text-xs text-muted-foreground">No reports yet. Click Generate Report to create one.</div>
+                        )}
+                        <div className="space-y-3">
+                          {(reportsByPra[pra.id] || []).map((rep) => (
+                            <div key={rep.id} className="flex items-center justify-between p-3 border rounded">
+                              <div>
+                                <div className="font-medium text-sm">{rep.name}</div>
+                                <div className="text-xs text-muted-foreground">Generated: {rep.generatedDate} • Status: {rep.status}</div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => setShowPreviewDialog({ praId: pra.id, reportId: rep.id })}>View</Button>
+                                <Button size="sm" variant="outline" onClick={() => printAsPDF(rep)} title="Print / Save as PDF"><Printer className="h-3 w-3 mr-1"/>PDF</Button>
+                                <Button size="sm" variant="outline" onClick={() => downloadAsCSV(rep, true)}>Excel</Button>
+                                <Button size="sm" variant="outline" onClick={() => downloadAsDOCX(rep)}>DOCX</Button>
+                                <Button size="sm" onClick={() => finalizeReport(pra.id, rep.id)}>Finalize & Save</Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {(savedReportsByPra[pra.id] || []).length > 0 && (
+                          <div className="pt-2">
+                            <h6 className="font-medium text-sm mb-2">Saved Reports</h6>
+                            <div className="space-y-2">
+                              {savedReportsByPra[pra.id]!.map(sr => (
+                                <div key={sr.id} className="flex items-center justify-between p-2 border rounded">
+                                  <div className="text-sm">{sr.name} • Saved: {sr.savedDate} {sr.isSigned && <Badge className="ml-2" variant="secondary">Signed</Badge>}</div>
+                                  <div className="flex gap-2">
+                                    {!sr.isSigned && <Button size="sm" variant="outline" onClick={() => signSavedReport(pra.id, sr.id)}>Sign</Button>}
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      const rep = (reportsByPra[pra.id] || []).find(r => r.id === sr.id);
+                                      if (rep) printAsPDF(rep);
+                                    }}>Download</Button>
+                                    <Button size="sm" variant="outline" onClick={() => setShowCirculateDialog({ praId: pra.id, savedId: sr.id })}><Share2 className="h-3 w-3 mr-1"/>Circulate</Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                     </CardContent>
                   </Card>
                 ))}
@@ -647,6 +913,302 @@ const PRAEvaluation = () => {
             </div>
           </CardContent>
         </Card>
+
+{/* Customize Report Dialog */}
+<Dialog open={showCustomizeDialog} onOpenChange={setShowCustomizeDialog}>
+  <DialogContent className="max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Customize Provisional Report</DialogTitle>
+      <DialogDescription>Choose fields, order, layout, and sorting for the generated report</DialogDescription>
+    </DialogHeader>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm">Field Selection</h4>
+        <div className="space-y-2">
+          {allAvailableFields.map(f => {
+            const checked = reportCustomization.selectedFields.includes(f.key);
+            return (
+              <label key={f.key} className="flex items-center gap-2 text-sm">
+                <Checkbox checked={checked} onCheckedChange={(v) => {
+                  setReportCustomization(prev => {
+                    const selected = new Set(prev.selectedFields);
+                    if (v) { selected.add(f.key); } else { selected.delete(f.key); }
+                    const next = Array.from(selected);
+                    // ensure fieldOrder contains selected fields in order
+                    const newOrder = prev.fieldOrder.filter(k => next.includes(k));
+                    // append newly added at end
+                    next.forEach(k => { if (!newOrder.includes(k)) newOrder.push(k); });
+                    return { ...prev, selectedFields: next, fieldOrder: newOrder };
+                  });
+                }} />
+                {f.label}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h4 className="font-medium text-sm">Field Arrangement</h4>
+        <div className="space-y-2">
+          {reportCustomization.fieldOrder.filter(k => reportCustomization.selectedFields.includes(k)).map((k, idx, arr) => {
+            const label = allAvailableFields.find(f => f.key === k)?.label || k;
+            return (
+              <div key={k} className="flex items-center justify-between border rounded p-2 text-sm">
+                <span className="flex items-center gap-2"><Columns className="h-3 w-3" />{label}</span>
+                <div className="flex gap-1">
+                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={idx===0}
+                    onClick={() => setReportCustomization(prev => {
+                      const order = [...prev.fieldOrder];
+                      const i = order.indexOf(k);
+                      if (i>0) { [order[i-1], order[i]] = [order[i], order[i-1]]; }
+                      return { ...prev, fieldOrder: order };
+                    })}
+                  >
+                    <ArrowUp className="h-3 w-3" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={idx===arr.length-1}
+                    onClick={() => setReportCustomization(prev => {
+                      const order = [...prev.fieldOrder];
+                      const i = order.indexOf(k);
+                      if (i>=0 && i<order.length-1) { [order[i+1], order[i]] = [order[i], order[i+1]]; }
+                      return { ...prev, fieldOrder: order };
+                    })}
+                  >
+                    <ArrowDown className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="space-y-1">
+            <Label className="text-xs">Layout</Label>
+            <Select value={reportCustomization.layout} onValueChange={(v: 'horizontal' | 'vertical') => setReportCustomization(prev => ({ ...prev, layout: v }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="horizontal"><Columns className="h-3 w-3 mr-1 inline"/>Horizontal</SelectItem>
+                <SelectItem value="vertical"><Rows className="h-3 w-3 mr-1 inline"/>Vertical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Sort By</Label>
+            <Select value={reportCustomization.sortBy} onValueChange={(v) => setReportCustomization(prev => ({ ...prev, sortBy: v }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {allAvailableFields.map(f => (
+                  <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Direction</Label>
+            <Select value={reportCustomization.sortDirection} onValueChange={(v: 'asc'|'desc') => setReportCustomization(prev => ({ ...prev, sortDirection: v }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">Ascending</SelectItem>
+                <SelectItem value="desc">Descending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Filter: 29A</Label>
+            <Select value={(reportCustomization.filters.section29AStatus as string) || 'any'} onValueChange={(v) => setReportCustomization(prev => ({ ...prev, filters: { ...prev.filters, section29AStatus: v==='any' ? '' : v } }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any</SelectItem>
+                <SelectItem value="Compliant">Compliant</SelectItem>
+                <SelectItem value="Non-Compliant">Non-Compliant</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div className="flex justify-end gap-2 mt-4">
+      <Button variant="outline" onClick={() => setShowCustomizeDialog(false)}>Close</Button>
+      <Button onClick={() => { setShowCustomizeDialog(false); toast({ title: 'Customization Saved' }); }}>Save</Button>
+    </div>
+  </DialogContent>
+</Dialog>
+
+{/* Report Preview Dialog */}
+<Dialog open={!!showPreviewDialog} onOpenChange={(open) => { if (!open) setShowPreviewDialog(null); }}>
+  <DialogContent className="max-w-4xl">
+    <DialogHeader>
+      <DialogTitle>Report Preview</DialogTitle>
+    </DialogHeader>
+    {showPreviewDialog && (() => {
+      const rep = (reportsByPra[showPreviewDialog.praId] || []).find(r => r.id === showPreviewDialog.reportId);
+      if (!rep) return <div className="text-sm text-muted-foreground">Report not found</div>;
+      const { headers, rows } = buildReportMatrix(rep);
+      if (rep.customization.layout === 'vertical') {
+        // transpose: fields as rows
+        return (
+          <div className="overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Field</TableHead>
+                  {rep.data.map((_, idx) => (<TableHead key={idx}>Row {idx+1}</TableHead>))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {headers.map((h, i) => (
+                  <TableRow key={h}>
+                    <TableCell className="font-medium">{h}</TableCell>
+                    {rows.map((r, j) => (<TableCell key={`${i}-${j}`}>{r[i]}</TableCell>))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        );
+      }
+      // horizontal
+      return (
+        <div className="overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {headers.map(h => (<TableHead key={h}>{h}</TableHead>))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r, idx) => (
+                <TableRow key={idx}>{r.map((c, i) => (<TableCell key={`${idx}-${i}`}>{c}</TableCell>))}</TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    })()}
+    <div className="flex justify-end gap-2">
+      {showPreviewDialog && (() => {
+        const rep = (reportsByPra[showPreviewDialog.praId] || []).find(r => r.id === showPreviewDialog.reportId);
+        if (!rep) return null;
+        return (
+          <>
+            <Button variant="outline" onClick={() => printAsPDF(rep)}><Printer className="h-4 w-4 mr-1"/>PDF</Button>
+            <Button variant="outline" onClick={() => downloadAsCSV(rep, true)}>Excel</Button>
+            <Button variant="outline" onClick={() => downloadAsDOCX(rep)}>DOCX</Button>
+          </>
+        );
+      })()}
+    </div>
+  </DialogContent>
+</Dialog>
+
+{/* Signature Details Dialog */}
+<Dialog open={!!showSignatureDialog} onOpenChange={(open) => { if (!open) setShowSignatureDialog(null); }}>
+  <DialogContent className="max-w-lg">
+    <DialogHeader>
+      <DialogTitle>Signature Details Required</DialogTitle>
+      <DialogDescription>Provide missing fields to proceed with e-signing</DialogDescription>
+    </DialogHeader>
+    <div className="grid grid-cols-1 gap-3">
+      <div>
+        <Label className="text-xs">Full Name</Label>
+        <Input value={signatureForm.fullName} onChange={(e) => setSignatureForm(prev => ({ ...prev, fullName: e.target.value }))} />
+      </div>
+      <div>
+        <Label className="text-xs">Organization/Company Name</Label>
+        <Input value={signatureForm.organization} onChange={(e) => setSignatureForm(prev => ({ ...prev, organization: e.target.value }))} />
+      </div>
+      <div>
+        <Label className="text-xs">Registered Address</Label>
+        <Textarea value={signatureForm.address} onChange={(e) => setSignatureForm(prev => ({ ...prev, address: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Email</Label>
+          <Input value={signatureForm.email} onChange={(e) => setSignatureForm(prev => ({ ...prev, email: e.target.value }))} />
+        </div>
+        <div>
+          <Label className="text-xs">Phone Number</Label>
+          <Input value={signatureForm.phone} onChange={(e) => setSignatureForm(prev => ({ ...prev, phone: e.target.value }))} />
+        </div>
+      </div>
+    </div>
+    <div className="flex justify-end gap-2">
+      <Button variant="outline" onClick={() => setShowSignatureDialog(null)}>Cancel</Button>
+      <Button onClick={() => {
+        // Optionally persist minimal profile locally via updateUser for demo
+        updateUser({ firstName: signatureForm.fullName.split(' ')[0] || (user?.firstName || ''), lastName: signatureForm.fullName.split(' ').slice(1).join(' ') });
+        toast({ title: 'Details Saved', description: 'Proceeding to sign the report.' });
+        if (showSignatureDialog) {
+          signSavedReport(showSignatureDialog.praId, showSignatureDialog.savedId);
+          setShowSignatureDialog(null);
+        }
+      }}>Save & Sign</Button>
+    </div>
+  </DialogContent>
+</Dialog>
+
+{/* Circulation Dialog */}
+<Dialog open={!!showCirculateDialog} onOpenChange={(open) => { if (!open) setShowCirculateDialog(null); }}>
+  <DialogContent className="max-w-xl">
+    <DialogHeader>
+      <DialogTitle>Circulate Provisional PRA Report</DialogTitle>
+      <DialogDescription>Send the report to CoC members and PRAs with optional auto-mail cycle</DialogDescription>
+    </DialogHeader>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs">Email Mode</Label>
+          <Select defaultValue="auto">
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">Automatic</SelectItem>
+              <SelectItem value="manual">Manual</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Objection Due Date (optional)</Label>
+          <Input type="date" />
+        </div>
+      </div>
+      <div>
+        <Label className="text-xs">Additional Message (optional)</Label>
+        <Textarea placeholder="Add a brief note to include in the email..." />
+      </div>
+      <Alert>
+        <AlertDescription>
+          PRAs will receive an email with the PDF report attached. CoC members will receive a link to view/download and upload objections/documents.
+        </AlertDescription>
+      </Alert>
+    </div>
+    <div className="flex justify-end gap-2">
+      <Button variant="outline" onClick={() => setShowCirculateDialog(null)}>Cancel</Button>
+      <Button onClick={() => {
+        toast({ title: 'Circulation Queued', description: 'Emails to PRAs and CoC members have been initiated.' });
+        if (showCirculateDialog) {
+          // mark status as circulated
+          setReportsByPra(prev => ({
+            ...prev,
+            [showCirculateDialog.praId]: (prev[showCirculateDialog.praId] || []).map(r => r.id === showCirculateDialog.savedId ? { ...r, status: 'circulated' } : r)
+          }));
+          setShowCirculateDialog(null);
+        }
+      }}>Send</Button>
+    </div>
+  </DialogContent>
+</Dialog>
+
       </div>
     </DashboardLayout>
   );

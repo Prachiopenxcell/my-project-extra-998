@@ -11,6 +11,7 @@ import {
   Settings, 
   Search, 
   Users, 
+  User,
   FileText, 
   Calendar, 
   MoreHorizontal,
@@ -20,7 +21,11 @@ import {
   Edit,
   Download,
   MessageSquare,
-  Home
+  Home,
+  Lock,
+  ClipboardList,
+  MapPin,
+  ChevronDown
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -117,7 +122,7 @@ const DocumentRoomView = () => {
                 <div className="flex items-center gap-3">
                   <FolderOpen className="h-6 w-6 text-primary" />
                   <h1 className="text-2xl font-bold">{roomData.name}</h1>
-                  <Badge variant="secondary">🔒 {roomData.privacy}</Badge>
+                  <Badge variant="secondary"><Lock className="h-3 w-3 mr-1" /> {roomData.privacy}</Badge>
                   <Badge variant="outline">
                     <Users className="h-3 w-3 mr-1" />
                     {roomData.users} users
@@ -166,7 +171,8 @@ const DocumentRoomView = () => {
                 Share
               </Button>
               <Button variant="outline">
-                📋 Bulk Actions
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Bulk Actions
               </Button>
             </div>
           </CardContent>
@@ -176,7 +182,8 @@ const DocumentRoomView = () => {
         <Card>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>📍 Path: / Root</span>
+              <MapPin className="h-4 w-4" />
+              <span>Path: / Root</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
@@ -189,13 +196,13 @@ const DocumentRoomView = () => {
                 />
               </div>
               <Button variant="outline" size="icon">
-                📋
+                <ClipboardList className="h-4 w-4" />
               </Button>
               <Button variant="outline" size="icon">
                 <Settings className="h-4 w-4" />
               </Button>
               <Button variant="outline" size="icon">
-                🔽
+                <ChevronDown className="h-4 w-4" />
               </Button>
             </div>
           </CardContent>
@@ -225,8 +232,9 @@ const DocumentRoomView = () => {
                           {folder.documents}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        📅 Modified: {folder.modified}
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Modified: {folder.modified}
                       </p>
                     </div>
                     <DropdownMenu>
@@ -260,7 +268,13 @@ const DocumentRoomView = () => {
                         <Badge variant="outline" className="text-xs">{file.size}</Badge>
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p>👤 {file.owner} • 📅 {file.modified} • {file.access === "Editor Access" ? "✏️" : "👁️"} {file.access}</p>
+                        <p className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1"><User className="h-3 w-3" /> {file.owner}</span>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {file.modified}</span>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-1">{file.access === "Editor Access" ? <Edit className="h-3 w-3" /> : <Eye className="h-3 w-3" />} {file.access}</span>
+                        </p>
                       </div>
                     </div>
                     <DropdownMenu>

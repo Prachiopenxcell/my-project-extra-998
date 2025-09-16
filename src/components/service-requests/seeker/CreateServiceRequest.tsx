@@ -209,6 +209,9 @@ const CreateServiceRequest = () => {
     invitedProfessionals: [] as string[],
     repeatPastProfessionals: [] as string[],
     isAIAssisted: false,
+    // Professional Type: allow custom 'Other'
+    professionalTypeOtherSelected: false,
+    professionalTypeOtherText: '',
     // Professional invitation data
     professionalInvitation: {
       inviteChosenProfessionals: false,
@@ -1479,6 +1482,33 @@ const CreateServiceRequest = () => {
                     </Label>
                   </div>
                 ))}
+                {/* Other (specify) option */}
+                <div className="flex items-start space-x-2 col-span-2 md:col-span-1">
+                  <Checkbox
+                    id="professional_type_other"
+                    checked={formData.professionalTypeOtherSelected}
+                    onCheckedChange={(checked) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        professionalTypeOtherSelected: !!checked,
+                        professionalTypeOtherText: checked ? prev.professionalTypeOtherText : ''
+                      }));
+                    }}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="professional_type_other" className="text-sm">
+                      Other (specify)
+                    </Label>
+                    {formData.professionalTypeOtherSelected && (
+                      <Input
+                        className="mt-2"
+                        placeholder="Enter other professional type"
+                        value={formData.professionalTypeOtherText}
+                        onChange={(e) => setFormData(prev => ({ ...prev, professionalTypeOtherText: e.target.value }))}
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -2387,12 +2417,17 @@ const CreateServiceRequest = () => {
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Professional Types:</Label>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {formData.serviceCategory.length > 0 ? (
-                      formData.serviceCategory.map((cat) => (
-                        <Badge key={cat} variant="outline" className="bg-blue-50">
-                          {professionalTypes.find(p => p.value === cat)?.label}
-                        </Badge>
-                      ))
+                    {(formData.serviceCategory.length > 0 || (formData.professionalTypeOtherSelected && formData.professionalTypeOtherText.trim())) ? (
+                      <>
+                        {formData.serviceCategory.map((cat) => (
+                          <Badge key={cat} variant="outline" className="bg-blue-50">
+                            {professionalTypes.find(p => p.value === cat)?.label}
+                          </Badge>
+                        ))}
+                        {formData.professionalTypeOtherSelected && formData.professionalTypeOtherText.trim() && (
+                          <Badge variant="outline" className="bg-blue-50">Other: {formData.professionalTypeOtherText.trim()}</Badge>
+                        )}
+                      </>
                     ) : (
                       <span className="text-sm text-gray-500 italic">No professional types selected</span>
                     )}

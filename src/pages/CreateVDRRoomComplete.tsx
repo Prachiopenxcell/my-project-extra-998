@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/use-toast";
 import { 
   ArrowLeft,
   ArrowRight,
@@ -30,7 +32,8 @@ import {
   Building,
   Bell,
   Clock,
-  Download
+  Download,
+  Share2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -61,7 +64,7 @@ const CreateVDRRoomComplete = () => {
   const [newExternalPhone, setNewExternalPhone] = useState("");
 
   // Step 3 - Folder Structure
-  const [folderStructure, setFolderStructure] = useState([
+  const [folderStructure, setFolderStructure] = useState<FolderNode[]>([
     {
       id: "1",
       name: "01_Financial_Documents",
@@ -119,6 +122,156 @@ const CreateVDRRoomComplete = () => {
     smsUrgent: false
   });
 
+  // Step 5 - Assign Documents
+  type Assignee = { id: string; label: string; email: string; role: "Editor" | "Commenter" | "Suggestion" };
+  type DocAssignments = Record<string, Assignee[]>; // key: document id
+  const [selectedAssignDoc, setSelectedAssignDoc] = useState<string>("1");
+  const [docAssignments, setDocAssignments] = useState<DocAssignments>({});
+  const [assignEmail, setAssignEmail] = useState("");
+  const [assignRole, setAssignRole] = useState<"Editor" | "Commenter" | "Suggestion">("Editor");
+  const partners: { id: string; name: string; email: string }[] = [
+    { id: "p1", name: "Alpha Partners", email: "alpha@partners.com" },
+    { id: "p2", name: "Beta Associates", email: "beta@associates.com" },
+    { id: "p3", name: "Gamma Capital", email: "gamma@capital.com" }
+  ];
+  const allSelectableUsers = [
+    ...teamMembers.map(m => ({ id: `tm-${m.id}`, name: m.name, email: m.email })),
+    ...partners.map(p => ({ id: `pt-${p.id}`, name: p.name, email: p.email }))
+  ];
+  const [selectUserId, setSelectUserId] = useState<string>(allSelectableUsers[0]?.id ?? "");
+
+  const ensureDoc = (docId: string) => {
+    if (!docAssignments[docId]) {
+      setDocAssignments(prev => ({ ...prev, [docId]: [] }));
+    }
+  };
+
+  // Step 2 - Send invites from External Users panel
+  const sendExternalInvites = () => {
+    const count = externalUsers.length;
+    if (count === 0) {
+      toast({ title: "No external users", description: "Add external users before sending invites.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Invitations sent", description: `Sent invites to ${count} external user${count > 1 ? 's' : ''}.` });
+  };
+
+  const addAssigneeByEmail = () => {
+    const email = assignEmail.trim();
+    if (!email) return;
+    const docId = selectedAssignDoc;
+    ensureDoc(docId);
+    setDocAssignments(prev => {
+      const list = prev[docId] ?? [];
+      if (list.some(a => a.email.toLowerCase() === email.toLowerCase())) return prev;
+      const newAssignee: Assignee = { id: `em-${Date.now()}`, label: email, email, role: assignRole };
+      return { ...prev, [docId]: [...list, newAssignee] };
+    });
+    setAssignEmail("");
+    toast({ title: "Assignee added", description: `${email} added as ${assignRole}.` });
+  };
+
+  const addAssigneeFromSelect = () => {
+    if (!selectUserId) return;
+    const user = allSelectableUsers.find(u => u.id === selectUserId);
+    if (!user) return;
+    const docId = selectedAssignDoc;
+    ensureDoc(docId);
+    setDocAssignments(prev => {
+      const list = prev[docId] ?? [];
+      if (list.some(a => a.email.toLowerCase() === user.email.toLowerCase())) return prev;
+      const newAssignee: Assignee = { id: user.id, label: user.name, email: user.email, role: assignRole };
+      return { ...prev, [docId]: [...list, newAssignee] };
+    });
+    toast({ title: "Assignee added", description: `${user.name} added as ${assignRole}.` });
+  };
+
+  const updateAssigneeRole = (assigneeId: string, role: Assignee["role"]) => {
+    const docId = selectedAssignDoc;
+    setDocAssignments(prev => ({
+      ...prev,
+      [docId]: (prev[docId] ?? []).map(a => a.id === assigneeId ? { ...a, role } : a)
+    }));
+  };
+
+  const removeAssignee = (assigneeId: string) => {
+    const docId = selectedAssignDoc;
+    setDocAssignments(prev => ({
+      ...prev,
+      [docId]: (prev[docId] ?? []).filter(a => a.id !== assigneeId)
+    }));
+  };
+
+  // Dialog state - Step 2 actions
+  const [showInternalDialog, setShowInternalDialog] = useState(false);
+  const [showExternalDialog, setShowExternalDialog] = useState(false);
+  const [internalSearch, setInternalSearch] = useState("");
+  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [inviteEmailInput, setInviteEmailInput] = useState("");
+  const [inviteRole, setInviteRole] = useState("Viewer");
+
+  // Step 3 - Folder actions state (GDrive-like)
+  type FolderChild = { id: string; name: string };
+  type FolderNode = { id: string; name: string; children?: FolderChild[] };
+  type ShareEntry = { email: string; role: "Editor" | "Commenter" | "Suggestion" };
+  const [folderShares, setFolderShares] = useState<Record<string, ShareEntry[]>>({});
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareFolderId, setShareFolderId] = useState<string>("");
+  const [shareEmailInput, setShareEmailInput] = useState("");
+  const [shareRole, setShareRole] = useState<"Editor" | "Commenter" | "Suggestion">("Editor");
+
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renameFolderId, setRenameFolderId] = useState<string>("");
+  const [renameValue, setRenameValue] = useState("");
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteFolderId, setDeleteFolderId] = useState<string>("");
+  const [deleteFolderName, setDeleteFolderName] = useState("");
+
+  // Add Subfolder
+  const [showAddSubDialog, setShowAddSubDialog] = useState(false);
+  const [addSubParentId, setAddSubParentId] = useState<string>("");
+  const [newSubfolderName, setNewSubfolderName] = useState("");
+
+  // Resolve folder name by ID for dialog headers
+  const getFolderNameById = (id: string): string => {
+    for (const f of folderStructure) {
+      if (f.id === id) return f.name;
+      if (f.children) {
+        const c = f.children.find(ch => ch.id === id);
+        if (c) return c.name;
+      }
+    }
+    return "";
+  };
+
+  // Simple audit logger (front-end demo) – compatible with AuditTrail page
+  type AuditRecord = {
+    timestamp: string;
+    user: string;
+    action: string;
+    resource: string;
+    location: string;
+    module: string;
+  };
+  const logAudit = (action: string, resource: string, location: string) => {
+    try {
+      const key = "vdr_audit_log";
+      const existing: AuditRecord[] = JSON.parse(localStorage.getItem(key) || "[]");
+      const rec: AuditRecord = {
+        timestamp: new Date().toISOString(),
+        user: "John D.",
+        action,
+        resource,
+        location,
+        module: "Document Storage"
+      };
+      localStorage.setItem(key, JSON.stringify([rec, ...existing].slice(0, 500)));
+    } catch (err) {
+      // ignore localStorage errors in demo
+    }
+  };
+
   const steps = [
     { id: 1, name: "Setup", label: "Template Selection" },
     { id: 2, name: "Group", label: "Create/Assign Group" },
@@ -133,6 +286,144 @@ const CreateVDRRoomComplete = () => {
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
+  };
+
+  // Handlers for dialogs
+  const openAddInternal = () => {
+    setShowInternalDialog(true);
+    toast({ title: "Add Internal", description: "Opening internal members selector." });
+  };
+  const openInviteExternal = () => {
+    setShowExternalDialog(true);
+    toast({ title: "Invite External", description: "Opening external invite dialog." });
+  };
+
+  const addSelectedInternals = () => {
+    // In this mock, selections are already applied via checkboxes in dialog
+    setShowInternalDialog(false);
+    toast({ title: "Members added", description: "Selected internal members have been added to the group." });
+  };
+
+  const addInviteEmail = () => {
+    const email = inviteEmailInput.trim();
+    if (!email) return;
+    if (inviteEmails.includes(email)) return;
+    setInviteEmails([...inviteEmails, email]);
+    setInviteEmailInput("");
+  };
+
+  const removeInviteEmail = (email: string) => {
+    setInviteEmails(inviteEmails.filter(e => e !== email));
+  };
+
+  const sendInvites = () => {
+    if (inviteEmails.length === 0) {
+      toast({ title: "No recipients", description: "Add at least one external email to invite.", variant: "destructive" });
+      return;
+    }
+    // Append to externalUsers list
+    const newUsers = inviteEmails.map(email => ({ email, phone: "", role: inviteRole }));
+    setExternalUsers([...externalUsers, ...newUsers]);
+    const count = inviteEmails.length;
+    setInviteEmails([]);
+    setShowExternalDialog(false);
+    toast({ title: "Invitations sent", description: `Sent ${count} invite${count > 1 ? 's' : ''} as ${inviteRole}.` });
+  };
+
+  // Utilities for Step 3 folder manipulation
+  const openShareFolder = (folderId: string) => {
+    setShareFolderId(folderId);
+    setShowShareDialog(true);
+  };
+
+  const addShareRecipient = () => {
+    const email = shareEmailInput.trim();
+    if (!email) return;
+    setFolderShares(prev => {
+      const list = prev[shareFolderId] ?? [];
+      if (list.some(e => e.email.toLowerCase() === email.toLowerCase())) return prev;
+      return { ...prev, [shareFolderId]: [...list, { email, role: shareRole }] };
+    });
+    setShareEmailInput("");
+  };
+
+  const removeShareRecipient = (email: string) => {
+    setFolderShares(prev => ({
+      ...prev,
+      [shareFolderId]: (prev[shareFolderId] ?? []).filter(e => e.email !== email)
+    }));
+  };
+
+  const confirmShare = () => {
+    const count = (folderShares[shareFolderId] ?? []).length;
+    setShowShareDialog(false);
+    toast({ title: "Sharing updated", description: `${count} recipient${count === 1 ? '' : 's'} for this folder.` });
+    const name = getFolderNameById(shareFolderId);
+    logAudit("SHARED", name || "Folder", "Folder Structure");
+  };
+
+  const openRenameFolder = (folderId: string, currentName: string) => {
+    setRenameFolderId(folderId);
+    setRenameValue(currentName);
+    setShowRenameDialog(true);
+  };
+
+  const applyRenameFolder = () => {
+    const oldName = getFolderNameById(renameFolderId);
+    const rename = (items: FolderNode[]): FolderNode[] => items.map((f): FolderNode => {
+      if (f.id === renameFolderId) return { ...f, name: renameValue };
+      if (f.children && f.children.length > 0) {
+        return { ...f, children: rename(f.children) };
+      }
+      return f;
+    });
+    setFolderStructure(prev => rename(prev));
+    setShowRenameDialog(false);
+    toast({ title: "Renamed", description: `Folder renamed to '${renameValue}'.` });
+    logAudit("EDITED", `${oldName} -> ${renameValue}`, "Folder Structure");
+  };
+
+  const openDeleteFolder = (folderId: string, name: string) => {
+    setDeleteFolderId(folderId);
+    setDeleteFolderName(name);
+    setShowDeleteDialog(true);
+  };
+
+  const applyDeleteFolder = () => {
+    const remove = (items: FolderNode[]): FolderNode[] => items
+      .filter(f => f.id !== deleteFolderId)
+      .map((f): FolderNode => {
+        if (f.children && f.children.length > 0) {
+          return { ...f, children: remove(f.children) };
+        }
+        return f;
+      });
+    setFolderStructure(prev => remove(prev));
+    setShowDeleteDialog(false);
+    toast({ title: "Deleted", description: `Folder '${deleteFolderName}' removed.` });
+    logAudit("DELETE", deleteFolderName, "Folder Structure");
+  };
+
+  const openAddSubfolder = (parentId: string) => {
+    setAddSubParentId(parentId);
+    setShowAddSubDialog(true);
+  };
+
+  const applyAddSubfolder = () => {
+    const addSubfolder = (items: FolderNode[]): FolderNode[] => items.map((f): FolderNode => {
+      if (f.id === addSubParentId) {
+        const newSubfolder: FolderChild = { id: String(Date.now()), name: newSubfolderName };
+        return { ...f, children: [...(f.children || []), newSubfolder] };
+      }
+      if (f.children && f.children.length > 0) {
+        return { ...f, children: addSubfolder(f.children) };
+      }
+      return f;
+    });
+    setFolderStructure(prev => addSubfolder(prev));
+    setShowAddSubDialog(false);
+    toast({ title: "Added", description: `Subfolder '${newSubfolderName}' added.` });
+    logAudit("ADDED", newSubfolderName, "Folder Structure");
   };
 
   const handlePrevious = () => {
@@ -421,6 +712,94 @@ const CreateVDRRoomComplete = () => {
                 </Card>
               )}
             </CardContent>
+
+            {/* Step 2 Dialogs: Add Internal / Invite External */}
+            <Dialog open={showInternalDialog} onOpenChange={setShowInternalDialog}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Add Internal Members</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Search team members"
+                    value={internalSearch}
+                    onChange={(e) => setInternalSearch(e.target.value)}
+                  />
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {teamMembers
+                      .filter(m => m.name.toLowerCase().includes(internalSearch.toLowerCase()) || m.email.toLowerCase().includes(internalSearch.toLowerCase()))
+                      .map(member => (
+                        <label key={member.id} className="flex items-center justify-between p-2 border rounded">
+                          <div className="flex items-center gap-2">
+                            <Checkbox checked={member.selected} onCheckedChange={() => toggleTeamMember(member.id)} />
+                            <div>
+                              <p className="text-sm font-medium">{member.name}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline">{member.role}</Badge>
+                        </label>
+                      ))}
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowInternalDialog(false)}>Cancel</Button>
+                  <Button onClick={addSelectedInternals}>Add Selected</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showExternalDialog} onOpenChange={setShowExternalDialog}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Invite External Users</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="sm:col-span-2">
+                      <Input
+                        placeholder="Enter email and press Add"
+                        value={inviteEmailInput}
+                        onChange={(e) => setInviteEmailInput(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={addInviteEmail}>Add</Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Role for Invites</label>
+                      <Select value={inviteRole} onValueChange={setInviteRole}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Editor">Editor</SelectItem>
+                          <SelectItem value="Viewer">Viewer</SelectItem>
+                          <SelectItem value="Commenter">Commenter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {inviteEmails.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Pending Invites ({inviteEmails.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {inviteEmails.map(email => (
+                          <Badge key={email} variant="secondary" className="flex items-center gap-2">
+                            {email}
+                            <button onClick={() => removeInviteEmail(email)} className="ml-1 text-xs">✕</button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowExternalDialog(false)}>Cancel</Button>
+                  <Button onClick={sendInvites}>Send Invites</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </Card>
         )}
 
@@ -432,6 +811,27 @@ const CreateVDRRoomComplete = () => {
               <p className="text-sm text-muted-foreground">Set up team access and permissions</p>
             </CardHeader>
             <CardContent>
+              {/* Create Group - Basic Details */}
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Group Name</label>
+                  <Input
+                    placeholder="Enter group name (e.g., Due Diligence Team)"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Short Description</label>
+                  <Textarea
+                    placeholder="Briefly describe the group's purpose (shown to members)"
+                    value={groupDescription}
+                    onChange={(e) => setGroupDescription(e.target.value)}
+                    rows={2}
+                    className="resize-none"
+                  />
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-6">
                 {/* Team Members */}
                 <div>
@@ -477,11 +877,11 @@ const CreateVDRRoomComplete = () => {
                   <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                     <p className="text-sm font-medium mb-2">SELECTED MEMBERS: {teamMembers.filter(m => m.selected).length}</p>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" onClick={openAddInternal}>
                         <UserPlus className="mr-1 h-3 w-3" />
                         Add Internal
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" onClick={openInviteExternal}>
                         <Mail className="mr-1 h-3 w-3" />
                         Invite External
                       </Button>
@@ -540,6 +940,12 @@ const CreateVDRRoomComplete = () => {
                           </div>
                         ))}
                       </div>
+                      <div className="flex justify-end mt-3">
+                        <Button size="sm" onClick={sendExternalInvites}>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send Invites
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="p-3 bg-blue-50 rounded-lg">
@@ -552,6 +958,7 @@ const CreateVDRRoomComplete = () => {
                 </div>
               </div>
             </CardContent>
+
           </Card>
         )}
 
@@ -576,13 +983,21 @@ const CreateVDRRoomComplete = () => {
                             <span className="font-medium">{folder.name}</span>
                           </div>
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" title="Share" onClick={() => openShareFolder(folder.id)}>
+                              <Share2 className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="sm" title="Rename" onClick={() => openRenameFolder(folder.id, folder.name)}>
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Add Subfolder"
+                              onClick={() => { setAddSubParentId(folder.id); setNewSubfolderName(""); setShowAddSubDialog(true); }}
+                            >
                               <Plus className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" title="Delete" onClick={() => openDeleteFolder(folder.id, folder.name)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
@@ -597,11 +1012,14 @@ const CreateVDRRoomComplete = () => {
                                   <span className="text-sm">{child.name}</span>
                                 </div>
                                 <div className="flex gap-1">
-                                  <Button variant="ghost" size="sm">
-                                    <Settings className="h-3 w-3" />
+                                  <Button variant="ghost" size="sm" title="Share" onClick={() => openShareFolder(child.id)}>
+                                    <Share2 className="h-3 w-3" />
                                   </Button>
-                                  <Button variant="ghost" size="sm">
-                                    <Users className="h-3 w-3" />
+                                  <Button variant="ghost" size="sm" title="Rename" onClick={() => openRenameFolder(child.id, child.name)}>
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" title="Delete" onClick={() => openDeleteFolder(child.id, child.name)}>
+                                    <Trash2 className="h-3 w-3" />
                                   </Button>
                                 </div>
                               </div>
@@ -716,6 +1134,122 @@ const CreateVDRRoomComplete = () => {
                 </div>
               </div>
             </CardContent>
+
+            {/* Step 3 Dialogs: Share / Rename / Delete / Add Subfolder */}
+            <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Share Folder {shareFolderId ? `· ${getFolderNameById(shareFolderId)}` : ""}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="sm:col-span-2">
+                      <Input
+                        placeholder="Add email address"
+                        value={shareEmailInput}
+                        onChange={(e) => setShareEmailInput(e.target.value)}
+                      />
+                    </div>
+                    <Button onClick={addShareRecipient}>Add</Button>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Access</label>
+                    <Select value={shareRole} onValueChange={(v) => setShareRole(v as "Editor" | "Commenter" | "Suggestion")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Editor">Editor</SelectItem>
+                        <SelectItem value="Commenter">Commenter</SelectItem>
+                        <SelectItem value="Suggestion">Suggestion</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(folderShares[shareFolderId] ?? []).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Shared with</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(folderShares[shareFolderId] ?? []).map(entry => (
+                          <Badge key={entry.email} variant="secondary" className="flex items-center gap-2">
+                            {entry.email} · {entry.role}
+                            <button onClick={() => removeShareRecipient(entry.email)} className="ml-1 text-xs">✕</button>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowShareDialog(false)}>Cancel</Button>
+                  <Button onClick={confirmShare}>Save</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Rename Folder {renameFolderId ? `· ${getFolderNameById(renameFolderId)}` : ""}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowRenameDialog(false)}>Cancel</Button>
+                  <Button onClick={applyRenameFolder}>Rename</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Delete Folder {deleteFolderName ? `· ${deleteFolderName}` : ""}</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm">Are you sure you want to delete "{deleteFolderName}"? This action cannot be undone.</p>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+                  <Button variant="destructive" onClick={applyDeleteFolder}>Delete</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showAddSubDialog} onOpenChange={setShowAddSubDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Subfolder {addSubParentId ? `· ${getFolderNameById(addSubParentId)}` : ""}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Input
+                    placeholder="Subfolder name"
+                    value={newSubfolderName}
+                    onChange={(e) => setNewSubfolderName(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowAddSubDialog(false)}>Cancel</Button>
+                  <Button
+                    onClick={() => {
+                      if (!newSubfolderName.trim()) return;
+                      setFolderStructure(prev => prev.map(f => {
+                        if (f.id === addSubParentId) {
+                          const children = f.children ? [...f.children] : [];
+                          const newId = `${f.id}-${children.length + 1}`;
+                          return { ...f, children: [...children, { id: newId, name: newSubfolderName.trim() }] };
+                        }
+                        return f;
+                      }));
+                      setShowAddSubDialog(false);
+                      toast({ title: "Subfolder added", description: `Created '${newSubfolderName}'` });
+                      const parentName = getFolderNameById(addSubParentId) || "Root";
+                      logAudit("UPLOADED", newSubfolderName.trim(), parentName);
+                    }}
+                  >
+                    Create
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </Card>
         )}
 
@@ -1011,8 +1545,124 @@ const CreateVDRRoomComplete = () => {
 
                 <TabsContent value="documents" className="space-y-4">
                   <Card>
-                    <CardContent className="p-4">
-                      <p className="text-center text-muted-foreground">Document-level access management will be available here.</p>
+                    <CardHeader>
+                      <CardTitle className="text-lg">ASSIGN DOCUMENTS</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Select Document */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="text-sm font-medium mb-1 block">Select Document</label>
+                          <Select value={selectedAssignDoc} onValueChange={setSelectedAssignDoc}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {uploadedDocuments.map(doc => (
+                                <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Default Access</label>
+                          <Select value={assignRole} onValueChange={(v) => setAssignRole(v as "Editor" | "Commenter" | "Suggestion")}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Editor">Editor</SelectItem>
+                              <SelectItem value="Commenter">Commenter</SelectItem>
+                              <SelectItem value="Suggestion">Suggestion</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Add by Email */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Add by Email</label>
+                        <div className="flex gap-2">
+                          <Input placeholder="user@company.com" value={assignEmail} onChange={(e) => setAssignEmail(e.target.value)} />
+                          <Button onClick={addAssigneeByEmail}>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Add from Team/Partners */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                        <div className="md:col-span-2">
+                          <label className="text-sm font-medium mb-1 block">Select from Team Members & Partners</label>
+                          <Select value={selectUserId} onValueChange={setSelectUserId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose user" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allSelectableUsers.map(u => (
+                                <SelectItem key={u.id} value={u.id}>{u.name} ({u.email})</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Button className="w-full" onClick={addAssigneeFromSelect}>
+                            Assign
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Current Assignments */}
+                      <div>
+                        <h4 className="font-medium mb-2">Current Assignees</h4>
+                        <div className="border rounded-lg overflow-hidden">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="text-left p-3 text-sm font-medium">Name / Email</th>
+                                <th className="text-left p-3 text-sm font-medium">Access</th>
+                                <th className="text-left p-3 text-sm font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(docAssignments[selectedAssignDoc] ?? []).length === 0 ? (
+                                <tr>
+                                  <td className="p-3 text-sm text-muted-foreground" colSpan={3}>No assignees yet. Add from email or user list above.</td>
+                                </tr>
+                              ) : (
+                                (docAssignments[selectedAssignDoc] ?? []).map(assignee => (
+                                  <tr key={assignee.id} className="border-b">
+                                    <td className="p-3 text-sm">
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{assignee.label}</span>
+                                        <span className="text-xs text-muted-foreground">{assignee.email}</span>
+                                      </div>
+                                    </td>
+                                    <td className="p-3">
+                                      <Select value={assignee.role} onValueChange={(v) => updateAssigneeRole(assignee.id, v as Assignee["role"])}>
+                                        <SelectTrigger className="w-40">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Editor">Editor</SelectItem>
+                                          <SelectItem value="Commenter">Commenter</SelectItem>
+                                          <SelectItem value="Suggestion">Suggestion</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
+                                    <td className="p-3">
+                                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeAssignee(assignee.id)}>
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>

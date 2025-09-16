@@ -369,46 +369,55 @@ const CreateDataRecord = () => {
       return;
     }
 
+    // Prevent double-start
+    if (aiAutoSync) return;
     setAiAutoSync(true);
+
+    // Safety fallback in case the inner flow throws
+    const safety = setTimeout(() => setAiAutoSync(false), 15000);
+
     // Simulate AI processing
     setTimeout(() => {
-      // Auto-populate fields with AI-generated data
-      recordCategories.forEach(category => {
-        category.fields.forEach(field => {
-          if (field.required && !recordData[`${category.id}-${field.id}`]) {
-            let aiValue = '';
-            // Simulate AI-generated values based on field type
-            switch (field.id) {
-              case 'company-name':
-                aiValue = selectedEntity?.name || '';
-                break;
-              case 'cin':
-                aiValue = selectedEntity?.cin || '';
-                break;
-              case 'registered-address':
-                aiValue = '123 Business District, Mumbai, Maharashtra 400001';
-                break;
-              case 'contact-email':
-                aiValue = 'info@' + (selectedEntity?.name.toLowerCase().replace(/\s+/g, '') || 'company') + '.com';
-                break;
-              case 'contact-phone':
-                aiValue = '+91 22 1234 5678';
-                break;
-              default:
-                if (field.type === 'number') aiValue = '0';
-                else if (field.type === 'date') aiValue = new Date().toISOString().split('T')[0];
-                else aiValue = 'Auto-filled by AI';
+      try {
+        // Auto-populate fields with AI-generated data
+        recordCategories.forEach(category => {
+          category.fields.forEach(field => {
+            if (field.required && !recordData[`${category.id}-${field.id}`]) {
+              let aiValue = '';
+              // Simulate AI-generated values based on field type
+              switch (field.id) {
+                case 'company-name':
+                  aiValue = selectedEntity?.name || '';
+                  break;
+                case 'cin':
+                  aiValue = selectedEntity?.cin || '';
+                  break;
+                case 'registered-address':
+                  aiValue = '123 Business District, Mumbai, Maharashtra 400001';
+                  break;
+                case 'contact-email':
+                  aiValue = 'info@' + (selectedEntity?.name.toLowerCase().replace(/\s+/g, '') || 'company') + '.com';
+                  break;
+                case 'contact-phone':
+                  aiValue = '+91 22 1234 5678';
+                  break;
+                default:
+                  if (field.type === 'number') aiValue = '0';
+                  else if (field.type === 'date') aiValue = new Date().toISOString().split('T')[0];
+                  else aiValue = 'Auto-filled by AI';
+              }
+              handleFieldUpdate(category.id, field.id, aiValue);
             }
-            handleFieldUpdate(category.id, field.id, aiValue);
-          }
+          });
         });
-      });
-      
-      setAiAutoSync(false);
-      toast({
-        title: "AI Auto-Fill Complete",
-        description: "Successfully populated fields using AI and cross-module data.",
-      });
+        toast({
+          title: "AI Auto-Fill Complete",
+          description: "Successfully populated fields using AI and cross-module data.",
+        });
+      } finally {
+        clearTimeout(safety);
+        setAiAutoSync(false);
+      }
     }, 2000);
   };
 

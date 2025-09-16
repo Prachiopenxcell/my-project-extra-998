@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
@@ -47,11 +48,14 @@ interface ClaimsStats {
 }
 
 interface ClaimInvitation {
-  id: string;
-  creationDate: string;
+  id: string; // internal id
+  invitationId: string; // display id like INV001
+  createdBy: string;
+  creationDate: string; // YYYY-MM-DD
   capacity: string;
   authority: string;
   status: 'submission_progress' | 'verification_progress' | 'admission_progress' | 'closed';
+  displayStatus: 'active' | 'expired';
   claimsReceived: number;
   entityName: string;
 }
@@ -67,12 +71,10 @@ interface RecentActivity {
 }
 
 interface PendingAction {
-  id: string;
-  type: 'allocation' | 'verification' | 'admission';
-  claimantName: string;
-  amount: number;
-  daysOverdue: number;
-  priority: 'high' | 'medium' | 'low';
+  actionId: string; // e.g., ACT001
+  claimId: string;  // e.g., CLM006
+  action: 'Verify Documents' | 'Admit Claim' | 'Allocate Team';
+  dueDate: string; // YYYY-MM-DD
 }
 
 const ClaimsManagement = () => {
@@ -83,31 +85,49 @@ const ClaimsManagement = () => {
 
   // Mock data - replace with actual API calls
   const [claimsStats, setClaimsStats] = useState<ClaimsStats>({
-    allClaimsReceived: 156,
-    pendingVerification: 23,
-    pendingAdmission: 12,
-    pendingAllocation: 8,
-    totalAdmittedAmount: 2450000
+    allClaimsReceived: 13,
+    pendingVerification: 3,
+    pendingAdmission: 2,
+    pendingAllocation: 3,
+    totalAdmittedAmount: 2500000
   });
 
   const [recentInvitations, setRecentInvitations] = useState<ClaimInvitation[]>([
     {
       id: "inv-001",
-      creationDate: "2024-01-15",
+      invitationId: "INV001",
+      createdBy: "Admin User",
+      creationDate: "2024-06-28",
       capacity: "IRP appointed by NCLT",
       authority: "Admission Order by NCLT",
       status: "verification_progress",
+      displayStatus: "active",
       claimsReceived: 45,
       entityName: "ABC Corporation Ltd"
     },
     {
       id: "inv-002", 
-      creationDate: "2024-01-10",
+      invitationId: "INV002",
+      createdBy: "Team Lead",
+      creationDate: "2024-06-25",
       capacity: "Liquidator appointed by NCLT",
       authority: "Liquidation Order by NCLT",
       status: "submission_progress",
+      displayStatus: "expired",
       claimsReceived: 23,
       entityName: "XYZ Industries Ltd"
+    },
+    {
+      id: "inv-003", 
+      invitationId: "INV003",
+      createdBy: "Admin User",
+      creationDate: "2024-06-20",
+      capacity: "IRP appointed by NCLT",
+      authority: "Admission Order by NCLT",
+      status: "submission_progress",
+      displayStatus: "active",
+      claimsReceived: 12,
+      entityName: "PQR Services Ltd"
     }
   ]);
 
@@ -134,20 +154,22 @@ const ClaimsManagement = () => {
 
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([
     {
-      id: "pa-001",
-      type: "allocation",
-      claimantName: "State Bank of India",
-      amount: 500000,
-      daysOverdue: 3,
-      priority: "high"
+      actionId: "ACT001",
+      claimId: "CLM006",
+      action: "Verify Documents",
+      dueDate: "2024-07-10"
     },
     {
-      id: "pa-002",
-      type: "verification",
-      claimantName: "ICICI Bank Ltd",
-      amount: 200000,
-      daysOverdue: 1,
-      priority: "medium"
+      actionId: "ACT002",
+      claimId: "CLM007",
+      action: "Admit Claim",
+      dueDate: "2024-07-12"
+    },
+    {
+      actionId: "ACT003",
+      claimId: "CLM008",
+      action: "Allocate Team",
+      dueDate: "2024-07-08"
     }
   ]);
 
@@ -164,6 +186,12 @@ const ClaimsManagement = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getInvitationDisplayStatusClass = (displayStatus: 'active' | 'expired') => {
+    return displayStatus === 'active' 
+      ? 'bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs'
+      : 'bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs';
   };
 
   const getPriorityColor = (priority: string) => {
@@ -277,7 +305,7 @@ const ClaimsManagement = () => {
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/claims/allocation')}>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/claims/all-claims?tab=allocation')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Allocation</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -305,78 +333,80 @@ const ClaimsManagement = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Recent Claim Invitations */}
+          {/* Recent Claim Invitations - Table */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-semibold">Recent Claim Invitations</CardTitle>
-              <Button variant="outline" size="sm" onClick={handleViewAllInvitations}>
-                <Eye className="w-4 h-4 mr-2" />
-                View All
-              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentInvitations.map((invitation) => (
-                  <div key={invitation.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{invitation.entityName}</h4>
-                        <Badge className={getStatusColor(invitation.status)}>
-                          {invitation.status.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">{invitation.capacity}</p>
-                      <p className="text-xs text-gray-500">Created: {invitation.creationDate}</p>
-                      <p className="text-xs text-gray-500">Claims: {invitation.claimsReceived}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invitation ID</TableHead>
+                      <TableHead>Created By</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentInvitations.map((inv) => (
+                      <TableRow key={inv.id} className="text-sm">
+                        <TableCell className="font-medium">{inv.invitationId}</TableCell>
+                        <TableCell>{inv.createdBy}</TableCell>
+                        <TableCell>{new Date(inv.creationDate).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <span className={getInvitationDisplayStatusClass(inv.displayStatus)}>
+                            {inv.displayStatus === 'active' ? 'Active' : 'Expired'}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="text-center mt-4">
+                <Button variant="link" className="text-blue-600" onClick={handleViewAllInvitations}>
+                  View All Claim Invitations
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* My Pending Actions */}
+          {/* My Pending Actions - Table */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold">My Pending Actions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {pendingActions.map((action) => (
-                  <div key={action.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{action.claimantName}</h4>
-                        <Badge className={getPriorityColor(action.priority)}>
-                          {action.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {action.type === 'allocation' && 'Team Allocation Required'}
-                        {action.type === 'verification' && 'Claim Verification Required'}
-                        {action.type === 'admission' && 'Claim Admission Required'}
-                      </p>
-                      <p className="text-xs text-gray-500">Amount: {formatCurrency(action.amount)}</p>
-                      <p className="text-xs text-red-500">{action.daysOverdue} days overdue</p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => {
-                      if (action.type === 'verification') navigate(`/claims/verify/${action.id}`);
-                      else if (action.type === 'allocation') navigate(`/claims/claim/${action.id}`);
-                      else navigate(`/claims/claim/${action.id}`);
-                    }}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Review
-                    </Button>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Action ID</TableHead>
+                      <TableHead>Claim ID</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Due Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingActions.map((pa) => (
+                      <TableRow key={pa.actionId} className="text-sm">
+                        <TableCell className="font-medium">{pa.actionId}</TableCell>
+                        <TableCell className="font-mono">{pa.claimId}</TableCell>
+                        <TableCell>
+                          {pa.action}
+                        </TableCell>
+                        <TableCell>{new Date(pa.dueDate).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="text-center mt-4">
+                <Button variant="link" className="text-blue-600" onClick={handleViewAllClaims}>
+                  View All My Pending Actions
+                </Button>
               </div>
             </CardContent>
           </Card>

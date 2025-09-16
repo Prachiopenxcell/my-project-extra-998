@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Plus,
   Search,
@@ -135,10 +138,155 @@ const ResolutionDashboard = () => {
       'approved': { variant: 'default' as const, label: 'Approved' },
       'rejected': { variant: 'destructive' as const, label: 'Rejected' }
     };
-    
+
     const config = statusConfig[status as keyof typeof statusConfig];
     return <Badge variant={config?.variant || 'secondary'}>{config?.label || status}</Badge>;
   };
+
+  const handleSignAndSaveRFRP = async (signatureType: 'digital' | 'electronic') => {
+    try {
+      setSigning(true);
+      await new Promise(res => setTimeout(res, 800));
+      setShowSignatureDialog(false);
+      setShowRFRPDialog(false);
+      toast({ title: 'RFRP Created', description: `RFRP signed with ${signatureType === 'digital' ? 'Digital Signature (DSC)' : 'E-Signature'} and mailed to all PRAs.` });
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  // ================= RFRP (Create from Dashboard) =================
+  type EMRow = { id: string; criteria: string; weight: number; score?: number; remarks?: string };
+  type RFRPData = {
+    title: string;
+    useStandardFormat: boolean;
+    performanceGuarantee: string;
+    performanceGuaranteeSource: 'meetings' | 'manual';
+    notes: string;
+    aiSuggested: string; // stored as HTML for preview elsewhere
+    emRows: EMRow[];
+    imLink?: string;
+    imLinkSource?: 'vdr' | 'manual';
+  };
+  const [showRFRPDialog, setShowRFRPDialog] = useState(false);
+  const [showAISuggestDialog, setShowAISuggestDialog] = useState(false);
+  const [aiEditor, setAiEditor] = useState('');
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const [rfrp, setRfrp] = useState<RFRPData>({
+    title: '',
+    useStandardFormat: true,
+    performanceGuarantee: '',
+    performanceGuaranteeSource: 'manual',
+    notes: '',
+    aiSuggested: '',
+    emRows: [
+      { id: 'em1', criteria: 'Financial Viability', weight: 30 },
+      { id: 'em2', criteria: 'Implementation Timeline', weight: 25 },
+      { id: 'em3', criteria: 'Legal Compliance', weight: 20 },
+    ],
+  });
+
+  const buildRfrpEvaluationMatrixTemplate = (): string => `
+  <div>
+    <h3>Evaluation Matrix for Resolution Plan Assessment</h3>
+    <h4>Part A - Quantitative Parameters</h4>
+    <table border="1" cellspacing="0" cellpadding="6" style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Evaluation Criteria</th>
+          <th>Score Matrix (Indicative)</th>
+          <th>Score</th>
+          <th>Weightage</th>
+          <th>Max Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Upfront cash payment (within 30-90 days from NCLT approval)</td>
+          <td>≥80% = 10; 60-79% = 7; 40-59% = 5; 20-39% = 2; &lt;20% = 0</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>NPV of payments to Financial Creditors</td>
+          <td>≥90% = 10; 70-89% = 8; 50-69% = 6; 30-49% = 4; &lt;30% = 2</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>NPV of payments to Operational Creditors</td>
+          <td>≥25% = 10; 15-24% = 8; 10-14% = 6; 5-9% = 4; &lt;5% = 0</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Homebuyer delivery timeline (if applicable)</td>
+          <td>≤6m = 5; ≤12m = 4; ≤18m = 3; ≤24m = 2; &gt;24m = 0</td>
+          <td>5</td>
+          <td>100%</td>
+          <td>5</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Interest/Penalty payments to FCs/Homebuyers</td>
+          <td>≥75% = 10; 50-74% = 7; 25-49% = 4; &lt;25% = 0</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Fresh fund infusion for operations (Capex + Working Capital)</td>
+          <td>≥100% = 10; 75-99% = 8; 50-74% = 6; 25-49% = 4; &lt;25% = 0</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+      </tbody>
+    </table>
+    <h4 class="mt-4">Part B - Qualitative Parameters</h4>
+    <table border="1" cellspacing="0" cellpadding="6" style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Evaluation Criteria</th>
+          <th>Score Matrix (Indicative)</th>
+          <th>Score</th>
+          <th>Weightage</th>
+          <th>Max Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>7</td>
+          <td>Financial projections reasonableness &amp; RA financial strength</td>
+          <td>Highly credible = 10; Credible = 8; Acceptable = 6; Weak = 4; Unrealistic = 0</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Track record in turnaround/M&amp;A/Industry experience</td>
+          <td>Strong turnaround = 10; Good M&amp;A = 8; Relevant = 6; Limited = 3; None = 0</td>
+          <td>10</td>
+          <td>100%</td>
+          <td>10</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>Total Max Score:</strong> 75</p>
+  </div>
+  `;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -197,6 +345,152 @@ const ResolutionDashboard = () => {
               Manage EOI invitations, resolution plans, and PRA evaluations
             </p>
           </div>
+
+        {/* Create RFRP Dialog (mirrors ResolutionPlanManagement) */}
+        <Dialog open={showRFRPDialog} onOpenChange={setShowRFRPDialog}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create / Upload RFRP</DialogTitle>
+              <DialogDescription>Use standard format or customize. Collaboration supported via Document Draft Cycle (mock).</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 pr-1">
+              {/* Title & Standard Format */}
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium">Title</label>
+                    <Input value={rfrp.title} onChange={(e)=>setRfrp(prev=>({...prev, title: e.target.value}))} placeholder="RFRP for ABC CIRP" />
+                  </div>
+                  <div className="flex items-center justify-between md:justify-end gap-3">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={rfrp.useStandardFormat} onCheckedChange={(checked)=> setRfrp(prev=>({...prev, useStandardFormat: checked}))} />
+                      <span className="text-sm">Use Standard Format</span>
+                    </div>
+                    <Button variant="ghost" onClick={()=> toast({ title: 'Draft Opened', description: 'Opening Document Draft Cycle (mock).' })}>Open Draft</Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Standard format supports collaborative editing via Document Draft Cycle.</p>
+                <div className="h-px bg-muted" />
+              </div>
+
+              {/* Performance Guarantee */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Performance Guarantee</label>
+                <div className="flex gap-2">
+                  <Input className="flex-1" value={rfrp.performanceGuarantee} onChange={(e)=>setRfrp(prev=>({...prev, performanceGuarantee: e.target.value, performanceGuaranteeSource: 'manual'}))} placeholder="e.g. 10% of plan value or Rs X" />
+                  <Button variant="outline" onClick={()=> setRfrp(prev=>({...prev, performanceGuarantee: 'As per Meeting #CIRP-12 Resolution: 10% of plan value', performanceGuaranteeSource: 'meetings'}))}>Pull from Meetings</Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Source: <Badge variant="outline">{rfrp.performanceGuaranteeSource === 'meetings' ? 'Provided by System' : 'Provided by User'}</Badge></p>
+                <div className="h-px bg-muted" />
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Textarea value={rfrp.notes} onChange={(e)=>setRfrp(prev=>({...prev, notes: e.target.value}))} rows={3} placeholder="Instructions to PRA, timelines, document list, etc." />
+              </div>
+
+              {/* AI Suggestion */}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={()=>{ setAiEditor(buildRfrpEvaluationMatrixTemplate()); setShowAISuggestDialog(true); }}>Suggest with AI</Button>
+                {rfrp.aiSuggested && <Badge variant="secondary">AI Suggested</Badge>}
+              </div>
+              {rfrp.aiSuggested && (
+                <div className="text-xs bg-muted/50 p-2 rounded leading-relaxed">
+                  <div dangerouslySetInnerHTML={{ __html: rfrp.aiSuggested }} />
+                </div>
+              )}
+
+              {/* Evaluation Matrix (basic) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Evaluation Matrix</span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={()=> setRfrp(prev=>({...prev, emRows: [
+                        { id: 'em1', criteria: 'Financial Viability', weight: 30 },
+                        { id: 'em2', criteria: 'Implementation Timeline', weight: 25 },
+                        { id: 'em3', criteria: 'Operational Turnaround', weight: 20 },
+                        { id: 'em4', criteria: 'Legal/IBC Compliance', weight: 25 },
+                      ]}))}
+                    >AI Suggest EM</Button>
+                  </div>
+                </div>
+                <div className="overflow-x-auto border rounded">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Criteria</TableHead>
+                        <TableHead>Weight</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rfrp.emRows.map(row => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <Input value={row.criteria} onChange={(e)=> setRfrp(prev=>({...prev, emRows: prev.emRows.map(r => r.id===row.id ? { ...r, criteria: e.target.value } : r)}))} />
+                          </TableCell>
+                          <TableCell className="w-32">
+                            <Input type="number" value={row.weight} onChange={(e)=> setRfrp(prev=>({...prev, emRows: prev.emRows.map(r => r.id===row.id ? { ...r, weight: parseFloat(e.target.value||'0') } : r)}))} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="text-xs text-muted-foreground">After approval, an IM link can be generated and shared with PRAs automatically.</div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={()=>setShowRFRPDialog(false)}>Close</Button>
+                <Button onClick={()=> setShowSignatureDialog(true)}>Create RFRP</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Signature Dialog */}
+        <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Sign RFRP</DialogTitle>
+              <DialogDescription>Select a signature method to finalize and save the RFRP.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Button className="w-full" disabled={signing} onClick={()=> handleSignAndSaveRFRP('digital')}>
+                {signing ? 'Signing…' : 'Sign with Digital Signature (DSC)'}
+              </Button>
+              <Button variant="outline" className="w-full" disabled={signing} onClick={()=> handleSignAndSaveRFRP('electronic')}>
+                {signing ? 'Signing…' : 'Sign with E-Signature'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Suggestion Editor Dialog (Dashboard) */}
+        <Dialog open={showAISuggestDialog} onOpenChange={setShowAISuggestDialog}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>AI Suggested Evaluation Matrix</DialogTitle>
+              <DialogDescription>Edit the template below and click Save to insert into RFRP.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div
+                className="min-h-[420px] border rounded p-3 text-sm overflow-auto bg-white"
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e)=> setAiEditor((e.currentTarget as HTMLDivElement).innerHTML)}
+                dangerouslySetInnerHTML={{ __html: aiEditor }}
+              />
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={()=> setShowAISuggestDialog(false)}>Cancel</Button>
+                <Button onClick={()=>{ setRfrp(prev=>({...prev, aiSuggested: aiEditor})); setShowAISuggestDialog(false); toast({ title: 'Inserted', description: 'AI suggestion added to RFRP.' }); }}>Save</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
           <div className="flex items-center gap-3">
             <Button onClick={handleCreateEOI} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -267,7 +561,7 @@ const ResolutionDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* EOI Invitations List */}
+          {/* Left: EOI Invitations List */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -354,80 +648,109 @@ const ResolutionDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Resolution Plan Review */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Resolution Plan Review
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleViewResolutionPlans}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View All
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleUploadResolutionPlan}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Plan
-                  </Button>
-                </div>
-              </div>
-              <CardDescription>
-                Review and evaluate submitted resolution plans from PRAs
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {resolutionPlans.slice(0, 3).map((plan) => (
-                  <div key={plan.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium">{plan.praName}</h4>
-                      {getStatusBadge(plan.status)}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-3">
-                      <div className="flex items-center gap-1">
-                        <Building className="h-3 w-3" />
-                        {plan.entityType}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(plan.submissionDate).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {formatCurrency(plan.planValue)}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <BarChart3 className="h-3 w-3" />
-                        Score: {plan.complianceScore}%
-                      </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/resolution/plan/${plan.id}`)}
-                        className="flex items-center gap-1"
-                      >
-                        <Eye className="h-3 w-3" />
-                        Review Plan
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                
-                {resolutionPlans.length > 3 && (
-                  <div className="text-center pt-2">
-                    <Button variant="ghost" onClick={handleViewResolutionPlans} className="flex items-center gap-2">
-                      View All Plans
-                      <ArrowRight className="h-4 w-4" />
+          {/* Right: Create RFRP + Resolution Plan Review stacked */}
+          <div className="space-y-8">
+            {/* Create RFRP (Dashboard) */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Create RFRP
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={()=> setShowRFRPDialog(true)}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Create RFRP
                     </Button>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </div>
+                <CardDescription>
+                  Draft and circulate the Request for Resolution Plan (RFRP) to PRAs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">
+                  Use standard format or customize. AI can suggest an Evaluation Matrix template.
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Resolution Plan Review */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Resolution Plan Review
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleViewResolutionPlans}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View All
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleUploadResolutionPlan}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Plan
+                    </Button>
+                  </div>
+                </div>
+                <CardDescription>
+                  Review and evaluate submitted resolution plans from PRAs
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {resolutionPlans.slice(0, 3).map((plan) => (
+                    <div key={plan.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium">{plan.praName}</h4>
+                        {getStatusBadge(plan.status)}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-3">
+                        <div className="flex items-center gap-1">
+                          <Building className="h-3 w-3" />
+                          {plan.entityType}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(plan.submissionDate).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          {formatCurrency(plan.planValue)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <BarChart3 className="h-3 w-3" />
+                          Score: {plan.complianceScore}%
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/resolution/plan/${plan.id}`)}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Review Plan
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {resolutionPlans.length > 3 && (
+                    <div className="text-center pt-2">
+                      <Button variant="ghost" onClick={handleViewResolutionPlans} className="flex items-center gap-2">
+                        View All Plans
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </DashboardLayout>

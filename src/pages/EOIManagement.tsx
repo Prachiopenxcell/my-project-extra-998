@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import {
@@ -76,6 +76,9 @@ interface EOIFormData {
   detailsFinancialInstitutions?: string;
   detailsFundHouses?: string;
   detailsEMD?: string;
+  // Eligibility criteria fields
+  eligibilityUserProvided?: string;
+  eligibilityFromMeetings?: string;
   attachmentNames?: string[];
   signatureType?: 'digital' | 'upload' | 'profile' | null;
   signatureFileName?: string;
@@ -105,6 +108,14 @@ const EOIManagement = () => {
   const [newCOCMember, setNewCOCMember] = useState({ name: '', email: '', role: '' });
   const [editDates, setEditDates] = useState(false);
   const [autoCalcDates, setAutoCalcDates] = useState(true);
+  // Email dialog state
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailTo, setEmailTo] = useState<string>('');
+  const [emailSubject, setEmailSubject] = useState<string>('EOI Invitation – ');
+  const [emailBody, setEmailBody] = useState<string>('Dear Recipient,\n\nPlease find attached the EOI invitation details.\n\nRegards,');
+  const [attachPDF, setAttachPDF] = useState<boolean>(true);
+  const [attachDOC, setAttachDOC] = useState<boolean>(false);
+  const [includeVDRLink, setIncludeVDRLink] = useState<boolean>(true);
   
   const [formData, setFormData] = useState<EOIFormData>({
     entityId: '',
@@ -131,9 +142,60 @@ const EOIManagement = () => {
     detailsFinancialInstitutions: '',
     detailsFundHouses: '',
     detailsEMD: '',
+    eligibilityUserProvided: '',
+    eligibilityFromMeetings: '',
     attachmentNames: [],
     signatureType: null
   });
+  // Track uploaded file per selected document requirement
+  const [docUploads, setDocUploads] = useState<Record<string, File | null>>({});
+  // Per-document mode: 'manual' or 'ai'
+  const [docMode, setDocMode] = useState<Record<string, 'manual' | 'ai' | null>>({});
+  // AI Template Editor state
+  const [showAiEditor, setShowAiEditor] = useState(false);
+  const [aiEditorDocId, setAiEditorDocId] = useState<string | null>(null);
+  const [aiEditorTitle, setAiEditorTitle] = useState<string>('');
+  const [aiDraft, setAiDraft] = useState<string>('');
+
+  // AI template helpers
+  const getDefaultTemplate = (label: string) => {
+    const l = label.toLowerCase();
+    if (l.includes('letter') && l.includes('eoi')) {
+      return `Subject: Expression of Interest for Participation in Resolution Process\n\nTo,\nThe Resolution Professional\n[Corporate Debtor Name]\n[Address]\n\nDear Sir/Madam,\n\nWe, [Applicant Name/Consortium], hereby submit our Expression of Interest (EOI) to participate in the Corporate Insolvency Resolution Process of [Corporate Debtor Name] pursuant to the invitation published under Regulation 36A of the IBBI (CIRP) Regulations, 2016.\n\nWe confirm that:\n1. We meet the eligibility criteria as specified in the EOI invitation.\n2. We are not disqualified under Section 29A of the Insolvency and Bankruptcy Code, 2016.\n3. We agree to abide by the process terms and timelines.\n\nAuthorized Signatory:\nName: [Name]\nDesignation: [Designation]\nDate: [Date]\nPlace: [Place]\n\nEnclosures: As applicable.`;
+    }
+    if (l.includes('29a')) {
+      return `Undertaking Under Section 29A of the IBC, 2016\n\nI/We, [Name of Applicant], do hereby solemnly affirm that I/We am/are eligible under Section 29A of the Insolvency and Bankruptcy Code, 2016, and none of the disqualifications enumerated therein apply to me/us or any person acting jointly or in concert with me/us.\n\nSigned:_________________\nAuthorized Signatory\nDate: [Date]`;
+    }
+    if (l.includes('eligibility criteria')) {
+      return `Undertaking for Fulfilling Eligibility Criteria\n\nWe confirm that we meet all eligibility criteria specified under the EOI, including minimum net worth/turnover requirements, sectoral experience, and any other stipulated conditions. Supporting documents are enclosed.\n\nAuthorized Signatory\nDate: [Date]`;
+    }
+    if (l.includes('confidential')) {
+      return `Confidentiality Undertaking\n\nWe acknowledge that information shared during the process is confidential. We undertake to keep all such information confidential and use it solely for the purpose of evaluating participation in the resolution process.\n\nAuthorized Signatory\nDate: [Date]`;
+    }
+    if (l.includes('board') && l.includes('resolution')) {
+      return `Certified True Copy of Board Resolution\n\nResolved that Mr./Ms. [Name], [Designation], is hereby authorized to submit the Expression of Interest and Resolution Plan, sign all documents, and do all acts necessary for participation in the CIRP of [Corporate Debtor Name].\n\nFor and on behalf of [Company Name]\n\n[Director/Company Secretary]\nDate: [Date]`;
+    }
+    return `Auto-generated template for: ${label}\n\n[Replace this section with final content]\n\nAuthorized Signatory\nDate: [Date]`;
+  };
+
+  const openAiEditor = (docId: string, title: string) => {
+    setAiEditorDocId(docId);
+    setAiEditorTitle(title);
+    setAiDraft(getDefaultTemplate(title));
+    setShowAiEditor(true);
+  };
+
+  const saveAiDraftAsFile = () => {
+    if (!aiEditorDocId) return;
+    const content = aiDraft || '';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const safeName = aiEditorTitle.replace(/[^a-z0-9-]+/gi, '_').toLowerCase();
+    const file = new File([blob], `${safeName}_ai_template.txt`, { type: 'text/plain' });
+    setDocUploads(prev => ({ ...prev, [aiEditorDocId]: file }));
+    setDocMode(prev => ({ ...prev, [aiEditorDocId]: 'ai' }));
+    setShowAiEditor(false);
+    toast({ title: 'Template Saved', description: `${aiEditorTitle} template saved and attached.` });
+  };
 
   // Helpers for date math
   const addDays = (dateStr: string, days: number): string => {
@@ -381,6 +443,44 @@ const EOIManagement = () => {
     }
   };
 
+  // Simple email validation and mock send
+  const validateEmails = (value: string): { valid: string[]; invalid: string[] } => {
+    const parts = value.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    parts.forEach(p => (re.test(p) ? valid.push(p) : invalid.push(p)));
+    return { valid, invalid };
+  };
+
+  const handleOpenEmailDialog = () => {
+    // Prefill recipients from COC members if empty
+    if (!emailTo && formData.cocMembers?.length) {
+      const emails = formData.cocMembers.map(m => m.email).join(', ');
+      setEmailTo(emails);
+    }
+    // Prefill subject with entity name
+    if (formData.entityName) {
+      setEmailSubject(prev => (prev?.startsWith('EOI Invitation') ? `EOI Invitation – ${formData.entityName}` : prev));
+    }
+    setShowEmailDialog(true);
+  };
+
+  const handleSendEmail = () => {
+    const { valid, invalid } = validateEmails(emailTo);
+    if (valid.length === 0) {
+      toast({ title: 'Invalid emails', description: 'Please enter at least one valid email address.', variant: 'destructive' });
+      return;
+    }
+    if (invalid.length > 0) {
+      toast({ title: 'Some addresses are invalid', description: `These look invalid: ${invalid.join(', ')}`, variant: 'destructive' });
+      return;
+    }
+    // Mock send
+    toast({ title: 'Email queued', description: `EOI invitation will be emailed to ${valid.length} recipient(s). Attachments: ${[attachPDF ? 'PDF' : null, attachDOC ? 'DOC' : null].filter(Boolean).join(' & ') || 'None'}${includeVDRLink ? ' • VDR link included' : ''}.` });
+    setShowEmailDialog(false);
+  };
+
   const handleSaveAsDraft = async () => {
     setLoading(true);
     try {
@@ -432,7 +532,15 @@ const EOIManagement = () => {
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="flex items-center gap-1">
               <FileText className="h-3 w-3" />
-              {activeTab === 'coc' ? 'COC Members' : activeTab === 'details' ? 'EOI Details' : activeTab === 'documents' ? 'Documents' : 'Preview'}
+              {activeTab === 'coc'
+                ? 'COC Members'
+                : activeTab === 'details'
+                ? 'EOI Details'
+                : activeTab === 'detailed'
+                ? 'Detailed EOI'
+                : activeTab === 'documents'
+                ? 'Documents'
+                : 'Preview'}
             </Badge>
           </div>
         </div>
@@ -447,13 +555,13 @@ const EOIManagement = () => {
               <Building className="h-4 w-4" />
               EOI Details
             </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Documents
-            </TabsTrigger>
             <TabsTrigger value="detailed" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Detailed EOI
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Documents
             </TabsTrigger>
             <TabsTrigger value="preview" className="flex items-center gap-2">
               <Eye className="h-4 w-4" />
@@ -607,6 +715,34 @@ const EOIManagement = () => {
               </Button>
             </div>
           </TabsContent>
+
+          {/* AI Template Editor Dialog */}
+          <Dialog open={showAiEditor} onOpenChange={setShowAiEditor}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5" /> AI Template – {aiEditorTitle}
+                </DialogTitle>
+                <DialogDescription>
+                  Edit the auto-generated content below and click Save to attach as a document.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Auto-generated content</label>
+                <textarea
+                  className="w-full h-72 border rounded-md p-3 text-sm"
+                  value={aiDraft}
+                  onChange={(e) => setAiDraft(e.target.value)}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowAiEditor(false)}>Cancel</Button>
+                <Button onClick={saveAiDraftAsFile}>
+                  <Save className="h-4 w-4 mr-2" /> Save
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* EOI Details Tab */}
           <TabsContent value="details" className="space-y-6">
@@ -875,7 +1011,7 @@ const EOIManagement = () => {
                 Back to COC Members
               </Button>
               <Button 
-                onClick={() => setActiveTab('documents')}
+                onClick={() => setActiveTab('detailed')}
                 className="flex items-center gap-2"
                 disabled={!formData.entityId || !formData.lastDateEOI}
               >
@@ -940,23 +1076,132 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                   )}
                 </div>
                 <div className="space-y-4">
-                  {documentRequirements.map((doc) => (
-                    <div key={doc.id} className="flex items-start space-x-3 p-3 border rounded-lg">
-                      <Checkbox
-                        id={doc.id}
-                        checked={formData.requiredDocuments.includes(doc.id)}
-                        onCheckedChange={(checked) => handleDocumentToggle(doc.id, checked as boolean)}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1">
-                        <Label htmlFor={doc.id} className="font-medium cursor-pointer">
-                          {doc.name}
-                          {doc.required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        <p className="text-sm text-muted-foreground mt-1">{doc.description}</p>
+                  {documentRequirements.map((doc) => {
+                    const selected = formData.requiredDocuments.includes(doc.id);
+                    const file = docUploads[doc.id] || null;
+                    return (
+                      <div key={doc.id} className="p-3 border rounded-lg">
+                        <div className="flex items-start space-x-3">
+                          <Checkbox
+                            id={doc.id}
+                            checked={selected}
+                            onCheckedChange={(checked) => handleDocumentToggle(doc.id, checked as boolean)}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor={doc.id} className="font-medium cursor-pointer">
+                              {doc.name}
+                              {doc.required && <span className="text-red-500 ml-1">*</span>}
+                            </Label>
+                            <p className="text-sm text-muted-foreground mt-1">{doc.description}</p>
+                          </div>
+                        </div>
+                        {selected && (
+                          <div className="mt-3 ml-7 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                variant={(docMode[doc.id] ?? 'manual') === 'manual' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                  setDocMode((prev) => ({ ...prev, [doc.id]: 'manual' }));
+                                  // keep any existing manual file; switching from AI doesn't need to clear
+                                }}
+                              >
+                                Upload Manually
+                              </Button>
+                              <Button
+                                variant={docMode[doc.id] === 'ai' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => {
+                                  setDocMode((prev) => ({ ...prev, [doc.id]: 'ai' }));
+                                  setDocUploads((prev) => ({ ...prev, [doc.id]: null }));
+                                  openAiEditor(doc.id, doc.name);
+                                }}
+                              >
+                                AI Suggested
+                              </Button>
+                            </div>
+
+                            {(docMode[doc.id] ?? 'manual') === 'manual' ? (
+                              <div className="space-y-2">
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Upload document</Label>
+                                  <Input
+                                    type="file"
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0] || null;
+                                      setDocUploads((prev) => ({ ...prev, [doc.id]: f }));
+                                      if (f) {
+                                        toast({ title: 'File selected', description: `${f.name} ready to save.` });
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                {file && (
+                                  <div className="flex items-center justify-between rounded-md border p-2">
+                                    <div className="text-sm text-muted-foreground truncate">
+                                      {file.name}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          const url = URL.createObjectURL(file);
+                                          window.open(url, '_blank');
+                                          setTimeout(() => URL.revokeObjectURL(url), 30000);
+                                        }}
+                                        title="View"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setDocUploads((prev) => ({ ...prev, [doc.id]: null }))}
+                                        title="Remove"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="rounded-md border p-3 bg-muted/30">
+                                <div className="text-sm text-muted-foreground">
+                                  This document will be auto-suggested by AI.{!formData.aiAssistance && ' Enable AI Assistance to use this feature.'}
+                                </div>
+                                <div className="mt-2">
+                                  {formData.aiAssistance ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openAiEditor(doc.id, doc.name)}
+                                    >
+                                      Preview / Edit AI Template
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => navigate('/subscription/browse?feature=ai-assistance')}
+                                    >
+                                      Enable AI Assistance
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="mt-6">
@@ -977,14 +1222,14 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
             <div className="flex justify-between items-center pt-6 border-t">
               <Button 
                 variant="outline" 
-                onClick={() => setActiveTab('details')}
+                onClick={() => setActiveTab('detailed')}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to EOI Details
+                Back to Detailed EOI
               </Button>
               <Button 
-                onClick={() => setActiveTab('detailed')}
+                onClick={() => setActiveTab('preview')}
                 className="flex items-center gap-2"
                 disabled={formData.requiredDocuments.length === 0}
               >
@@ -1054,6 +1299,7 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                         detailsGroups: prev.detailsGroups || 'Meeting module indicates consortium allowances and brief.',
                         detailsFinancialInstitutions: prev.detailsFinancialInstitutions || 'Meeting-derived financial institution guidelines added.',
                         detailsFundHouses: prev.detailsFundHouses || 'Meeting-derived fund house participation notes added.',
+                        eligibilityFromMeetings: prev.eligibilityFromMeetings || 'Eligibility criteria derived from Meetings module (minutes/resolutions and agreed parameters).'
                       }));
                       toast({ title: 'Prefilled from Meetings', description: 'Suggested content added from Meetings module.' });
                     }}>Prefill from Meetings</Button>
@@ -1066,7 +1312,9 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                         detailsGroups: prev.detailsGroups || 'AI-drafted consortium instructions based on past templates.',
                         detailsFinancialInstitutions: prev.detailsFinancialInstitutions || 'AI-drafted FI section aligned with criteria.',
                         detailsFundHouses: prev.detailsFundHouses || 'AI-drafted text for Fund Houses participation.',
-                        detailsEMD: prev.detailsEMD || 'AI-drafted EMD clause with standard safeguards.'
+                        detailsEMD: prev.detailsEMD || 'AI-drafted EMD clause with standard safeguards.',
+                        eligibilityUserProvided: prev.eligibilityUserProvided || 'AI-suggested eligibility criteria template for user-provided section (net worth, turnover, experience, legal compliance).',
+                        eligibilityFromMeetings: prev.eligibilityFromMeetings || 'AI-suggested synthesis of Meeting-derived eligibility criteria.'
                       }));
                       toast({ title: 'AI Assistance Used', description: 'Draft text suggested by AI.' });
                     }}>AI Suggest</Button>
@@ -1110,33 +1358,29 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                   </div>
                 </div>
 
-                {/* Additional Attachments */}
-                <input ref={extraAttachmentRef} type="file" className="hidden" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setFormData(prev => ({ ...prev, attachmentNames: [...(prev.attachmentNames||[]), file.name] }));
-                    toast({ title: 'Attachment added', description: file.name });
-                  }
-                  e.currentTarget.value = '';
-                }} />
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="font-medium">Additional Attachments</Label>
-                    <Button variant="outline" size="sm" onClick={() => extraAttachmentRef.current?.click()}>Add Attachment</Button>
+                {/* Eligibility Criteria */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label>Eligibility criteria</Label>
+                    <Textarea
+                      rows={4}
+                      value={formData.eligibilityUserProvided}
+                      onChange={(e) => setFormData(prev => ({ ...prev, eligibilityUserProvided: e.target.value }))}
+                      placeholder="Enter eligibility criteria you want to explicitly specify (e.g., minimum net worth/turnover, sectoral experience, regulatory compliance, litigation status)."
+                    />
                   </div>
-                  {formData.attachmentNames && formData.attachmentNames.length > 0 ? (
-                    <ul className="text-sm space-y-1">
-                      {formData.attachmentNames.map((n, idx) => (
-                        <li key={`${n}-${idx}`} className="flex items-center justify-between">
-                          <span className="truncate">{n}</span>
-                          <Button variant="ghost" size="sm" onClick={() => setFormData(prev => ({ ...prev, attachmentNames: prev.attachmentNames?.filter((_, i) => i !== idx) }))}>Remove</Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No attachments added</p>
-                  )}
+                  {/* <div>
+                    <Label> Meeting Module</Label>
+                    <Textarea
+                      rows={4}
+                      value={formData.eligibilityFromMeetings}
+                      onChange={(e) => setFormData(prev => ({ ...prev, eligibilityFromMeetings: e.target.value }))}
+                      placeholder="Auto/Manually capture eligibility points captured in Meetings (e.g., thresholds, waivers, special conditions agreed)."
+                    />
+                  </div> */}
                 </div>
+
+               
 
                 
               </CardContent>
@@ -1146,14 +1390,14 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
             <div className="flex justify-between items-center pt-6 border-t">
               <Button 
                 variant="outline" 
-                onClick={() => setActiveTab('documents')}
+                onClick={() => setActiveTab('details')}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to Documents
+                Back to EOI Details
               </Button>
               <Button 
-                onClick={() => setActiveTab('preview')}
+                onClick={() => setActiveTab('documents')}
                 className="flex items-center gap-2"
               >
                 <Save className="h-4 w-4" />
@@ -1268,7 +1512,33 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                         </div>
                       </div>
                     </div>
-
+ {/* Additional Attachments */}
+ <input ref={extraAttachmentRef} type="file" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setFormData(prev => ({ ...prev, attachmentNames: [...(prev.attachmentNames||[]), file.name] }));
+                    toast({ title: 'Attachment added', description: file.name });
+                  }
+                  e.currentTarget.value = '';
+                }} />
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="font-medium">Additional Attachments</Label>
+                    <Button variant="outline" size="sm" onClick={() => extraAttachmentRef.current?.click()}>Add Attachment</Button>
+                  </div>
+                  {formData.attachmentNames && formData.attachmentNames.length > 0 ? (
+                    <ul className="text-sm space-y-1">
+                      {formData.attachmentNames.map((n, idx) => (
+                        <li key={`${n}-${idx}`} className="flex items-center justify-between">
+                          <span className="truncate">{n}</span>
+                          <Button variant="ghost" size="sm" onClick={() => setFormData(prev => ({ ...prev, attachmentNames: prev.attachmentNames?.filter((_, i) => i !== idx) }))}>Remove</Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No attachments added</p>
+                  )}
+                </div>
                     <div className="border rounded-lg p-4">
                       <Label className="font-medium mb-2 block">Sign</Label>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1303,6 +1573,7 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                         Save as Draft
                       </Button>
                       <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={handleOpenEmailDialog}>Send via Email</Button>
                         <Button variant="outline" onClick={handleDownloadDOC}>Download DOC</Button>
                         <Button variant="outline" onClick={handleDownloadPDF}>Download PDF</Button>
                         <Button onClick={handleSaveAndPublish} disabled={loading}>
@@ -1319,7 +1590,52 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                           )}
                         </Button>
                       </div>
+                      
                     </div>
+                    {/* Email Dialog */}
+                    <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+                      <DialogContent className="max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Send EOI via Email</DialogTitle>
+                          <DialogDescription>
+                            Enter recipient email addresses. Separate multiple addresses with commas, semicolons, or spaces.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="emailTo">To</Label>
+                            <Input id="emailTo" placeholder="recipient1@example.com, recipient2@example.com" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} />
+                            <p className="text-xs text-muted-foreground mt-1">Tip: Pre-filled with CoC members' emails if available.</p>
+                          </div>
+                          <div>
+                            <Label htmlFor="emailSubject">Subject</Label>
+                            <Input id="emailSubject" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label htmlFor="emailBody">Message</Label>
+                            <Textarea id="emailBody" rows={5} value={emailBody} onChange={(e) => setEmailBody(e.target.value)} />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
+                              <Checkbox id="attachPDF" checked={attachPDF} onCheckedChange={(c) => setAttachPDF(!!c)} />
+                              <Label htmlFor="attachPDF">Attach PDF</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox id="attachDOC" checked={attachDOC} onCheckedChange={(c) => setAttachDOC(!!c)} />
+                              <Label htmlFor="attachDOC">Attach DOC</Label>
+                            </div>
+                            <div className="flex items-center gap-2 md:col-span-2">
+                              <Checkbox id="includeVDR" checked={includeVDRLink} onCheckedChange={(c) => setIncludeVDRLink(!!c)} />
+                              <Label htmlFor="includeVDR">Include VDR link ({formData.documentsURL || 'not set'})</Label>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-end gap-2 mt-4">
+                          <Button variant="outline" onClick={() => setShowEmailDialog(false)}>Cancel</Button>
+                          <Button onClick={handleSendEmail}>Send Email</Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
@@ -1327,6 +1643,7 @@ Confidentiality obligations apply to all PRAs. EMD terms are as specified under 
                     <p>Complete the setup to preview your EOI invitation</p>
                   </div>
                 )}
+                
               </CardContent>
             </Card>
           </TabsContent>

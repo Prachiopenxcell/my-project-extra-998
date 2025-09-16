@@ -23,9 +23,9 @@ import {
 interface PRAApplication {
   id: string;
   name: string;
-  groupType: 'individual' | 'consortium' | 'corporate';
-  entityType: 'company' | 'llp' | 'partnership' | 'individual';
-  status: 'submitted' | 'review' | 'approved' | 'rejected';
+  groupType: 'standalone' | 'group';
+  entityType: 'company' | 'partnership' | 'individual';
+  status: 'review' | 'approved' | 'query' | 'rejected';
   submitDate: string;
   complianceScore: number;
   section29ACompliant: boolean;

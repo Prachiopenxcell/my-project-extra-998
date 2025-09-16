@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ import {
   Send,
   ArrowRight
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
 interface LawyerInfo {
@@ -43,6 +43,7 @@ interface LawyerInfo {
 
 const CreatePreFiling = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
   // Form state
@@ -62,6 +63,8 @@ const CreatePreFiling = () => {
     escalationAfter: '7',
     assignedLawyer: '',
     briefDescription: '',
+    responseType: 'Awaiting Response',
+    numberOfDays: '15',
     reliefSought: {
       admission: false,
       appointment: false,
@@ -92,13 +95,45 @@ const CreatePreFiling = () => {
     total: 55000
   });
 
+  // Stage 1: Documents, Drafts, and Audit Log
+  const [documents, setDocuments] = useState<{ id: string; title: string; fileName: string }[]>([]);
+  const [drafts, setDrafts] = useState<{ id: string; title: string; status: 'uploaded' | 'synced' }[]>([]);
+  const [auditLog, setAuditLog] = useState<{ id: string; action: string; timestamp: string; comment?: string }[]>([
+    { id: 'a-1', action: 'Stage 1 initiated', timestamp: new Date().toLocaleString('en-IN') },
+  ]);
+
+  const addAudit = (action: string, comment?: string) => {
+    setAuditLog(prev => [
+      { id: `a-${Date.now()}`, action, timestamp: new Date().toLocaleString('en-IN'), comment },
+      ...prev,
+    ]);
+  };
+
   // Progress steps
   const steps = [
-    { id: 1, title: "Stage Selection", completed: true },
-    { id: 2, title: "Details", completed: false, active: true },
-    { id: 3, title: "Documents", completed: false },
-    { id: 4, title: "Review", completed: false }
+   /*  { id: 1, title: "Stage Selection", completed: true }, */
+    { id: 1, title: "Details", completed: false, active: true },
+    { id: 2, title: "Documents", completed: false },
+    { id: 3, title: "Review", completed: false }
   ];
+
+  // Detect edit mode from query string and prefill basic data
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const editId = params.get('edit');
+    if (editId) {
+      // Minimal mock prefill mapping based on known pf-001..003 used in dashboard
+      const prefillMap: Record<string, { court?: string; briefDescription?: string; assignedLawyer?: string }> = {
+        'pf-001': { court: 'NCLT Mumbai', briefDescription: 'Corporate insolvency resolution – Section 7 IBC', assignedLawyer: 'lawyer-001' },
+        'pf-002': { court: 'High Court Delhi', briefDescription: 'Breach of supply agreement preparation', assignedLawyer: 'lawyer-002' },
+        'pf-003': { court: 'District Court Mumbai', briefDescription: 'Property title verification dispute', assignedLawyer: 'lawyer-003' },
+      };
+      const data = prefillMap[editId];
+      if (data) {
+        setFormData(prev => ({ ...prev, ...data }));
+      }
+    }
+  }, [location.search]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -109,7 +144,7 @@ const CreatePreFiling = () => {
     }).format(amount);
   };
 
-  const handleInputChange = (field: string, value: string | number) => {
+  const handleInputChange = (field: string, value: string | number | boolean | Record<string, unknown>) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -128,7 +163,41 @@ const CreatePreFiling = () => {
 
   const handleNext = () => {
     // Validation logic here
-    navigate('/litigation/create/documents');
+    // If pipeline=active, save minimal carryover for Stage 2 and propagate the flag to Documents
+    const pipelineActive = new URLSearchParams(location.search).get('pipeline') === 'active';
+    // Save Stage 1 review summary
+    try {
+      const stage1Review = {
+        stage: 'pre-filing',
+        title: formData.briefDescription?.slice(0, 80) || 'Application',
+        court: formData.court,
+        actSection: formData.actSection,
+        responseType: formData.responseType,
+        numberOfDays: formData.numberOfDays,
+        assignedLawyer: formData.assignedLawyer,
+        particulars: formData.briefDescription,
+        reliefSought: Object.entries(formData.reliefSought)
+          .filter(([k, v]) => typeof v === 'boolean' ? v : false)
+          .map(([k]) => k),
+        documentsCount: documents.length,
+      };
+      localStorage.setItem('review_stage1', JSON.stringify(stage1Review));
+    } catch { /* ignore */ }
+    if (pipelineActive) {
+      const carry = {
+        title: formData.briefDescription?.slice(0, 60) || 'Application',
+        court: formData.court,
+        actSection: formData.actSection,
+        particulars: formData.briefDescription,
+        reliefSought: Object.entries(formData.reliefSought)
+          .filter(([k, v]) => typeof v === 'boolean' ? v : false)
+          .map(([k]) => k).join(', '),
+      };
+      try {
+        localStorage.setItem('stage1_carryover', JSON.stringify(carry));
+      } catch { /* ignore */ }
+    }
+    navigate('/litigation/create/documents' + (pipelineActive ? '?pipeline=active' : ''));
   };
 
   const handleSaveDraft = () => {
@@ -136,7 +205,10 @@ const CreatePreFiling = () => {
       title: "Draft Saved",
       description: "Your pre-filing application has been saved as draft.",
     });
+    addAudit('Saved draft');
   };
+
+  // Note: Stage 2 handoff occurs from Documents page when pipeline=active
 
   return (
     <DashboardLayout>
@@ -169,7 +241,7 @@ const CreatePreFiling = () => {
                     step.active ? 'bg-blue-500 border-blue-500 text-white' :
                     'border-gray-300 text-gray-400'
                   }`}>
-                    {step.completed ? <CheckCircle className="w-4 h-4" /> : step.id}
+                    {step.id}
                   </div>
                   <span className={`ml-2 text-sm ${
                     step.active ? 'font-medium text-blue-600' : 'text-muted-foreground'
@@ -412,6 +484,36 @@ const CreatePreFiling = () => {
 
             <Separator />
 
+            {/* Response Type & Number of Days */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type of Response</Label>
+                <Select
+                  value={formData.responseType}
+                  onValueChange={(v) => handleInputChange('responseType', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select response type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Awaiting Response">Awaiting Response</SelectItem>
+                    <SelectItem value="No Objection">No Objection</SelectItem>
+                    <SelectItem value="Objection Received">Objection Received</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Number of Days</Label>
+                <Input
+                  type="number"
+                  value={formData.numberOfDays}
+                  onChange={(e) => handleInputChange('numberOfDays', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
             {/* Lawyer Assignment Section */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Lawyer Assignment</h3>
@@ -475,51 +577,78 @@ const CreatePreFiling = () => {
                   Send Scope of Work Email
                 </Button>
               </div>
-            </div>
 
-            <Separator />
+              {/* Document Upload Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Documents for Filing</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Manual Upload */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Manual Documents</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>Label/Title</Label>
+                        <Input id="doc-title" placeholder="e.g., Minutes of CoC" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Upload Document (PDF/Word)</Label>
+                        <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          const title = (document.getElementById('doc-title') as HTMLInputElement)?.value || file?.name || 'Document';
+                          if (file) {
+                            const id = `doc-${Date.now()}`;
+                            setDocuments(prev => [{ id, title, fileName: file.name }, ...prev]);
+                            toast({ title: 'Uploaded', description: `${file.name} added.` });
+                            addAudit('Uploaded document', file.name);
+                          }
+                        }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Uploaded Documents</Label>
+                        <div className="space-y-2">
+                          {documents.map(d => (
+                            <div key={d.id} className="flex items-center justify-between p-2 border rounded">
+                              <div className="text-sm">
+                                <span className="font-medium">{d.title}</span> • {d.fileName}
+                              </div>
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                setDocuments(prev => prev.filter(x => x.id !== d.id));
+                                addAudit('Deleted document', d.fileName);
+                              }}>
+                                Delete
+                              </Button>
+                            </div>
+                          ))}
+                          {documents.length === 0 && (
+                            <div className="text-sm text-muted-foreground">No documents uploaded yet.</div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-            {/* Cost Estimation Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Cost Estimation</h3>
-              
-              <Card className="bg-gray-50">
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Estimated Costs:</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span>• Drafting Fee:</span>
-                        <span>{formatCurrency(costEstimation.draftingFee)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Filing Fee:</span>
-                        <span>{formatCurrency(costEstimation.filingFee)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Court Fee:</span>
-                        <span>{formatCurrency(costEstimation.courtFee)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Miscellaneous:</span>
-                        <span>{formatCurrency(costEstimation.miscellaneous)}</span>
-                      </div>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between font-semibold">
-                        <span>Total Estimated:</span>
-                        <span>{formatCurrency(costEstimation.total)}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 pt-2">
-                      <Checkbox id="cost-approval" />
-                      <Label htmlFor="cost-approval" className="text-sm">
-                        Send cost approval request to management
-                      </Label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  {/* Auto Upload from VDR */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Auto Upload from VDR</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-muted-foreground">Select to auto-import relevant documents from the VDR based on the selected entity.</p>
+                      <Button variant="outline" onClick={() => {
+                        const imported = [
+                          { id: `doc-${Date.now()}-1`, title: 'NCLT Order', fileName: 'nclt-order.pdf' },
+                          { id: `doc-${Date.now()}-2`, title: 'RP Report', fileName: 'rp-report.pdf' }
+                        ];
+                        setDocuments(prev => [...imported, ...prev]);
+                        toast({ title: 'VDR Sync Complete', description: '2 documents imported from VDR.' });
+                        addAudit('Auto-upload from VDR');
+                      }}>Auto Upload from VDR</Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </div>
 
             <Separator />
@@ -598,10 +727,10 @@ const CreatePreFiling = () => {
                     <Input 
                       placeholder="Specify"
                       value={formData.reliefSought.otherText}
-                      onChange={(e) => handleInputChange('reliefSought', {
-                        ...formData.reliefSought,
-                        otherText: e.target.value
-                      })}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        reliefSought: { ...prev.reliefSought, otherText: e.target.value }
+                      }))}
                       className="ml-2 flex-1"
                       disabled={!formData.reliefSought.other}
                     />

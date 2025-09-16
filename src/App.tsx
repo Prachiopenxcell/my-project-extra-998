@@ -53,6 +53,8 @@ import LitigationCaseDetails from "./pages/LitigationCaseDetails";
 import LitigationReviewSubmit from "./pages/LitigationReviewSubmit";
 import LitigationStageSelection from "./pages/LitigationStageSelection";
 import CreateActiveLitigation from "./pages/CreateActiveLitigation";
+import PreFilingDetails from "./pages/PreFilingDetails";
+import PreFilingReview from "./pages/PreFilingReview";
 /* VDR */
 import VirtualDataRoom from "./pages/VirtualDataRoom";
 import EntityDataCompletion from "./pages/EntityDataCompletion";
@@ -73,7 +75,11 @@ import ResolutionDashboard from "./pages/ResolutionDashboard";
 import EOIManagement from "./pages/EOIManagement";
 import EOIDetails from "./pages/EOIDetails";
 import PRAEvaluation from "./pages/PRAEvaluation";
+import PRADetails from "./pages/PRADetails";
 import ResolutionPlanManagement from "./pages/ResolutionPlanManagement";
+import ResolutionPlanDetails from "./pages/ResolutionPlanDetails";
+import ResolutionPlanEdit from "./pages/ResolutionPlanEdit";
+import ResolutionPlanCompare from "./pages/ResolutionPlanCompare";
 /* RegulatoryCompliance module  */
 import RegulatoryCompliance from "./pages/RegulatoryCompliance";
 import ComplianceEntitySetup from "./pages/ComplianceEntitySetup";
@@ -151,6 +157,8 @@ import Notifications from "./pages/Notifications";
 
 // System Settings Module
 import SystemSettings from "./pages/SystemSettings";
+import LitigationManagementNew from "./pages/LitigationManagementNew";
+
 const queryClient = new QueryClient();
 
 function App() {
@@ -284,12 +292,15 @@ function App() {
               <Route path="/ar-fee-structure" element={<ARFeeStructure />} />
               
                {/* Litigation Management Module Routes */}
-               <Route path="/litigation" element={<LitigationManagement />} />
+               <Route path="/litigation" element={<LitigationManagementNew />} />
               <Route path="/litigation/stage-selection" element={<LitigationStageSelection />} />
               <Route path="/litigation/create" element={<CreatePreFiling />} />
               <Route path="/litigation/create-active" element={<CreateActiveLitigation />} />
               <Route path="/litigation/create/documents" element={<LitigationDocuments />} />
+              <Route path="/litigation/review-stage1" element={<PreFilingReview />} />
               <Route path="/litigation/review-submit" element={<LitigationReviewSubmit />} />
+              <Route path="/litigation/pre-filing/:preFilingId" element={<PreFilingDetails />} />
+
               <Route path="/litigation/review-submit/:caseId" element={<LitigationReviewSubmit />} />
               <Route path="/litigation/case/:caseId" element={<LitigationCaseDetails />} />
               
@@ -305,8 +316,11 @@ function App() {
               <Route path="/resolution/eoi/:id" element={<EOIDetails />} />
               <Route path="/resolution/eoi/:id/edit" element={<EOIManagement />} />
               <Route path="/resolution/pra-evaluation" element={<PRAEvaluation />} />
+              <Route path="/resolution/pra/:id" element={<PRADetails />} />
               <Route path="/resolution/plans" element={<ResolutionPlanManagement />} />
-              <Route path="/resolution/plan/:id" element={<ResolutionPlanManagement />} />
+              <Route path="/resolution/plan/:id" element={<ResolutionPlanDetails />} />
+              <Route path="/resolution/plan/:id/edit" element={<ResolutionPlanEdit />} />
+              <Route path="/resolution/plan/:id/comparison" element={<ResolutionPlanCompare />} />
               <Route path="/resolution/upload-plan" element={<ResolutionPlanManagement />} />
               
               {/* Virtual Data Room Module Routes */}

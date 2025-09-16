@@ -34,8 +34,8 @@ import PRAEditForm from './PRAEditForm';
 interface PRAApplication {
   id: string;
   name: string;
-  groupType: 'standalone' | 'consortium' | 'group';
-  entityType: 'company' | 'partnership' | 'llp';
+  groupType: 'standalone' | 'group';
+  entityType: 'company' | 'partnership' | 'individual';
   submitDate: string;
   status: 'review' | 'approved' | 'query' | 'rejected';
   complianceScore: number;
@@ -87,11 +87,11 @@ const PRAEvaluation = ({ onAIAutoEvaluate, onGenerateReport }: PRAEvaluationProp
     {
       id: "2",
       name: "InfraCorp",
-      groupType: "consortium",
+      groupType: "group",
       entityType: "partnership",
       submitDate: "2025-01-16",
       status: "approved",
-      complianceScore: 92,
+      complianceScore: 100,
       section29ACompliant: true,
       documentsComplete: true,
       netWorthCertificate: true,
@@ -374,7 +374,6 @@ const PRAEvaluation = ({ onAIAutoEvaluate, onGenerateReport }: PRAEvaluationProp
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="standalone">Standalone</SelectItem>
-                <SelectItem value="consortium">Consortium</SelectItem>
                 <SelectItem value="group">Group</SelectItem>
               </SelectContent>
             </Select>
