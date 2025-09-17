@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   ArrowLeft, 
   FileText, 
@@ -41,6 +42,22 @@ interface LawyerInfo {
   status: 'registered' | 'pending';
 }
 
+type CostFile = { id: string; name: string };
+type CostItem = { amount: string; files: CostFile[] };
+type CostKey = 'drafting'|'filing'|'appearances'|'monthlyCharges'|'outOfPocket'|'counselFee';
+type CostIncurred = Record<CostKey, CostItem>;
+
+type DraftStatus = 'uploaded' | 'synced' | 'editing' | 'saved';
+interface DraftItem {
+  id: string;
+  title: string;
+  fileName?: string;
+  content?: string;
+  status: DraftStatus;
+  offline?: boolean;
+  updatedAt: string;
+}
+
 const CreatePreFiling = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,6 +65,7 @@ const CreatePreFiling = () => {
   
   // Form state
   const [currentStep, setCurrentStep] = useState(2); // Step 2: Details
+  
   const [formData, setFormData] = useState({
     applicationType: '',
     customType: '',
@@ -57,8 +75,11 @@ const CreatePreFiling = () => {
     filingDeadline: '30',
     customDeadline: '',
     draftDeadline: '7',
+    draftReceiveDate: '',
     enableFollowups: true,
     followupInterval: '3',
+    followupDays: '0',
+    followupFrequency: 'daily',
     enableEscalation: true,
     escalationAfter: '7',
     assignedLawyer: '',
@@ -73,7 +94,15 @@ const CreatePreFiling = () => {
       costs: false,
       other: false,
       otherText: ''
-    }
+    },
+    costIncurred: {
+      drafting: { amount: '', files: [] },
+      filing: { amount: '', files: [] },
+      appearances: { amount: '', files: [] },
+      monthlyCharges: { amount: '', files: [] },
+      outOfPocket: { amount: '', files: [] },
+      counselFee: { amount: '', files: [] },
+    } as CostIncurred
   });
 
   const [selectedLawyer, setSelectedLawyer] = useState<LawyerInfo | null>({
@@ -97,17 +126,62 @@ const CreatePreFiling = () => {
 
   // Stage 1: Documents, Drafts, and Audit Log
   const [documents, setDocuments] = useState<{ id: string; title: string; fileName: string }[]>([]);
-  const [drafts, setDrafts] = useState<{ id: string; title: string; status: 'uploaded' | 'synced' }[]>([]);
-  const [auditLog, setAuditLog] = useState<{ id: string; action: string; timestamp: string; comment?: string }[]>([
-    { id: 'a-1', action: 'Stage 1 initiated', timestamp: new Date().toLocaleString('en-IN') },
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
+  const [auditLog, setAuditLog] = useState<{ id: string; action: string; timestamp: string; comment?: string; systemComment?: string; actionee?: string }[]>([
+    {
+      id: 'a-1',
+      action: 'Status sync',
+      timestamp: '2025-09-17 • 03:49 pm',
+      systemComment: 'Fetched status from court portals',
+      actionee: 'You',
+    },
+    {
+      id: 'a-2',
+      action: 'Status sync',
+      timestamp: '2025-09-17 • 03:49 pm',
+      systemComment: 'Fetched status from court portals',
+      actionee: 'You',
+    },
+    {
+      id: 'a-3',
+      action: 'Status sync',
+      timestamp: '2025-09-17 • 03:49 pm',
+      systemComment: 'Fetched status from court portals',
+      actionee: 'You',
+    },
+    {
+      id: 'a-4',
+      action: 'Status sync',
+      timestamp: '2025-09-17 • 03:49 pm',
+      systemComment: 'Fetched status from court portals',
+      actionee: 'You',
+    },
+    {
+      id: 'a-5',
+      action: 'Status sync',
+      timestamp: '2025-09-17 • 03:49 pm',
+      systemComment: 'Fetched status from court portals',
+      actionee: 'You',
+    },
   ]);
 
-  const addAudit = (action: string, comment?: string) => {
+  const addAudit = (action: string, comment?: string, systemComment?: string, actionee?: string) => {
+    const now = new Date();
+    const timestamp = `${now.toISOString().split('T')[0]} • ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`;
     setAuditLog(prev => [
-      { id: `a-${Date.now()}`, action, timestamp: new Date().toLocaleString('en-IN'), comment },
+      { id: `a-${Date.now()}`, action, timestamp, comment, systemComment, actionee: actionee || 'You' },
       ...prev,
     ]);
   };
+
+  const costLabels: { key: CostKey; label: string }[] = [
+    { key: 'drafting', label: 'Drafting' },
+    { key: 'filing', label: 'Filing' },
+    { key: 'appearances', label: 'Appearance' },
+    { key: 'monthlyCharges', label: 'Monthly charges per month' },
+    { key: 'outOfPocket', label: 'Out-of-pocket expenses' },
+    { key: 'counselFee', label: 'Counsel Fee' },
+  ];
 
   // Progress steps
   const steps = [
@@ -262,7 +336,7 @@ const CreatePreFiling = () => {
         {/* Application Details Form */}
         <Card>
           <CardHeader>
-            <CardTitle>Application Details</CardTitle>
+          <CardTitle>Application Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* What to File Section */}
@@ -362,7 +436,37 @@ const CreatePreFiling = () => {
               </div>
             </div>
 
+            
+
             <Separator />
+
+            {/* Response Type & Number of Days */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type of Response</Label>
+                <Select
+                  value={formData.responseType}
+                  onValueChange={(v) => handleInputChange('responseType', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select response type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Awaiting Response">Awaiting Response</SelectItem>
+                    <SelectItem value="No Objection">No Objection</SelectItem>
+                    <SelectItem value="Objection Received">Objection Received</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Number of Days</Label>
+                <Input
+                  type="number"
+                  value={formData.numberOfDays}
+                  onChange={(e) => handleInputChange('numberOfDays', e.target.value)}
+                />
+              </div>
+          </div>
 
             {/* Timeline & Deadlines Section */}
             <div className="space-y-4">
@@ -439,6 +543,34 @@ const CreatePreFiling = () => {
                   <Calendar className="h-4 w-4" />
                   <span>Expected: 23 Jan 2025</span>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Draft receive date</Label>
+                    <Input
+                      type="date"
+                      value={formData.draftReceiveDate}
+                      onChange={(e) => handleInputChange('draftReceiveDate', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Lawyer response due in</Label>
+                    <Input
+                      readOnly
+                      value={(function(){
+                        try {
+                          if (!formData.draftReceiveDate) return '';
+                          const receive = new Date(formData.draftReceiveDate);
+                          const days = parseInt(formData.draftDeadline || '0', 10);
+                          if (isNaN(days)) return '';
+                          const due = new Date(receive);
+                          due.setDate(receive.getDate() + days);
+                          const diff = Math.ceil((due.getTime() - Date.now()) / (1000*60*60*24));
+                          return `${days} days (due ${due.toLocaleDateString('en-IN')}${isFinite(diff) ? `, ${diff} days from today` : ''})`;
+                        } catch { return ''; }
+                      })()}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -460,6 +592,28 @@ const CreatePreFiling = () => {
                       disabled={!formData.enableFollowups}
                     />
                     <span className="text-sm text-muted-foreground">days</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Start after</Label>
+                    <Input 
+                      type="number"
+                      value={formData.followupDays}
+                      onChange={(e) => handleInputChange('followupDays', e.target.value)}
+                      className="w-16"
+                      disabled={!formData.enableFollowups}
+                    />
+                    <span className="text-sm text-muted-foreground">days from draft receive date</span>
+                    <Label className="text-sm ml-4">Frequency</Label>
+                    <Select value={formData.followupFrequency} onValueChange={(v)=>handleInputChange('followupFrequency', v)}>
+                      <SelectTrigger className="w-36" disabled={!formData.enableFollowups}>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox 
@@ -483,36 +637,263 @@ const CreatePreFiling = () => {
             </div>
 
             <Separator />
+            
+            {/* Draft of the Application */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Draft of the Application</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Sync Draft from Lawyer</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        disabled={selectedLawyer?.status !== 'registered'}
+                        onClick={() => {
+                          const id = `draft-${Date.now()}`;
+                          const item: DraftItem = { id, title: 'Draft Application (synced)', fileName: 'application_draft.docx', status: 'synced', updatedAt: new Date().toISOString() };
+                          setDrafts(prev => [item, ...prev]);
+                          addAudit('Synced draft from registered lawyer', item.fileName);
+                          toast({ title: 'Draft Synced', description: 'Draft pulled from lawyer account.' });
+                        }}
+                      >
+                        Sync Draft
+                      </Button>
+                      {selectedLawyer?.status !== 'registered' && (
+                        <span className="text-xs text-muted-foreground">Lawyer not registered on 998P</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Manual Upload of Draft (Word)</Label>
+                    <Input type="file" accept=".doc,.docx" onChange={(e)=>{
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const id = `draft-${Date.now()}`;
+                      const item: DraftItem = { id, title: file.name.replace(/\.[^.]+$/, ''), fileName: file.name, status: 'uploaded', updatedAt: new Date().toISOString() };
+                      setDrafts(prev => [item, ...prev]);
+                      addAudit('Manual draft uploaded', file.name);
+                      toast({ title: 'Draft Uploaded', description: `${file.name} added.` });
+                    }} />
+                  </div>
+                </div>
 
-            {/* Response Type & Number of Days */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Type of Response</Label>
-                <Select
-                  value={formData.responseType}
-                  onValueChange={(v) => handleInputChange('responseType', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select response type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Awaiting Response">Awaiting Response</SelectItem>
-                    <SelectItem value="No Objection">No Objection</SelectItem>
-                    <SelectItem value="Objection Received">Objection Received</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Number of Days</Label>
-                <Input
-                  type="number"
-                  value={formData.numberOfDays}
-                  onChange={(e) => handleInputChange('numberOfDays', e.target.value)}
-                />
-              </div>
-            </div>
+                {/* Draft list with actions */}
+                <div className="space-y-2">
+                  <Label>Drafts</Label>
+                  {drafts.length === 0 && (
+                    <div className="text-sm text-muted-foreground">No drafts available yet.</div>
+                  )}
+                  {drafts.map(d => (
+                    <div key={d.id} className="rounded border p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{d.title}</div>
+                          <div className="text-xs text-muted-foreground">{d.fileName || 'Untitled'} • {new Date(d.updatedAt).toLocaleString()}</div>
+                          {d.offline && (<div className="text-xs text-amber-700 bg-amber-50 inline-block px-2 py-0.5 rounded mt-1">Offline edits pending sync</div>)}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm">View</Button>
+                          <Button variant="outline" size="sm">Download</Button>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'editing', content: x.content || '<<Draft content>>' } : x));
+                            addAudit('Opened draft for editing', d.fileName);
+                          }}>Edit</Button>
+                          {!d.offline ? (
+                            <Button variant="outline" size="sm" onClick={() => {
+                              setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, offline: true } : x));
+                              addAudit('Switched to offline editing', d.fileName);
+                            }}>Go Offline</Button>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={() => {
+                              setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, offline: false, updatedAt: new Date().toISOString(), status: 'saved' } : x));
+                              addAudit('Synced offline changes', d.fileName);
+                              toast({ title: 'Synced', description: 'Offline changes synced.' });
+                            }}>Sync Document</Button>
+                          )}
+                          <Button size="sm" onClick={() => {
+                            setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, status: 'saved', updatedAt: new Date().toISOString() } : x));
+                            addAudit('Saved draft', d.fileName);
+                            toast({ title: 'Saved', description: 'Draft saved.' });
+                          }}>Save</Button>
+                          <Button variant="secondary" size="sm" onClick={() => {
+                            addAudit('Shared draft with lawyer', d.fileName);
+                            toast({ title: 'Shared', description: 'Draft shared with lawyer.' });
+                          }}>Share</Button>
+                        </div>
+                      </div>
+                      {d.status === 'editing' && (
+                        <div className="mt-3">
+                          <Label className="text-sm">Inline Edit (Track mode simulated)</Label>
+                          <Textarea value={d.content || ''} onChange={(e) => {
+                            const val = e.target.value;
+                            setDrafts(prev => prev.map(x => x.id === d.id ? { ...x, content: val } : x));
+                          }} className="min-h-[120px]" />
+                          <div className="text-xs text-muted-foreground mt-1">System will mark changes in track mode in the final export.</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-            <Separator />
+                <div className="flex items-center justify-end">
+                  <Button onClick={() => {
+                    addAudit('Save & Continue clicked');
+                    toast({ title: 'Lawyer Notified', description: 'Lawyer has been notified about the updated draft.' });
+                  }}>Save & Continue (Notify Lawyer)</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Final Draft of the Application */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Final Draft of the Application</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Auto-populate from Lawyer (if registered)</Label>
+                    <Button
+                      variant="outline"
+                      disabled={selectedLawyer?.status !== 'registered'}
+                      onClick={() => {
+                        const id = `draft-${Date.now()}`;
+                        const item: DraftItem = { id, title: 'Final Settled Draft', fileName: 'final_settled_draft.docx', status: 'synced', updatedAt: new Date().toISOString() };
+                        setDrafts(prev => [item, ...prev]);
+                        addAudit('Final draft auto-populated from lawyer', item.fileName);
+                        toast({ title: 'Final Draft Synced', description: 'Final settled draft received.' });
+                      }}
+                    >Sync Final Draft</Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Or upload final draft</Label>
+                    <Input type="file" accept=".pdf,.doc,.docx" onChange={(e)=>{
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const id = `draft-${Date.now()}`;
+                      const item: DraftItem = { id, title: file.name.replace(/\.[^.]+$/, ''), fileName: file.name, status: 'uploaded', updatedAt: new Date().toISOString() };
+                      setDrafts(prev => [item, ...prev]);
+                      addAudit('Final draft uploaded', file.name);
+                    }} />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline">Print / Download</Button>
+                  <Button variant="outline">E-sign</Button>
+                  <Button onClick={() => { addAudit('Final document sent to lawyer', 'online'); toast({ title: 'Sent', description: 'Final document sent to lawyer (online).' }); }}>Send to Lawyer (Online)</Button>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="share-offline" />
+                    <Label htmlFor="share-offline" className="text-sm">Share Offline</Label>
+                    <Button variant="outline" size="sm" onClick={() => { addAudit('Reminder scheduled for offline sharing'); toast({ title: 'Reminder Set', description: 'System will remind until you confirm document sent.' }); }}>Set Reminders</Button>
+                    <Button variant="outline" size="sm" onClick={() => { addAudit('Marked document sent (offline)'); toast({ title: 'Marked Sent', description: 'Offline sending confirmed.' }); }}>Mark Sent</Button>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground">All online share/download/print/e-sign actions are captured in the audit log.</div>
+              </CardContent>
+            </Card>
+
+            {/* Cost Incurred Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Cost Incurred Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {costLabels.map(({ key, label }) => (
+                    <div key={key} className="space-y-2">
+                      <Label>{label} - Cost incurred</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.costIncurred[key].amount}
+                        onChange={(e)=> setFormData(prev => ({
+                          ...prev,
+                          costIncurred: { 
+                            ...prev.costIncurred,
+                            [key]: { ...prev.costIncurred[key], amount: e.target.value }
+                          }
+                        }))}
+                      />
+                      <div className="space-y-1">
+                        <Label className="text-sm">Upload supporting document (PDF/Image)</Label>
+                        <Input 
+                          type="file" 
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e)=>{
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const id = `${key}-${Date.now()}`;
+                            setFormData(prev => ({
+                              ...prev,
+                              costIncurred: {
+                                ...prev.costIncurred,
+                                [key]: { ...prev.costIncurred[key], files: [ ...prev.costIncurred[key].files, { id, name: file.name } ] }
+                              }
+                            }));
+                            addAudit('Uploaded supporting bill', `${label}: ${file.name}`);
+                          }}
+                        />
+                        <div className="text-xs text-muted-foreground">
+                          {formData.costIncurred[key].files.length} file(s) attached
+                        </div>
+                        <div className="space-y-1">
+                          {formData.costIncurred[key].files.map((f) => (
+                            <div key={f.id} className="flex items-center justify-between rounded border p-2 text-sm">
+                              <span>{f.name}</span>
+                              <Button variant="ghost" size="sm" onClick={()=>{
+                                setFormData(prev => ({
+                                  ...prev,
+                                  costIncurred: {
+                                    ...prev.costIncurred,
+                                    [key]: { ...prev.costIncurred[key], files: prev.costIncurred[key].files.filter(x => x.id !== f.id) }
+                                  }
+                                }));
+                                addAudit('Deleted supporting bill', f.name);
+                              }}>Remove</Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Audit Log */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Audit Trail</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Timestamp</TableHead>
+                        <TableHead>System Comment</TableHead>
+                        <TableHead>Actionee</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLog.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="font-medium">{entry.action}</TableCell>
+                          <TableCell className="whitespace-nowrap">{entry.timestamp}</TableCell>
+                          <TableCell>{entry.systemComment || entry.comment || '—'}</TableCell>
+                          <TableCell>{entry.actionee || 'You'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Lawyer Assignment Section */}
             <div className="space-y-4">

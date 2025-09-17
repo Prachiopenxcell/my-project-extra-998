@@ -497,7 +497,7 @@ function App() {
               <Route path="/meetings/*" element={<ComingSoon />} />
               <Route path="/voting/*" element={<ComingSoon />} />
               <Route path="/ar-facilitators/*" element={<ComingSoon />} />
-              <Route path="/litigation/*" element={<ComingSoon />} />
+              {/* Removed litigation catch-all to allow specific routes to work */}
               <Route path="/timeline/*" element={<ComingSoon />} />
               <Route path="/resolution/*" element={<ComingSoon />} />
               <Route path="/data-room/*" element={<ComingSoon />} />

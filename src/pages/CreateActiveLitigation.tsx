@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,12 @@ const CreateActiveLitigation = () => {
   const [eFilingReceiptVersions, setEFilingReceiptVersions] = useState<{name:string; uploadedAt:string; size?:number}[]>([]);
   const [interimOrders, setInterimOrders] = useState<{date:string; summary:string}[]>([]);
   const [finalOrders, setFinalOrders] = useState<{date:string; summary:string}[]>([]);
+  const [caseNumberOverride, setCaseNumberOverride] = useState<boolean>(false);
+  const [repliesList, setRepliesList] = useState<{ id: string; submittingParty: string; document?: string; description?: string; summary?: string }[]>([]);
+  const [replyForm, setReplyForm] = useState<{ submittingParty: string; document?: string; description: string; summary?: string }>({ submittingParty: '', description: '' });
+  const [audit, setAudit] = useState<{ id: string; action: string; timestamp: string; comment?: string }[]>([]);
+
+  
 
   // Form state
   const [formData, setFormData] = useState({
@@ -97,6 +103,91 @@ const CreateActiveLitigation = () => {
     tags: [],
     priority: 'medium'
   });
+
+  // Stage 2 Application Filing Status (portal sync + manual override)
+  const applicationStatusOptions = [
+    'Filed, under scrutiny',
+    'Defects raised',
+    'Defects rectified, under scrutiny',
+    'Defect free, pending numbering',
+    'Numbering done',
+    'Pending adjudication',
+    'Final hearing done',
+  ] as const;
+  type ApplicationStatusType = typeof applicationStatusOptions[number];
+  const statusValueMap: Record<ApplicationStatusType, string> = {
+    'Filed, under scrutiny': 'filed',
+    'Defects raised': 'defects',
+    'Defects rectified, under scrutiny': 'rectified',
+    'Defect free, pending numbering': 'pending',
+    'Numbering done': 'numbered',
+    'Pending adjudication': 'adjudication',
+    'Final hearing done': 'hearing',
+  };
+
+  // Audit helper
+  const addAudit = (action: string, comment?: string) => {
+    setAudit(prev => [{ id: `audit-${Date.now()}`, action, timestamp: new Date().toLocaleString('en-IN'), comment }, ...prev]);
+  };
+
+  // Auto-populate Suit/Application No when status is Numbering done or after
+  useEffect(() => {
+    if (stage !== 'pre-filing') {
+      if (isStatusNumberedOrAfter(formData.status)) {
+        if (!caseNumberOverride) {
+          if (!formData.caseNumber) {
+            const pulled = `CP(IB)-${Math.floor(100 + Math.random()*900)}/MB/${new Date().getFullYear()}`;
+            handleInputChange('caseNumber', pulled);
+            toast({ title: 'Case Number Pulled', description: 'Application number auto-populated from portal (simulated).' });
+          }
+        }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.status, caseNumberOverride, stage]);
+  const statusLabelMap: Record<string, ApplicationStatusType> = useMemo(() => ({
+    filed: 'Filed, under scrutiny',
+    defects: 'Defects raised',
+    rectified: 'Defects rectified, under scrutiny',
+    pending: 'Defect free, pending numbering',
+    numbered: 'Numbering done',
+    adjudication: 'Pending adjudication',
+    hearing: 'Final hearing done',
+  }), []);
+  const [thirdPartyStatus, setThirdPartyStatus] = useState<ApplicationStatusType>(statusLabelMap[formData.status] || 'Filed, under scrutiny');
+  const [applicationStatusManualOverride, setApplicationStatusManualOverride] = useState<boolean>(false);
+  const [lastStatusSyncedAt, setLastStatusSyncedAt] = useState<string>('');
+  const [manualStatusSelected, setManualStatusSelected] = useState<ApplicationStatusType>(statusLabelMap[formData.status] || 'Filed, under scrutiny');
+
+  const syncStatusFromPortals = () => {
+    const idx = Math.floor(Math.random() * applicationStatusOptions.length);
+    const fetched = applicationStatusOptions[idx];
+    setThirdPartyStatus(fetched);
+    setLastStatusSyncedAt(new Date().toLocaleString('en-IN'));
+    if (!applicationStatusManualOverride) {
+      handleInputChange('status', statusValueMap[fetched]);
+    }
+    toast({ title: 'Status Synced', description: `Fetched latest status from portals: ${fetched}` });
+    addAudit('Status synced from portals', fetched);
+  };
+
+  useEffect(() => {
+    // keep manual dropdown synced with current system value
+    setManualStatusSelected(statusLabelMap[formData.status] || 'Filed, under scrutiny');
+  }, [formData.status, statusLabelMap]);
+
+  useEffect(() => {
+    // Initial sync on mount for Stage 2
+    if (stage !== 'pre-filing') {
+      syncStatusFromPortals();
+    }
+    // Periodic sync every 30 minutes
+    const t = setInterval(() => {
+      if (stage !== 'pre-filing') syncStatusFromPortals();
+    }, 30 * 60 * 1000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationStatusManualOverride, stage]);
 
   const [selectedLawyer, setSelectedLawyer] = useState<LawyerInfo | null>({
     id: "lawyer-001",
@@ -379,11 +470,75 @@ const CreateActiveLitigation = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Case Information */}
             {currentStep === 1 && (
+              <>
+              {stage !== 'pre-filing' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Gavel className="h-5 w-5 text-blue-600" />
+                      Application Filing Status
+                    </CardTitle>
+                    <CardDescription>System auto-syncs status from court/tribunal portals. You may manually overwrite if needed.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground">Current Status (in system)</Label>
+                        <div className="text-sm font-medium">{statusLabelMap[formData.status]}</div>
+                        {lastStatusSyncedAt && (
+                          <div className="text-xs text-muted-foreground">Last synced: {lastStatusSyncedAt}</div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground">Court Portal (latest fetched)</Label>
+                        <div className="text-sm">{thirdPartyStatus}</div>
+                        <div>
+                          <Button size="sm" variant="outline" className="mt-1" onClick={() => {
+                            syncStatusFromPortals();
+                          }}>Pull from Court Portals</Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox id="override-status" checked={applicationStatusManualOverride} onCheckedChange={(v)=>setApplicationStatusManualOverride(Boolean(v))} />
+                          <Label htmlFor="override-status">Manually override status</Label>
+                        </div>
+                        <Select disabled={!applicationStatusManualOverride} value={manualStatusSelected} onValueChange={(v)=>setManualStatusSelected(v as ApplicationStatusType)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {applicationStatusOptions.map(opt => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex gap-2">
+                          <Button size="sm" disabled={!applicationStatusManualOverride} onClick={() => {
+                            handleInputChange('status', statusValueMap[manualStatusSelected]);
+                            toast({ title: 'Status Updated', description: `Application status overwritten to "${manualStatusSelected}".` });
+                            addAudit('Manual status set', manualStatusSelected);
+                          }}>Apply Manual Status</Button>
+                          {applicationStatusManualOverride && (
+                            <Button size="sm" variant="outline" onClick={() => {
+                              setApplicationStatusManualOverride(false);
+                              handleInputChange('status', statusValueMap[thirdPartyStatus]);
+                              toast({ title: 'Override Disabled', description: 'Reverted to status from court portals.' });
+                              addAudit('Manual override disabled', thirdPartyStatus);
+                            }}>Disable Override</Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Scale className="h-5 w-5 text-orange-600" />
-                    Active Litigation Details
+                  <Scale className="h-5 w-5 text-orange-600" />
+                  Active Litigation Details
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -402,8 +557,14 @@ const CreateActiveLitigation = () => {
                       </Select>
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="caseNumber">Suit/Application Number</Label>
-                      <Input id="caseNumber" placeholder={isStatusNumberedOrAfter(formData.status) ? "Auto-filled from Court (editable)" : "Pending Numbering"} disabled={!isStatusNumberedOrAfter(formData.status)} value={formData.caseNumber} onChange={(e)=>handleInputChange('caseNumber', e.target.value)} />
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="caseNumber">Suit/Application Number</Label>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Checkbox id="overrideCaseNo" checked={caseNumberOverride} onCheckedChange={(v)=>setCaseNumberOverride(Boolean(v))} />
+                          <Label htmlFor="overrideCaseNo" className="text-sm">Override</Label>
+                        </div>
+                      </div>
+                      <Input id="caseNumber" placeholder={isStatusNumberedOrAfter(formData.status) ? "Auto-filled from Court (editable)" : "Pending Numbering"} disabled={!isStatusNumberedOrAfter(formData.status) && !caseNumberOverride} value={formData.caseNumber} onChange={(e)=>handleInputChange('caseNumber', e.target.value)} />
                       {!isStatusNumberedOrAfter(formData.status) && (
                         <div className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded">Pending Numbering</div>
                       )}
@@ -457,6 +618,7 @@ const CreateActiveLitigation = () => {
                   </div>
                 </CardContent>
               </Card>
+              </>
             )}
 
             {/* Step 2: Case Documents */}
@@ -469,8 +631,18 @@ const CreateActiveLitigation = () => {
                   <div className="space-y-2">
                     <Label htmlFor="applicationCopy">Copy of Application Filed</Label>
                     <div className="flex items-center gap-2">
-                      <Input id="applicationCopy" type="file" accept=".pdf,.doc,.docx" className="flex-1" onChange={(e)=>handleFileUpload('applicationCopy', e)} />
+                      <Input id="applicationCopy" type="file" accept=".pdf,.doc,.docx" className="flex-1" onChange={(e)=>{ handleFileUpload('applicationCopy', e); addAudit('Application PDF uploaded'); }} />
                       <Button variant="outline" size="sm" className="flex items-center gap-1"><Upload className="h-4 w-4" />Upload</Button>
+                      {selectedLawyer?.status === 'registered' && (
+                        <Button type="button" variant="outline" size="sm" onClick={()=>{
+                          if (!replyForm.submittingParty) { toast({ title: 'Submitting party required', description: 'Please select submitting party' }); return; }
+                          const item = { id: `rp-${Date.now()}`, submittingParty: replyForm.submittingParty, document: replyForm.document, description: replyForm.description, summary: replyForm.summary || 'AI summary (simulated)' };
+                          setRepliesList(prev => [item, ...prev]);
+                          setReplyForm({ submittingParty: '', description: '' });
+                          toast({ title: 'Reply Added', description: 'Reply/rejoinder captured.' });
+                          addAudit('Reply/Rejoinder added', `${item.submittingParty}${item.document ? ` - ${item.document}` : ''}`);
+                        }}>Add</Button>
+                      )}
                     </div>
                     {applicationCopyVersions.length > 0 && (
                       <div className="border rounded p-3 space-y-2">
@@ -491,11 +663,22 @@ const CreateActiveLitigation = () => {
                   <div className="space-y-2">
                     <Label htmlFor="eFilingReceipt">E-Filing Receipt Copy</Label>
                     <div className="flex items-center gap-2">
-                      <Input id="eFilingReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="flex-1" onChange={(e)=>handleFileUpload('eFilingReceipt', e)} />
+                      <Input id="eFilingReceipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="flex-1" onChange={(e)=>{ handleFileUpload('eFilingReceipt', e); addAudit('E-filing receipt uploaded'); }} />
                       <Button variant="outline" size="sm" className="flex items-center gap-1"><Upload className="h-4 w-4" />Upload</Button>
+                      {selectedLawyer?.status === 'registered' && (
+                        <Button type="button" variant="outline" size="sm" className="flex items-center gap-1" onClick={()=>{
+                          const version = { name: 'E-Filing_Receipt_from_LawyerERP.pdf', uploadedAt: new Date().toISOString(), size: 1024 };
+                          setEFilingReceiptVersions(prev => [version, ...prev]);
+                          handleInputChange('filingDate', new Date().toISOString().slice(0,10));
+                          toast({ title: 'Imported', description: 'E-filing receipt imported and filing date extracted (simulated).' });
+                          addAudit('Imported Receipt from Lawyer ERP', version.name);
+                        }}>
+                          Import from Lawyer ERP
+                        </Button>
+                      )}
                     </div>
                     <div className="pt-2">
-                      <Button type="button" variant="outline" size="sm" onClick={()=>handleInputChange('filingDate', new Date().toISOString().slice(0,10))}>Extract Date of Filing</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={()=>{ handleInputChange('filingDate', new Date().toISOString().slice(0,10)); addAudit('Filing date extracted'); }}>Extract Date of Filing</Button>
                     </div>
                     {eFilingReceiptVersions.length > 0 && (
                       <div className="border rounded p-3 space-y-2">
@@ -518,7 +701,7 @@ const CreateActiveLitigation = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="font-medium">Interim Orders</h4>
-                      <Button type="button" variant="outline" size="sm" onClick={()=>setInterimOrders(prev=>[...prev,{date:new Date().toISOString().slice(0,10), summary:'Pulled interim order (mock)'}])}>Pull from NCLT/NCLAT</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={()=>{ setInterimOrders(prev=>[...prev,{date:new Date().toISOString().slice(0,10), summary:'Pulled interim order (mock)'}]); addAudit('Pulled interim order'); }}>Pull from NCLT/NCLAT</Button>
                     </div>
                     {interimOrders.map((o,idx)=> (
                       <div key={idx} className="p-2 border rounded text-sm flex items-center justify-between">
@@ -532,7 +715,7 @@ const CreateActiveLitigation = () => {
 
                     <div className="flex items-center justify-between pt-2">
                       <h4 className="font-medium">Final Orders</h4>
-                      <Button type="button" variant="outline" size="sm" onClick={()=>setFinalOrders(prev=>[...prev,{date:new Date().toISOString().slice(0,10), summary:'Pulled final order (mock)'}])}>Pull from NCLT/NCLAT</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={()=>{ setFinalOrders(prev=>[...prev,{date:new Date().toISOString().slice(0,10), summary:'Pulled final order (mock)'}]); addAudit('Pulled final order'); }}>Pull from NCLT/NCLAT</Button>
                     </div>
                     {finalOrders.map((o,idx)=> (
                       <div key={idx} className="p-2 border rounded text-sm flex items-center justify-between">
@@ -580,7 +763,7 @@ const CreateActiveLitigation = () => {
                               {selectedLawyer.status === 'registered' ? 'Registered on 998P' : 'Not Registered'}
                             </Badge>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm">
                             <div className="flex items-center gap-2"><Gavel className="h-4 w-4 text-gray-500" /><span>{selectedLawyer.courtPractice}</span></div>
                             <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-500" /><span>{selectedLawyer.contact}</span></div>
                             <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-500" /><span>{selectedLawyer.email}</span></div>
@@ -679,6 +862,17 @@ const CreateActiveLitigation = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Notifications Preview (simulated) */}
+                  <div>
+                    <h4 className="mb-2 font-medium">Notifications</h4>
+                    <div className="text-sm text-muted-foreground">Upcoming notifications based on your dates</div>
+                    <ul className="list-disc pl-5 text-sm mt-1">
+                      {formData.nextDeadline && (<li>Reminder for next deadline on {new Date(formData.nextDeadline).toLocaleDateString('en-IN')}</li>)}
+                      {formData.followUpDate && (<li>Follow-up scheduled on {new Date(formData.followUpDate).toLocaleDateString('en-IN')}</li>)}
+                      <li>Hearing notifications are triggered when hearings are added in Case Details.</li>
+                    </ul>
                   </div>
 
                   {/* Legal Team */}

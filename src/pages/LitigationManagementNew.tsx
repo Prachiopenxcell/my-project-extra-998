@@ -1459,7 +1459,7 @@ const LitigationModule = () => {
                               <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleViewCase(c.id); }}>
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleEditCase(c.id); }}>
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/litigation/create-active`)}>
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </div>

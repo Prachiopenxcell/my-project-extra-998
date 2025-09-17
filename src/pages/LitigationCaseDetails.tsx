@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,11 +14,42 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ArrowLeft, Calendar, FileText, Users, User, DollarSign, Clock, AlertTriangle,
-  CheckCircle, Building, Scale, Phone, Mail, MapPin, Download, Eye, Edit,
-  Plus, X, Save, Gavel, BookOpen, Bell, MessageSquare, Upload, Trash2,
-  ExternalLink, Copy, Share, Filter, Search, MoreHorizontal, History, Send
+import { 
+  ArrowLeft, 
+  Calendar, 
+  Clock, 
+  DollarSign, 
+  FileText, 
+  Plus, 
+  User, 
+  Users,
+  Search,
+  AlertCircle,
+  CheckCircle,
+  Phone,
+  Mail,
+  Building,
+  Trash,
+  Pencil,
+  Upload,
+  FileUp,
+  FileDown,
+  MoreHorizontal,
+  Eye,
+  Download,
+  Gavel, 
+  BookOpen, 
+  Bell, 
+  MessageSquare, 
+  Trash2,
+  ExternalLink, 
+  Copy, 
+  Share, 
+  Filter, 
+  History, 
+  Send,
+  Scale,
+  Edit
 } from 'lucide-react';
 
 interface CaseDetails {
@@ -35,10 +67,42 @@ interface CaseDetails {
   amount: number;
   description: string;
   
+  // AI-powered fields with override capability
+  plaintiffDetails: PartyDetails;
+  defendantDetails: PartyDetails[];
+  adjudicatingAuthority: string;
+  filedUnder: string;
+  dateOfFiling: string;
+  eFilingReceiptDate: string;
+  hearingDates: HearingDate[];
+  finalOrderDate: string | null;
+  applicationParticulars: string;
+  prayerReliefSought: string;
+  
+  // AI extraction metadata
+  aiExtractionStatus: {
+    plaintiff: AIExtractionStatus;
+    defendant: AIExtractionStatus;
+    authority: AIExtractionStatus;
+    filedUnder: AIExtractionStatus;
+    particulars: AIExtractionStatus;
+    prayer: AIExtractionStatus;
+  };
+  
+  // User override flags
+  userOverrides: {
+    plaintiff: boolean;
+    defendant: boolean;
+    authority: boolean;
+    filedUnder: boolean;
+    dateOfFiling: boolean;
+    hearingDates: boolean;
+    particulars: boolean;
+    prayer: boolean;
+  };
+  
   // Stage 2 specific fields
   applicationStatus: string;
-  adjudicatingAuthority: string;
-  filedUnder?: string;
   particulars: string;
   reliefSought: string;
   interimOrders: InterimOrder[];
@@ -52,28 +116,66 @@ interface CaseDetails {
   auditLog: AuditEntry[];
 }
 
+interface PartyDetails {
+  name: string;
+  address: string;
+  contactInfo: string;
+  representedBy: string;
+  aiExtracted: boolean;
+  lastUpdated: string;
+}
+
+interface HearingDate {
+  id: string;
+  date: string;
+  time: string;
+  purpose: string;
+  status: 'scheduled' | 'completed' | 'postponed' | 'cancelled';
+  outcome?: string;
+  nextDate?: string;
+  source: 'nclt_website' | 'manual' | 'e_filing';
+}
+
+interface AIExtractionStatus {
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  confidence: number;
+  lastExtracted: string;
+  source: 'pdf_application' | 'e_filing_receipt' | 'nclt_website';
+}
+
 interface InterimOrder {
   id: string;
   date: string;
+  time: string;
   description: string;
   orderCopy: string;
+  briefSummary: string;
   status: 'pending' | 'complied' | 'appealed';
+  source: 'nclt_website' | 'manual_upload';
+  aiGenerated: boolean;
 }
 
 interface FinalOrder {
   date: string;
+  time: string;
   description: string;
   orderCopy: string;
+  briefSummary: string;
   outcome: 'favorable' | 'unfavorable' | 'partial';
+  source: 'nclt_website' | 'manual_upload';
+  aiGenerated: boolean;
 }
 
 interface Reply {
   id: string;
   submittingParty: string;
+  partyType: 'plaintiff' | 'defendant' | 'intervener' | 'other';
   document: string;
+  documentType: 'reply' | 'rejoinder' | 'counter_reply' | 'affidavit' | 'other';
   date: string;
   summary: string;
   status: 'filed' | 'pending' | 'rejected';
+  uploadedBy: string;
 }
 
 interface LawyerDetails {
@@ -103,6 +205,10 @@ interface Hearing {
   outcome: string;
   nextDate: string;
   attendees: string[];
+  // Added fields for view and download functionality
+  noticeDocument?: string;
+  orderDocument?: string;
+  minutesDocument?: string;
 }
 
 interface Note {
@@ -126,7 +232,8 @@ interface AuditEntry {
   date: string;
   time: string;
   action: string;
-  description: string;
+  description: string; // System Comment
+  actionee: string;
 }
 
 const LitigationCaseDetails = () => {
@@ -136,6 +243,22 @@ const LitigationCaseDetails = () => {
   
   const [activeTab, setActiveTab] = useState("case-details");
   const [newNote, setNewNote] = useState("");
+  // Stage 2 Application Filing Status management
+  const applicationStatusOptions = [
+    'Filed, under scrutiny',
+    'Defects raised',
+    'Defects rectified, under scrutiny',
+    'Defect free, pending numbering',
+    'Numbering done',
+    'Pending adjudication',
+    'Final hearing done'
+  ] as const;
+  type ApplicationStatusType = typeof applicationStatusOptions[number];
+  const [thirdPartyStatus, setThirdPartyStatus] = useState<ApplicationStatusType>('Filed, under scrutiny');
+  const [applicationStatusManualOverride, setApplicationStatusManualOverride] = useState<boolean>(false);
+  const [lastStatusSyncedAt, setLastStatusSyncedAt] = useState<string>('');
+  // Identifiers fetched from court portals
+  const [portalIdentifiers, setPortalIdentifiers] = useState<{ applicationNumber: string; fileNumber: string }>({ applicationNumber: '', fileNumber: '' });
 
   // Mock data - replace with actual API calls
   const [caseDetails, setCaseDetails] = useState<CaseDetails>({
@@ -153,10 +276,100 @@ const LitigationCaseDetails = () => {
     amount: 2500000,
     description: "Corporate insolvency resolution process under Section 7 of IBC 2016",
     
+    // AI-powered fields with comprehensive data
+    plaintiffDetails: {
+      name: "Acme Corporation Limited",
+      address: "Plot No. 45, Industrial Area, Phase-II, Chandigarh - 160002",
+      contactInfo: "Phone: +91-172-2345678, Email: legal@acmecorp.com",
+      representedBy: "Adv. Rajesh Sharma, Senior Advocate",
+      aiExtracted: true,
+      lastUpdated: "2024-12-05T10:30:00Z"
+    },
+    
+    defendantDetails: [
+      {
+        name: "Beta Industries Private Limited",
+        address: "Sector 18, Industrial Complex, Gurgaon, Haryana - 122015",
+        contactInfo: "Phone: +91-124-4567890, Email: info@betaindustries.com",
+        representedBy: "Adv. Priya Mehta, Advocate",
+        aiExtracted: true,
+        lastUpdated: "2024-12-05T10:30:00Z"
+      },
+      {
+        name: "ABC Suppliers Private Limited",
+        address: "Block B, Commercial Complex, Noida, UP - 201301",
+        contactInfo: "Phone: +91-120-9876543, Email: legal@abcsuppliers.com",
+        representedBy: "Adv. Suresh Kumar, Advocate",
+        aiExtracted: true,
+        lastUpdated: "2024-12-05T10:30:00Z"
+      }
+    ],
+    
+    adjudicatingAuthority: "Hon'ble Justice A.K. Sharma, NCLT Mumbai Bench",
+    filedUnder: "Insolvency and Bankruptcy Code, 2016 - Section 7 (Financial Creditor)",
+    dateOfFiling: "2024-12-05",
+    eFilingReceiptDate: "2024-12-05",
+    finalOrderDate: null,
+    
+    applicationParticulars: "The Applicant, Acme Corporation Limited, is a financial creditor of the Corporate Debtor, Beta Industries Private Limited. The Corporate Debtor has defaulted in repayment of financial debt amounting to Rs. 25,00,000/- (Rupees Twenty-Five Lakhs only) along with interest. Despite repeated demands and notices, the Corporate Debtor has failed to clear the outstanding dues. The Applicant seeks initiation of Corporate Insolvency Resolution Process under Section 7 of the Insolvency and Bankruptcy Code, 2016.",
+    
+    prayerReliefSought: "a) Admit the present application and initiate Corporate Insolvency Resolution Process against the Corporate Debtor; b) Appoint an Interim Resolution Professional; c) Declare moratorium under Section 14 of the IBC, 2016; d) Direct the Corporate Debtor to provide all books of accounts and records; e) Any other relief deemed fit and proper by this Hon'ble Tribunal.",
+    
+    hearingDates: [
+      {
+        id: "hd-001",
+        date: "2024-12-20",
+        time: "10:30 AM",
+        purpose: "First Hearing - Admission of Application",
+        status: "completed",
+        outcome: "Application taken on record, notice issued to respondents",
+        nextDate: "2025-01-15",
+        source: "nclt_website"
+      },
+      {
+        id: "hd-002",
+        date: "2025-01-15",
+        time: "11:00 AM",
+        purpose: "Reply Hearing and Arguments",
+        status: "completed",
+        outcome: "Application admitted, IRP appointed, moratorium declared",
+        nextDate: "2025-02-20",
+        source: "nclt_website"
+      },
+      {
+        id: "hd-003",
+        date: "2025-02-20",
+        time: "2:30 PM",
+        purpose: "Progress Review and Status Update",
+        status: "scheduled",
+        source: "nclt_website"
+      }
+    ],
+    
+    // AI extraction status tracking
+    aiExtractionStatus: {
+      plaintiff: { status: "completed", confidence: 0.95, lastExtracted: "2024-12-05T10:30:00Z", source: "pdf_application" },
+      defendant: { status: "completed", confidence: 0.92, lastExtracted: "2024-12-05T10:30:00Z", source: "pdf_application" },
+      authority: { status: "completed", confidence: 0.98, lastExtracted: "2024-12-05T10:30:00Z", source: "pdf_application" },
+      filedUnder: { status: "completed", confidence: 0.97, lastExtracted: "2024-12-05T10:30:00Z", source: "pdf_application" },
+      particulars: { status: "completed", confidence: 0.89, lastExtracted: "2024-12-05T10:30:00Z", source: "pdf_application" },
+      prayer: { status: "completed", confidence: 0.91, lastExtracted: "2024-12-05T10:30:00Z", source: "pdf_application" }
+    },
+    
+    // User override tracking
+    userOverrides: {
+      plaintiff: false,
+      defendant: false,
+      authority: false,
+      filedUnder: false,
+      dateOfFiling: false,
+      hearingDates: false,
+      particulars: false,
+      prayer: false
+    },
+    
     // Stage 2 specific data
     applicationStatus: "numbered",
-    adjudicatingAuthority: "Hon'ble Justice A.K. Sharma, NCLT Mumbai",
-    filedUnder: "IBC 2016, Section 7",
     particulars: "Application for initiation of Corporate Insolvency Resolution Process against Beta Industries Pvt Ltd under Section 7 of the Insolvency and Bankruptcy Code, 2016 for default in payment of financial debt amounting to Rs. 25,00,000/-",
     reliefSought: "Initiation of CIRP against the Corporate Debtor, appointment of Interim Resolution Professional, moratorium on legal proceedings, and recovery of outstanding dues",
     
@@ -164,37 +377,71 @@ const LitigationCaseDetails = () => {
       {
         id: "io-001",
         date: "2025-01-10",
+        time: "11:30 AM",
         description: "Interim order for admission of application and appointment of IRP",
         orderCopy: "/documents/interim-order-001.pdf",
-        status: "complied"
+        briefSummary: "The Tribunal admitted the application under Section 7 of IBC, 2016 and appointed CA Suresh Kumar as Interim Resolution Professional. Moratorium declared under Section 14. All pending legal proceedings stayed.",
+        status: "complied",
+        source: "nclt_website",
+        aiGenerated: true
       },
       {
         id: "io-002",
         date: "2025-01-25",
+        time: "2:15 PM",
         description: "Order for extension of CIRP period by 90 days",
         orderCopy: "/documents/interim-order-002.pdf",
-        status: "pending"
+        briefSummary: "Upon application by the Resolution Professional, the Tribunal granted extension of Corporate Insolvency Resolution Process by 90 days as per Section 12(3) of IBC, 2016. New timeline: 270 days from commencement date.",
+        status: "pending",
+        source: "nclt_website",
+        aiGenerated: true
       }
     ],
     
-    finalOrder: null,
+    finalOrder: {
+      date: "2025-03-15",
+      time: "11:30 AM",
+      description: "Final Order on Corporate Insolvency Resolution Process",
+      outcome: "favorable",
+      briefSummary: "Application admitted, CIRP initiated successfully, IRP appointed with moratorium declared",
+      orderCopy: "/documents/final-order.pdf",
+      source: "nclt_website",
+      aiGenerated: true
+    },
     
     replies: [
       {
         id: "rp-001",
         submittingParty: "Beta Industries Pvt Ltd",
+        partyType: "defendant",
         document: "/documents/reply-001.pdf",
+        documentType: "reply",
         date: "2025-01-15",
-        summary: "Reply contesting the application with objections on maintainability and quantum of debt",
-        status: "filed"
+        summary: "Reply contesting the application with objections on maintainability and quantum of debt. Respondent argues that the debt is disputed and the application is premature.",
+        status: "filed",
+        uploadedBy: "Adv. Priya Mehta"
       },
       {
         id: "rp-002",
         submittingParty: "ABC Suppliers",
+        partyType: "defendant",
         document: "/documents/reply-002.pdf",
+        documentType: "reply",
         date: "2025-01-18",
-        summary: "Supporting reply as operational creditor with additional claims",
-        status: "filed"
+        summary: "Supporting reply as operational creditor with additional claims. Respondent supports the application and claims operational debt of Rs. 5,00,000/-.",
+        status: "filed",
+        uploadedBy: "Adv. Suresh Kumar"
+      },
+      {
+        id: "rp-003",
+        submittingParty: "Acme Corporation Ltd",
+        partyType: "plaintiff",
+        document: "/documents/rejoinder-001.pdf",
+        documentType: "rejoinder",
+        date: "2025-01-22",
+        summary: "Rejoinder to the reply filed by Beta Industries. Applicant refutes all objections and provides additional evidence of debt default.",
+        status: "filed",
+        uploadedBy: "Adv. Rajesh Sharma"
       }
     ],
     
@@ -255,7 +502,10 @@ const LitigationCaseDetails = () => {
         status: "completed",
         outcome: "Application taken on record, notice issued to respondents",
         nextDate: "2025-01-15",
-        attendees: ["Adv. Rajesh Sharma", "Adv. Priya Mehta (Respondent)"]
+        attendees: ["Adv. Rajesh Sharma", "Adv. Priya Mehta (Respondent)"],
+        noticeDocument: "/documents/notice-001.pdf",
+        orderDocument: "/documents/order-001.pdf",
+        minutesDocument: "/documents/minutes-001.pdf"
       },
       {
         id: "hearing-002",
@@ -265,7 +515,10 @@ const LitigationCaseDetails = () => {
         status: "completed",
         outcome: "Application admitted, IRP appointed, moratorium declared",
         nextDate: "2025-02-20",
-        attendees: ["Adv. Rajesh Sharma", "Adv. Priya Mehta", "IRP - CA Suresh Kumar"]
+        attendees: ["Adv. Rajesh Sharma", "Adv. Priya Mehta", "IRP - CA Suresh Kumar"],
+        noticeDocument: "/documents/notice-002.pdf",
+        orderDocument: "/documents/order-002.pdf",
+        minutesDocument: "/documents/minutes-002.pdf"
       },
       {
         id: "hearing-003",
@@ -275,7 +528,8 @@ const LitigationCaseDetails = () => {
         status: "scheduled",
         outcome: "",
         nextDate: "",
-        attendees: ["Adv. Rajesh Sharma", "IRP - CA Suresh Kumar"]
+        attendees: ["Adv. Rajesh Sharma", "IRP - CA Suresh Kumar"],
+        noticeDocument: "/documents/notice-003.pdf"
       }
     ],
     
@@ -326,24 +580,40 @@ const LitigationCaseDetails = () => {
         date: "2024-12-05",
         time: "10:00 AM",
         action: "Application filed",
-        description: "Application for initiation of CIRP filed against Beta Industries Pvt Ltd"
+        description: "Application for initiation of CIRP filed against Beta Industries Pvt Ltd",
+        actionee: "System"
       },
       {
         id: "audit-002",
         date: "2024-12-10",
         time: "11:00 AM",
         action: "Notice issued",
-        description: "Notice issued to respondents for first hearing"
+        description: "Notice issued to respondents for first hearing",
+        actionee: "System"
       },
       {
         id: "audit-003",
         date: "2025-01-15",
         time: "12:00 PM",
         action: "First hearing",
-        description: "First hearing held, application admitted, IRP appointed"
+        description: "First hearing held, application admitted, IRP appointed",
+        actionee: "Court"
       }
     ]
   });
+
+  // Manual status selected (for override)
+  const [manualStatusSelected, setManualStatusSelected] = useState<ApplicationStatusType>(
+    ((applicationStatusOptions as readonly string[]).includes(caseDetails.applicationStatus)
+      ? (caseDetails.applicationStatus as ApplicationStatusType)
+      : 'Filed, under scrutiny')
+  );
+  useEffect(() => {
+    const next = ((applicationStatusOptions as readonly string[]).includes(caseDetails.applicationStatus)
+      ? (caseDetails.applicationStatus as ApplicationStatusType)
+      : 'Filed, under scrutiny');
+    setManualStatusSelected(next);
+  }, [caseDetails.applicationStatus]);
 
   // Local state derived from case details
   const [notes, setNotes] = useState(caseDetails.notes);
@@ -367,6 +637,239 @@ const LitigationCaseDetails = () => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric'
+    });
+  };
+
+  // AI Processing and NCLT Integration Functions
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [isLoadingNCLT, setIsLoadingNCLT] = useState(false);
+  
+  // Simulate AI PDF extraction
+  const extractFromPDF = async (field: string) => {
+    setIsProcessingAI(true);
+    
+    // Simulate AI processing time
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Mock AI extraction results
+    const mockExtractions = {
+      plaintiff: {
+        name: "Acme Corporation Limited (AI Extracted)",
+        address: "Plot No. 45, Industrial Area, Phase-II, Chandigarh - 160002 (AI Extracted)",
+        contactInfo: "Phone: +91-172-2345678, Email: legal@acmecorp.com (AI Extracted)",
+        representedBy: "Adv. Rajesh Sharma, Senior Advocate (AI Extracted)"
+      },
+      defendant: [
+        {
+          name: "Beta Industries Private Limited (AI Extracted)",
+          address: "Sector 18, Industrial Complex, Gurgaon, Haryana - 122015 (AI Extracted)",
+          contactInfo: "Phone: +91-124-4567890, Email: info@betaindustries.com (AI Extracted)",
+          representedBy: "Adv. Priya Mehta, Advocate (AI Extracted)"
+        }
+      ],
+      authority: "Hon'ble Justice A.K. Sharma, NCLT Mumbai Bench (AI Extracted)",
+      filedUnder: "Insolvency and Bankruptcy Code, 2016 - Section 7 (Financial Creditor) (AI Extracted)",
+      particulars: "AI has analyzed the PDF and extracted: The Applicant seeks initiation of CIRP under Section 7 of IBC, 2016 against the Corporate Debtor for default in financial debt of Rs. 25,00,000/-. (AI Extracted)",
+      prayer: "AI Summary: a) Admit application for CIRP; b) Appoint IRP; c) Declare moratorium; d) Provide books of accounts; e) Other reliefs. (AI Extracted)"
+    };
+    
+    // Update case details with AI extracted data
+    setCaseDetails(prev => {
+      const updated = { ...prev };
+      
+      if (field === 'plaintiff' && mockExtractions.plaintiff) {
+        updated.plaintiffDetails = {
+          ...mockExtractions.plaintiff,
+          aiExtracted: true,
+          lastUpdated: new Date().toISOString()
+        };
+        updated.aiExtractionStatus.plaintiff = {
+          status: 'completed',
+          confidence: 0.95,
+          lastExtracted: new Date().toISOString(),
+          source: 'pdf_application'
+        };
+      }
+      
+      if (field === 'defendant' && mockExtractions.defendant) {
+        updated.defendantDetails = mockExtractions.defendant.map(d => ({
+          ...d,
+          aiExtracted: true,
+          lastUpdated: new Date().toISOString()
+        }));
+        updated.aiExtractionStatus.defendant = {
+          status: 'completed',
+          confidence: 0.92,
+          lastExtracted: new Date().toISOString(),
+          source: 'pdf_application'
+        };
+      }
+      
+      if (field === 'authority') {
+        updated.adjudicatingAuthority = mockExtractions.authority;
+        updated.aiExtractionStatus.authority = {
+          status: 'completed',
+          confidence: 0.98,
+          lastExtracted: new Date().toISOString(),
+          source: 'pdf_application'
+        };
+      }
+      
+      if (field === 'filedUnder') {
+        updated.filedUnder = mockExtractions.filedUnder;
+        updated.aiExtractionStatus.filedUnder = {
+          status: 'completed',
+          confidence: 0.97,
+          lastExtracted: new Date().toISOString(),
+          source: 'pdf_application'
+        };
+      }
+      
+      if (field === 'particulars') {
+        updated.applicationParticulars = mockExtractions.particulars;
+        updated.aiExtractionStatus.particulars = {
+          status: 'completed',
+          confidence: 0.89,
+          lastExtracted: new Date().toISOString(),
+          source: 'pdf_application'
+        };
+      }
+      
+      if (field === 'prayer') {
+        updated.prayerReliefSought = mockExtractions.prayer;
+        updated.aiExtractionStatus.prayer = {
+          status: 'completed',
+          confidence: 0.91,
+          lastExtracted: new Date().toISOString(),
+          source: 'pdf_application'
+        };
+      }
+      
+      return updated;
+    });
+    
+    setIsProcessingAI(false);
+    addCaseAudit(`AI Extraction - ${field}`, `AI successfully extracted ${field} information from PDF application`, 'AI System');
+    toast({ title: 'AI Extraction Complete', description: `Successfully extracted ${field} information from PDF` });
+  };
+  
+  // Simulate NCLT/NCLAT website integration
+  const syncFromNCLTWebsite = async () => {
+    setIsLoadingNCLT(true);
+    
+    // Simulate API call to NCLT website
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Mock NCLT data
+    const mockNCLTData = {
+      hearingDates: [
+        {
+          id: "hd-004",
+          date: "2025-03-15",
+          time: "10:00 AM",
+          purpose: "Final Arguments and Judgment",
+          status: "scheduled" as const,
+          source: "nclt_website" as const
+        }
+      ],
+      interimOrders: [
+        {
+          id: "io-003",
+          date: "2025-02-01",
+          time: "3:00 PM",
+          description: "Order regarding asset verification",
+          orderCopy: "/documents/interim-order-003.pdf",
+          briefSummary: "Tribunal directed the IRP to complete asset verification within 15 days and submit detailed report. All stakeholders to cooperate in the process.",
+          status: "pending" as const,
+          source: "nclt_website" as const,
+          aiGenerated: true
+        }
+      ]
+    };
+    
+    setCaseDetails(prev => ({
+      ...prev,
+      hearingDates: [...prev.hearingDates, ...mockNCLTData.hearingDates],
+      interimOrders: [...prev.interimOrders, ...mockNCLTData.interimOrders]
+    }));
+    
+    setIsLoadingNCLT(false);
+    addCaseAudit('NCLT Sync', 'Successfully synced latest hearing dates and orders from NCLT website', 'NCLT Integration');
+    toast({ title: 'NCLT Sync Complete', description: 'Latest hearing dates and orders synced from NCLT website' });
+  };
+  
+  // Toggle user override for specific fields
+  const toggleUserOverride = (field: keyof typeof caseDetails.userOverrides) => {
+    setCaseDetails(prev => ({
+      ...prev,
+      userOverrides: {
+        ...prev.userOverrides,
+        [field]: !prev.userOverrides[field]
+      }
+    }));
+    
+    addCaseAudit('User Override', `User override ${caseDetails.userOverrides[field] ? 'disabled' : 'enabled'} for ${field}`, 'User');
+  };
+  
+  // Auto-sync on mount and periodically (simulated)
+  useEffect(() => {
+    // Initial fetch
+    syncStatusFromPortals();
+    // Periodic sync every 30 minutes (simulation)
+    const interval = setInterval(() => {
+      syncStatusFromPortals();
+    }, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  // re-create interval if manual override toggles (so we respect not overriding while enabled)
+  }, [applicationStatusManualOverride]);
+
+  // Audit helper for case status actions
+  const addCaseAudit = (action: string, description: string, actionee: string = 'You') => {
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    setCaseDetails(prev => ({
+      ...prev,
+      auditLog: [
+        { id: `audit-${Date.now()}`, date, time, action, description, actionee },
+        ...prev.auditLog,
+      ],
+    }));
+  };
+
+  // Simulate pulling status from third-party portals
+  const syncStatusFromPortals = () => {
+    // Simulate a fetched status rotation for demo
+    const idx = Math.floor(Math.random() * applicationStatusOptions.length);
+    const fetched = applicationStatusOptions[idx];
+    setThirdPartyStatus(fetched);
+    setLastStatusSyncedAt(new Date().toLocaleString('en-IN'));
+    // Simulate identifiers fetched from the court portal
+    const mockAppNo = `APP-${Math.floor(100000 + Math.random() * 900000)}`; // e.g., APP-654321
+    const mockFileNo = `EFIL-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`; // e.g., EFIL-2025-4823
+    setPortalIdentifiers({ applicationNumber: mockAppNo, fileNumber: mockFileNo });
+    // If not overridden, also apply to case details
+    if (!applicationStatusManualOverride) {
+      setCaseDetails(prev => ({ ...prev, applicationStatus: fetched }));
+    }
+    toast({ title: 'Status Synced', description: `Fetched latest status from portals: ${fetched}` });
+  };
+  
+  // Get AI confidence badge color
+  const getConfidenceBadgeColor = (confidence: number) => {
+    if (confidence >= 0.9) return 'bg-green-100 text-green-800';
+    if (confidence >= 0.8) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+  
+  // Format AI extraction timestamp
+  const formatAITimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -586,6 +1089,84 @@ const LitigationCaseDetails = () => {
 
           {/* Case Details Tab */}
           <TabsContent value="case-details" className="space-y-6">
+            {/* Application Filing Status */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gavel className="h-5 w-5" />
+                  Application Filing Status
+                </CardTitle>
+                <CardDescription>System auto-syncs status from court/tribunal portals. You may manually overwrite if needed.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground">Current Status (in system)</Label>
+                    <div className="text-sm font-medium">{caseDetails.applicationStatus || '—'}</div>
+                    {lastStatusSyncedAt && (
+                      <div className="text-xs text-muted-foreground">Last synced: {lastStatusSyncedAt}</div>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-muted-foreground">Court Portal (latest fetched)</Label>
+                    <div className="text-sm">{thirdPartyStatus}</div>
+                    {(portalIdentifiers.applicationNumber || portalIdentifiers.fileNumber) && (
+                      <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                        {portalIdentifiers.applicationNumber && (
+                          <div>
+                            Application No.: <span className="font-medium text-foreground">{portalIdentifiers.applicationNumber}</span>
+                          </div>
+                        )}
+                        {portalIdentifiers.fileNumber && (
+                          <div>
+                            File No.: <span className="font-medium text-foreground">{portalIdentifiers.fileNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <Button size="sm" variant="outline" className="mt-1" onClick={() => {
+                        syncStatusFromPortals();
+                        addCaseAudit('Status sync', 'Fetched status from court portals');
+                      }}>Pull from Court Portals</Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="override-status" checked={applicationStatusManualOverride} onCheckedChange={(v) => setApplicationStatusManualOverride(Boolean(v))} />
+                      <Label htmlFor="override-status">Manually override status</Label>
+                    </div>
+                    <Select disabled={!applicationStatusManualOverride} value={manualStatusSelected} onValueChange={(v) => setManualStatusSelected(v as ApplicationStatusType)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {applicationStatusOptions.map(opt => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={!applicationStatusManualOverride} onClick={() => {
+                        setCaseDetails(prev => ({ ...prev, applicationStatus: manualStatusSelected }));
+                        addCaseAudit('Manual status set', `Status set to: ${manualStatusSelected}`);
+                        toast({ title: 'Status Updated', description: `Application status overwritten to "${manualStatusSelected}".` });
+                      }}>Apply Manual Status</Button>
+                      {applicationStatusManualOverride && (
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setApplicationStatusManualOverride(false);
+                          // Restore to last fetched when disabling override
+                          setCaseDetails(prev => ({ ...prev, applicationStatus: thirdPartyStatus }));
+                          addCaseAudit('Manual override removed', 'Reverted to synced status');
+                          toast({ title: 'Override Disabled', description: 'Reverted to status from court portals.' });
+                        }}>Disable Override</Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Basic Information */}
               <Card>
@@ -842,6 +1423,38 @@ const LitigationCaseDetails = () => {
                             </p>
                           )}
                         </div>
+                        
+                        {/* Only show View and Download buttons for completed hearings */}
+                        {hearing.status === 'completed' && (
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                             
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => {
+                                // Download the primary document
+                                const docUrl = hearing.orderDocument || hearing.noticeDocument || hearing.minutesDocument;
+                                if (docUrl) {
+                                  const link = document.createElement('a');
+                                  link.href = docUrl;
+                                  link.download = `hearing_${hearing.date}.pdf`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  addCaseAudit('Downloaded hearing document', `Hearing on ${formatDate(hearing.date)}`);
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -856,6 +1469,81 @@ const LitigationCaseDetails = () => {
                     Full Schedule
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Final Order */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gavel className="h-5 w-5" />
+                  Final Order
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {caseDetails.finalOrder ? (
+                  <div className="p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Gavel className="h-4 w-4 text-green-600" />
+                          <span className="font-medium">
+                            {formatDate(caseDetails.finalOrder.date)} at {caseDetails.finalOrder.time}
+                          </span>
+                          <Badge className={`${
+                            caseDetails.finalOrder.outcome === 'favorable' ? 'bg-green-100 text-green-800' :
+                            caseDetails.finalOrder.outcome === 'unfavorable' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {caseDetails.finalOrder.outcome === 'favorable' ? 'Favorable' :
+                             caseDetails.finalOrder.outcome === 'unfavorable' ? 'Unfavorable' : 'Partial'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{caseDetails.finalOrder.description}</p>
+                        {caseDetails.finalOrder.briefSummary && (
+                          <p className="text-sm text-green-600 font-medium">
+                            Summary: {caseDetails.finalOrder.briefSummary}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* View and Download buttons for final order */}
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => {
+                            if (caseDetails.finalOrder?.orderCopy) {
+                              const link = document.createElement('a');
+                              link.href = caseDetails.finalOrder.orderCopy;
+                              link.download = `final_order_${caseDetails.finalOrder.date}.pdf`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              addCaseAudit('Downloaded final order document', `Final order dated ${formatDate(caseDetails.finalOrder.date)}`);
+                            }
+                          }}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 border rounded-lg bg-gray-50">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Gavel className="h-4 w-4" />
+                      <span className="text-sm">Final order pending - case is still under adjudication</span>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1018,6 +1706,10 @@ const LitigationCaseDetails = () => {
                   <p className="mt-1">{caseDetails.reliefSought}</p>
                 </div>
                 <div>
+                  <Label className="text-muted-foreground">Key Relief /Prayer sought:</Label>
+                  <p className="mt-1">Admission of application</p>
+                </div>
+                <div>
                   <Label className="text-muted-foreground">AI Summary (from PDFs):</Label>
                   <ul className="mt-1 list-disc ml-6 space-y-1">
                     <li>Application filed under {caseDetails.filedUnder}</li>
@@ -1102,15 +1794,28 @@ const LitigationCaseDetails = () => {
                 <CardTitle>Audit Trail</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {caseDetails.auditLog.map(a => (
-                  <div key={a.id} className="p-3 border rounded-lg text-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">{a.action}</div>
-                      <div className="text-xs text-muted-foreground">{a.date} • {a.time}</div>
-                    </div>
-                    <div className="text-muted-foreground mt-1">{a.description}</div>
-                  </div>
-                ))}
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Timestamp</TableHead>
+                        <TableHead>System Comment</TableHead>
+                        <TableHead>Actionee</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {caseDetails.auditLog.map(a => (
+                        <TableRow key={a.id}>
+                          <TableCell className="font-medium">{a.action}</TableCell>
+                          <TableCell className="whitespace-nowrap">{a.date} • {a.time}</TableCell>
+                          <TableCell>{a.description}</TableCell>
+                          <TableCell>{a.actionee || '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
