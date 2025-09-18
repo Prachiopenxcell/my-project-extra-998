@@ -713,9 +713,9 @@ const ResolutionPlanManagement = () => {
 
             <Dialog open={showRFRPDialog} onOpenChange={setShowRFRPDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
+                {/* <Button variant="outline" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" /> Create RFRP
-                </Button>
+                </Button> */}
               </DialogTrigger>
               <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>

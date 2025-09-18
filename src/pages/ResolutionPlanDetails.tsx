@@ -344,7 +344,7 @@ const ResolutionPlanDetails: React.FC = () => {
           <div className="flex items-center gap-2">
             {getStatusBadge(plan.status)}
             <Button size="sm" onClick={()=> navigate(`/resolution/plan/${plan.id}/edit`)}>Edit</Button>
-            <Button size="sm" variant="outline" onClick={()=> navigate(`/resolution/plan/${plan.id}/comparison`)}>Compare</Button>
+            {/* <Button size="sm" variant="outline" onClick={()=> navigate(`/resolution/plan/${plan.id}/comparison`)}>Compare</Button> */}
           </div>
         </div>
 

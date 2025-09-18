@@ -43,8 +43,61 @@ import {
   ExternalLink,
   MessageSquare,
   Star,
-  BarChart3
+  BarChart3,
+  Shield
 } from 'lucide-react';
+
+// Provisional Report interfaces
+interface ProvisionalReport {
+  id: string;
+  name: string;
+  generatedDate: string;
+  status: 'draft' | 'circulated' | 'final';
+  customization: ReportCustomization;
+  data: ReportData[];
+}
+
+interface ReportCustomization {
+  selectedFields: string[];
+  fieldOrder: string[];
+  sortBy?: string;
+  sortDirection: 'asc' | 'desc';
+  includeRemarks: boolean;
+  layout: 'horizontal' | 'vertical';
+}
+
+interface ReportData {
+  praId: string;
+  praName: string;
+  entityType: string;
+  complianceStatus: string;
+  section29AStatus: string;
+  eligiblitycreator: string;
+  aiEligibilityStatus: string;
+  financialStatus?: string;
+  documentsStatus?: string;
+  remarks?: string;
+}
+
+interface SignatureDetails {
+  fullName: string;
+  organization: string;
+  address: string;
+  email: string;
+  phone: string;
+  signedDate: string;
+  signatureType: 'digital' | 'electronic';
+}
+
+interface FinalReport {
+  id: string;
+  name: string;
+  generatedDate: string;
+  selectedData: ReportData[];
+  totalEntries: number;
+  isSigned?: boolean;
+  signatureDetails?: SignatureDetails;
+}
 
 interface PRASubmission {
   id: string;
@@ -95,6 +148,58 @@ const EOIDetails = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const { hasModuleAccess } = useSubscription();
+  
+  // Provisional Report state
+  const [currentReport, setCurrentReport] = useState<ProvisionalReport | null>(null);
+  const [selectedReportRows, setSelectedReportRows] = useState<number[]>([]);
+  const [showReportCustomization, setShowReportCustomization] = useState(false);
+  
+  // Final Reports state
+  const [finalReports, setFinalReports] = useState<FinalReport[]>([]);
+  const [viewReportDialog, setViewReportDialog] = useState<FinalReport | null>(null);
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
+  const [selectedReportForSigning, setSelectedReportForSigning] = useState<FinalReport | null>(null);
+  // Post Reports (signed/completed)
+  const [postReports, setPostReports] = useState<FinalReport[]>([]);
+  // Circulation state for Post Reports
+  const [showCirculationDialog, setShowCirculationDialog] = useState(false);
+  const [selectedReportForCirculation, setSelectedReportForCirculation] = useState<FinalReport | null>(null);
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState<boolean>(true);
+  const [includeCoC, setIncludeCoC] = useState<boolean>(true);
+  const [includePRAs, setIncludePRAs] = useState<boolean>(true);
+  const [attachPDF, setAttachPDF] = useState<boolean>(true);
+  const [emailSubject, setEmailSubject] = useState<string>('Provisional PRA Report for Review & Objections');
+  const [emailBody, setEmailBody] = useState<string>('Dear Stakeholder,\n\nPlease find attached the Provisional PRA Report. This is circulated for your review and to raise any objections, if any, within the stipulated time period.\n\nKey details included: Eligibility status, evaluation parameters, and Section 29A compliance summary.\n\nRegards,\nResolution Authority');
+  
+  // User profile for signing
+  const [userProfile] = useState({
+    fullName: 'John Doe',
+    organization: 'Resolution Authority',
+    address: '123 Business District, Mumbai',
+    email: 'john.doe@resolution.gov.in',
+    phone: '+91 98765 43210'
+  });
+  const [reportCustomization, setReportCustomization] = useState<ReportCustomization>({
+    selectedFields: ['praName', 'entityType', 'complianceStatus', 'section29AStatus', 'eligiblitycreator', 'aiEligibilityStatus'],
+    fieldOrder: ['praName', 'entityType', 'complianceStatus', 'section29AStatus', 'eligiblitycreator', 'aiEligibilityStatus'],
+    sortBy: 'praName',
+    sortDirection: 'asc',
+    includeRemarks: true,
+    layout: 'horizontal'
+  });
+  
+  // Available fields for report customization
+  const availableFields = [
+    { id: 'praName', label: 'PRA Name' },
+    { id: 'entityType', label: 'Entity Type' },
+    { id: 'complianceStatus', label: 'Compliance Status' },
+    { id: 'section29AStatus', label: 'Section 29A Status' },
+    { id: 'eligiblitycreator', label: 'Eligibility creator' },
+    { id: 'aiEligibilityStatus', label: 'AI Eligibility Status' },
+    { id: 'financialStatus', label: 'Financial Status' },
+    { id: 'documentsStatus', label: 'Documents Status' },
+    { id: 'remarks', label: 'Remarks' }
+  ];
   
   const [activeTab, setActiveTab] = useState('received');
   const [loading, setLoading] = useState(false);
@@ -785,6 +890,153 @@ const EOIDetails = () => {
     });
   };
 
+  const handleViewPRADetails = (praId: string) => {
+    navigate(`/resolution/pra/${praId}`);
+  };
+  
+  // Generate Provisional Report function
+  const generateProvisionalReport = () => {
+    // Create report data from filtered PRAs
+    const reportData: ReportData[] = filteredPRAs.map((pra, index) => {
+      // Make last two entries have "No" for eligibility creator
+      const isLastTwo = index >= filteredPRAs.length - 2;
+      
+      // AI eligibility status logic
+      let aiStatus = '';
+      if (pra.complianceScore >= 85) {
+        aiStatus = 'Eligible by AI';
+      } else if (pra.complianceScore >= 70) {
+        aiStatus = 'Conditionally Eligible by AI';
+      } else if (pra.complianceScore < 50) {
+        aiStatus = 'Rejected by AI - Low compliance score';
+      } else if (pra.queries.length > 2) {
+        aiStatus = 'Rejected by AI - Multiple unresolved queries';
+      } else {
+        aiStatus = 'Under AI Review';
+      }
+      
+      return {
+        praId: pra.id,
+        praName: pra.praName,
+        entityType: pra.entityType,
+        complianceStatus: pra.complianceScore >= 80 ? 'Compliant' : 'Needs Review',
+        section29AStatus: pra.complianceScore >= 70 ? 'Compliant' : 'Non-Compliant',
+        eligiblitycreator: isLastTwo ? 'No' : 'Yes',
+        aiEligibilityStatus: aiStatus,
+        financialStatus: 'Verified',
+        documentsStatus: `${pra.documentsSubmitted.length} Verified`,
+        remarks: pra.queries.length > 0 ? 'Subject to query resolution' : undefined
+      };
+    });
+
+    const uniqueNames = Array.from(new Set(reportData.map(r => r.praName)));
+    const primaryName = uniqueNames[0] || 'PRAs';
+    const suffix = uniqueNames.length > 1 ? ` + ${uniqueNames.length - 1} other${uniqueNames.length - 1 > 1 ? 's' : ''}` : '';
+    const displayName = `${primaryName}${suffix}`;
+
+    const newReport: ProvisionalReport = {
+      id: Date.now().toString(),
+      name: `Provisional Report - ${displayName} - ${new Date().toLocaleDateString()}`,
+      generatedDate: new Date().toISOString().split('T')[0],
+      status: 'draft',
+      customization: { ...reportCustomization },
+      data: reportData
+    };
+
+    setCurrentReport(newReport);
+    toast({
+      title: 'Report Generated',
+      description: 'Provisional eligibility report created successfully'
+    });
+  };
+
+  const updateReportCustomization = (field: string, checked: boolean) => {
+    setReportCustomization(prev => {
+      const selectedFields = checked 
+        ? [...prev.selectedFields, field]
+        : prev.selectedFields.filter(f => f !== field);
+      
+      return {
+        ...prev,
+        selectedFields,
+        fieldOrder: selectedFields
+      };
+    });
+  };
+
+  const applyCustomization = () => {
+    if (currentReport) {
+      const updatedReport = {
+        ...currentReport,
+        customization: { ...reportCustomization }
+      };
+      
+      setCurrentReport(updatedReport);
+      setShowReportCustomization(false);
+      
+      toast({
+        title: 'Customization Applied',
+        description: 'Report layout updated successfully'
+      });
+    }
+  };
+
+  const validateProfileForSigning = () => {
+    const { fullName, organization, address, email, phone } = userProfile;
+    const missingFields = [];
+    if (!fullName) missingFields.push('Full Name');
+    if (!organization) missingFields.push('Organization');
+    if (!address) missingFields.push('Address');
+    if (!email) missingFields.push('Email');
+    if (!phone) missingFields.push('Phone');
+    
+    return missingFields;
+  };
+
+  const handleDigitalSignature = (signatureType: 'digital' | 'electronic') => {
+    const missingFields = validateProfileForSigning();
+    
+    if (missingFields.length > 0) {
+      toast({
+        title: 'Profile Incomplete',
+        description: `Please complete: ${missingFields.join(', ')}`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (selectedReportForSigning) {
+      const signatureDetails: SignatureDetails = {
+        fullName: userProfile.fullName,
+        organization: userProfile.organization,
+        address: userProfile.address,
+        email: userProfile.email,
+        phone: userProfile.phone,
+        signedDate: new Date().toISOString().split('T')[0],
+        signatureType
+      };
+
+      // Find the selected report, remove it from finalReports, and add to postReports as signed
+      setFinalReports(prev => {
+        const reportToMove = prev.find(r => r.id === selectedReportForSigning.id);
+        const remaining = prev.filter(r => r.id !== selectedReportForSigning.id);
+        if (reportToMove) {
+          const signedReport = { ...reportToMove, isSigned: true, signatureDetails } as FinalReport;
+          setPostReports(pr => [signedReport, ...pr]);
+        }
+        return remaining;
+      });
+
+      setShowSignatureDialog(false);
+      setSelectedReportForSigning(null);
+      
+      toast({
+        title: 'Document Signed',
+        description: `Report signed with ${signatureType} signature and moved to Post Reports`
+      });
+    }
+  };
+
   const filteredPRAs = praSubmissions.filter(pra => {
     const matchesSearch = pra.praName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          pra.email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -862,6 +1114,7 @@ const EOIDetails = () => {
           </CardContent>
         </Card>
 
+       
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="received" className="flex items-center gap-2">
@@ -888,6 +1141,10 @@ const EOIDetails = () => {
                       Review and manage Expression of Interest submissions from PRAs
                     </CardDescription>
                   </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" onClick={generateProvisionalReport}>
+                        Generate Provisional Report
+                      </Button>
                   <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
                     <DialogTrigger asChild>
                       <Button className="flex items-center gap-2">
@@ -1056,6 +1313,7 @@ const EOIDetails = () => {
                       </div>
                     </DialogContent>
                   </Dialog>
+                    </div>
 
             
 
@@ -1203,11 +1461,11 @@ const EOIDetails = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => navigate(`/resolution/pra/${pra.id}`)}
+                                  onClick={() => handleViewPRADetails(pra.id)}
                                 >
                                   <Eye className="h-3 w-3 mr-1" /> View Details
                                 </Button>
-                                <Button
+                                {/* <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => { setSelectedPRA(pra); setCompareRightId(''); setShowCompareDialog(true); }}
@@ -1215,7 +1473,7 @@ const EOIDetails = () => {
                                   title={filteredPRAs.filter(p => p.id !== pra.id).length === 0 ? 'Add another PRA to enable comparison' : ''}
                                 >
                                   <BarChart3 className="h-3 w-3 mr-1" /> Compare
-                                </Button>
+                                </Button> */}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1484,6 +1742,39 @@ const EOIDetails = () => {
                     </Card>
                   ))}
                 </div>
+                 {/* Saved Final Reports */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" /> Saved Final Reports
+              </CardTitle>
+              <CardDescription>Compiled final PRA lists with decisions, remarks, and responses. Stored for audit trail.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {savedReports.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No final reports yet. Generate one from the Objections tab.</div>
+              ) : (
+                <div className="space-y-3">
+                  {savedReports.map(rep => (
+                    <div key={rep.id} className="p-3 border rounded flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{rep.name}</div>
+                        <div className="text-xs text-muted-foreground">Created {new Date(rep.createdAt).toLocaleString()} • Entries: {rep.entries.length}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => exportReportCSV(rep)}>
+                          <Download className="h-4 w-4 mr-2" /> Export CSV
+                        </Button>
+                        <Button size="sm" onClick={() => { setActiveTab('objections'); setShowReportDialog(rep); }}>
+                          <Eye className="h-4 w-4 mr-2" /> View
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
               </CardContent>
             </Card>
 
@@ -1623,40 +1914,687 @@ const EOIDetails = () => {
             </Dialog>
           </TabsContent>
           
-          {/* Saved Final Reports */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" /> Saved Final Reports
-              </CardTitle>
-              <CardDescription>Compiled final PRA lists with decisions, remarks, and responses. Stored for audit trail.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {savedReports.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No final reports yet. Generate one from the Objections tab.</div>
-              ) : (
-                <div className="space-y-3">
-                  {savedReports.map(rep => (
-                    <div key={rep.id} className="p-3 border rounded flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{rep.name}</div>
-                        <div className="text-xs text-muted-foreground">Created {new Date(rep.createdAt).toLocaleString()} • Entries: {rep.entries.length}</div>
+         
+        </Tabs>
+
+        {/* Final Reports Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Final Reports
+            </CardTitle>
+            <CardDescription>
+              Finalized reports with selected PRA data from provisional reports. These are stored for audit trail and compliance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {finalReports.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No final reports generated yet.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Generate a provisional report and use "Finalize & Save" to create final reports.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {finalReports.map((report) => (
+                  <Card key={report.id} className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">{report.name}</CardTitle>
+                            {report.isSigned && (
+                              <Badge variant="default" className="bg-green-100 text-green-800">
+                                <Shield className="h-3 w-3 mr-1" />
+                                Signed
+                              </Badge>
+                            )}
+                          </div>
+                          <CardDescription>
+                            Generated on {new Date(report.generatedDate).toLocaleString()} • {report.totalEntries} entries
+                            {report.isSigned && report.signatureDetails && (
+                              <span> • Signed with {report.signatureDetails.signatureType} signature on {new Date(report.signatureDetails.signedDate).toLocaleDateString()}</span>
+                            )}
+                          </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              // Export functionality
+                              const csvContent = [
+                                // Header
+                                ['PRA Name', 'Entity Type', 'Compliance Status', 'Section 29A Status', 'Eligibility Creator', 'AI Eligibility Status'].join(','),
+                                // Data rows
+                                ...report.selectedData.map(row => [
+                                  row.praName,
+                                  row.entityType,
+                                  row.complianceStatus,
+                                  row.section29AStatus,
+                                  row.eligiblitycreator,
+                                  row.aiEligibilityStatus
+                                ].join(','))
+                              ].join('\n');
+                              
+                              const blob = new Blob([csvContent], { type: 'text/csv' });
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `${report.name}.csv`;
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              
+                              toast({
+                                title: 'Export Complete',
+                                description: 'Final report exported as CSV'
+                              });
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export CSV
+                          </Button>
+                          {!report.isSigned && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedReportForSigning(report);
+                                setShowSignatureDialog(true);
+                              }}
+                            >
+                              <Shield className="h-4 w-4 mr-2" />
+                              Sign Report
+                            </Button>
+                          )}
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setViewReportDialog(report)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => exportReportCSV(rep)}>
-                          <Download className="h-4 w-4 mr-2" /> Export CSV
-                        </Button>
-                        <Button size="sm" onClick={() => { setActiveTab('objections'); setShowReportDialog(rep); }}>
-                          <Eye className="h-4 w-4 mr-2" /> View
-                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                      
+                      {/* Preview of first few entries */}
+                      
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+ {/* Post Reports Section */}
+ <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Post Reports
+            </CardTitle>
+            <CardDescription>
+              Signed reports are archived here for records, further circulation, or uploads to authorities.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {postReports.length === 0 ? (
+              <div className="text-center py-8">
+                <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No signed reports yet.</p>
+                <p className="text-sm text-muted-foreground mt-1">Sign a final report to move it here automatically.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {postReports.map((report) => (
+                  <Card key={report.id} className="border-l-4 border-l-green-500">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-lg">{report.name}</CardTitle>
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Signed
+                            </Badge>
+                          </div>
+                          <CardDescription>
+                            Generated on {new Date(report.generatedDate).toLocaleString()} • {report.totalEntries} entries
+                            {report.signatureDetails && (
+                              <span> • Signed with {report.signatureDetails.signatureType} signature on {new Date(report.signatureDetails.signedDate).toLocaleDateString()}</span>
+                            )}
+                          </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const csvContent = [
+                                ['PRA Name', 'Entity Type', 'Compliance Status', 'Section 29A Status', 'Eligibility Creator', 'AI Eligibility Status'].join(','),
+                                ...report.selectedData.map(row => [
+                                  row.praName,
+                                  row.entityType,
+                                  row.complianceStatus,
+                                  row.section29AStatus,
+                                  row.eligiblitycreator,
+                                  row.aiEligibilityStatus
+                                ].join(','))
+                              ].join('\n');
+                              const blob = new Blob([csvContent], { type: 'text/csv' });
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `${report.name}.csv`;
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              toast({ title: 'Export Complete', description: 'Signed report exported as CSV' });
+                            }}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export CSV
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedReportForCirculation(report);
+                              setShowCirculationDialog(true);
+                            }}
+                          >
+                            <Send className="h-4 w-4 mr-2" />
+                            Circulate
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setViewReportDialog(report)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
+                        </div>
                       </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Provisional Report Dialog */}
+        {currentReport && (
+          <Dialog open={!!currentReport} onOpenChange={() => setCurrentReport(null)}>
+            <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{currentReport.name}</DialogTitle>
+                <DialogDescription>
+                  Provisional Eligibility Report - Generated on {new Date(currentReport.generatedDate).toLocaleDateString()}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Report Data</h3>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => setShowReportCustomization(true)}>
+                      Customize
+                    </Button>
+                    <Button size="sm" disabled={selectedReportRows.length === 0} onClick={() => {
+                      if (currentReport) {
+                        // Get selected data based on selected rows
+                        const selectedData = selectedReportRows.map(index => currentReport.data[index]);
+                        
+                        // Create final report
+                        const finalReport: FinalReport = {
+                          id: Date.now().toString(),
+                          name: `Final Report - ${new Date().toLocaleDateString()} - ${selectedData.length} entries`,
+                          generatedDate: new Date().toISOString(),
+                          selectedData: selectedData,
+                          totalEntries: selectedData.length
+                        };
+                        
+                        // Add to final reports
+                        setFinalReports(prev => [...prev, finalReport]);
+                        
+                        toast({ 
+                          title: 'Report Finalized', 
+                          description: `Final report created with ${selectedData.length} selected entries` 
+                        }); 
+                        setCurrentReport(null);
+                        setSelectedReportRows([]);
+                      }
+                    }}>
+                      Finalize & Save
+                    </Button>
+                  </div>
+                </div>
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all"
+                          checked={selectedReportRows.length === currentReport.data.length && currentReport.data.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedReportRows(currentReport.data.map((_, idx) => idx));
+                            } else {
+                              setSelectedReportRows([]);
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      {currentReport.customization.selectedFields.map(field => (
+                        <TableHead key={field}>
+                          {availableFields.find(f => f.id === field)?.label || field}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentReport.data.map((row, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="w-10">
+                          <input
+                            type="checkbox"
+                            checked={selectedReportRows.includes(index)}
+                            onChange={(e) => {
+                              setSelectedReportRows(prev => e.target.checked ? Array.from(new Set([...prev, index])) : prev.filter(i => i !== index));
+                            }}
+                          />
+                        </TableCell>
+                        {currentReport.customization.selectedFields.map(field => (
+                          <TableCell key={field}>
+                            {row[field as keyof ReportData] || '-'}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Circulate Post Report Dialog */}
+        <Dialog open={showCirculationDialog} onOpenChange={setShowCirculationDialog}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Circulate Provisional PRA Report</DialogTitle>
+              <DialogDescription>
+                Automated circulation to CoC Members and PRAs with optional manual controls.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Context */}
+              <div className="p-4 rounded-md bg-blue-50 text-blue-900 text-sm">
+                Circulation of Provisional PRA Report to CoC Members & PRAs ensures transparency, compliance and an opportunity to raise objections.
+              </div>
+
+              {/* Auto Email Cycle */}
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Auto-Mail Cycle</Label>
+                <div className="flex items-center gap-2">
+                  <input id="autoEmailEnabled" type="checkbox" checked={autoEmailEnabled} onChange={(e)=>setAutoEmailEnabled(e.target.checked)} />
+                  <Label htmlFor="autoEmailEnabled">Enable automatic send to all recipients</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">If enabled, the system will send the report automatically to selected stakeholders with the configured template.</p>
+              </div>
+
+              {/* Manual options when auto is off */}
+              {!autoEmailEnabled && (
+                <div className="space-y-4 border rounded-lg p-4">
+                  <Label className="text-base font-semibold">Manual Options</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2">
+                      <input id="includeCoC" type="checkbox" checked={includeCoC} onChange={(e)=>setIncludeCoC(e.target.checked)} />
+                      <Label htmlFor="includeCoC">Include CoC Members</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input id="includePRAs" type="checkbox" checked={includePRAs} onChange={(e)=>setIncludePRAs(e.target.checked)} />
+                      <Label htmlFor="includePRAs">Include PRAs</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input id="attachPDF" type="checkbox" checked={attachPDF} onChange={(e)=>setAttachPDF(e.target.checked)} />
+                      <Label htmlFor="attachPDF">Attach Provisional List PDF</Label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <Label>Email Subject</Label>
+                      <Input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label>Email Body</Label>
+                      <Textarea rows={6} value={emailBody} onChange={e=>setEmailBody(e.target.value)} />
+                      <p className="text-xs text-muted-foreground mt-1">Attachment will include key evaluation parameters, eligibility status and Section 29A summary.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Access Info */}
+              <div className="text-xs text-muted-foreground">
+                PRAs can also access the circulated report from their dashboard: PRA Dashboard → Reports → Provisional List Mail cycle.
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={()=>setShowCirculationDialog(false)}>Cancel</Button>
+                <Button onClick={()=>{
+                  const name = selectedReportForCirculation?.name || 'Report';
+                  toast({
+                    title: 'Circulation Initiated',
+                    description: autoEmailEnabled
+                      ? `${name} will be auto-mailed to CoC Members and PRAs with PDF attachment.`
+                      : `${name} prepared for manual circulation${includeCoC? ' to CoC':''}${includePRAs? ' & PRAs':''}${attachPDF? ' with PDF attachment':''}.`
+                  });
+                  setShowCirculationDialog(false);
+                  setSelectedReportForCirculation(null);
+                }}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Now
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        {/* Report Customization Dialog */}
+        <Dialog open={showReportCustomization} onOpenChange={setShowReportCustomization}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Customize Report</DialogTitle>
+              <DialogDescription>
+                Select fields, arrange layout, and configure sorting for the provisional report
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Field Selection */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Field Selection</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {availableFields.map((field) => (
+                    <div key={field.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={field.id}
+                        checked={reportCustomization.selectedFields.includes(field.id)}
+                        onChange={(e) => updateReportCustomization(field.id, e.target.checked)}
+                      />
+                      <Label htmlFor={field.id}>{field.label}</Label>
                     </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </Tabs>
+              </div>
+              
+              {/* Layout Options */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Layout</Label>
+                <div className="flex gap-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="horizontal"
+                      name="layout"
+                      checked={reportCustomization.layout === 'horizontal'}
+                      onChange={() => setReportCustomization(prev => ({ ...prev, layout: 'horizontal' }))}
+                    />
+                    <Label htmlFor="horizontal">Horizontal</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="vertical"
+                      name="layout"
+                      checked={reportCustomization.layout === 'vertical'}
+                      onChange={() => setReportCustomization(prev => ({ ...prev, layout: 'vertical' }))}
+                    />
+                    <Label htmlFor="vertical">Vertical</Label>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Sorting */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Sorting</Label>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label>Sort By</Label>
+                    <Select value={reportCustomization.sortBy} onValueChange={(value) => 
+                      setReportCustomization(prev => ({ ...prev, sortBy: value }))
+                    }>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableFields.map(field => (
+                          <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <Label>Direction</Label>
+                    <Select value={reportCustomization.sortDirection} onValueChange={(value: 'asc' | 'desc') => 
+                      setReportCustomization(prev => ({ ...prev, sortDirection: value }))
+                    }>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="asc">Ascending</SelectItem>
+                        <SelectItem value="desc">Descending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowReportCustomization(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={applyCustomization}>
+                  Apply Customization
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* View Final Report Details Dialog */}
+        {viewReportDialog && (
+          <Dialog open={!!viewReportDialog} onOpenChange={() => setViewReportDialog(null)}>
+            <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Report Data</DialogTitle>
+                <DialogDescription>
+                  {viewReportDialog.name} • Generated on {new Date(viewReportDialog.generatedDate).toLocaleString()}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Final Report Details</h3>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Export PDF functionality
+                        toast({
+                          title: 'PDF Export',
+                          description: 'PDF export functionality coming soon'
+                        });
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Export Excel functionality
+                        const csvContent = [
+                          // Header
+                          ['PRA Name', 'Entity Type', 'Compliance Status', 'Section 29A Status', 'Eligibility Creator', 'AI Eligibility Status'].join(','),
+                          // Data rows
+                          ...viewReportDialog.selectedData.map(row => [
+                            row.praName,
+                            row.entityType,
+                            row.complianceStatus,
+                            row.section29AStatus,
+                            row.eligiblitycreator,
+                            row.aiEligibilityStatus
+                          ].join(','))
+                        ].join('\n');
+                        
+                        const blob = new Blob([csvContent], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${viewReportDialog.name}.csv`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        
+                        toast({
+                          title: 'Excel Export Complete',
+                          description: 'Report exported as CSV file'
+                        });
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Excel
+                    </Button>
+                  </div>
+                </div>
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>PRA Name</TableHead>
+                      <TableHead>Entity Type</TableHead>
+                      <TableHead>Compliance Status</TableHead>
+                      <TableHead>Section 29A Status</TableHead>
+                      <TableHead>Eligibility creator</TableHead>
+                      <TableHead>AI Eligibility Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewReportDialog.selectedData.map((row, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{row.praName}</TableCell>
+                        <TableCell>{row.entityType}</TableCell>
+                        <TableCell>
+                          <Badge variant={row.complianceStatus === 'Compliant' ? 'default' : 'secondary'}>
+                            {row.complianceStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={row.section29AStatus === 'Compliant' ? 'default' : 'secondary'}>
+                            {row.section29AStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={row.eligiblitycreator === 'Yes' ? 'default' : 'destructive'}>
+                            {row.eligiblitycreator}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              row.aiEligibilityStatus.includes('Eligible by AI') ? 'default' :
+                              row.aiEligibilityStatus.includes('Rejected by AI') ? 'destructive' :
+                              'secondary'
+                            }
+                          >
+                            {row.aiEligibilityStatus}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Digital Signature Dialog */}
+        <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Digital Signature</DialogTitle>
+              <DialogDescription>
+                Sign the final report with your digital credentials
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Profile Information */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Signature Details</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Full Name</Label>
+                    <Input value={userProfile.fullName} readOnly className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Organization</Label>
+                    <Input value={userProfile.organization} readOnly className="bg-gray-50" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Address</Label>
+                    <Input value={userProfile.address} readOnly className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input value={userProfile.email} readOnly className="bg-gray-50" />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input value={userProfile.phone} readOnly className="bg-gray-50" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Signature Type */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Signature Type</Label>
+                <div className="flex gap-4">
+                  <Button onClick={() => handleDigitalSignature('digital')} className="flex-1">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Digital Signature (DSC)
+                  </Button>
+                  <Button onClick={() => handleDigitalSignature('electronic')} variant="outline" className="flex-1">
+                    <Edit className="h-4 w-4 mr-2" />
+                    E-Signature
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowSignatureDialog(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
